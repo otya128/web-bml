@@ -435,8 +435,7 @@ router.get('/arib.js.map', async ctx => {
     ctx.set('Content-Type', 'application/json')
 });
 
-router.get('/', async ctx => {
-    // ctx.router available
+router.get('/api/', async ctx => {
     ctx.body = "hello";
 });
 
