@@ -153,10 +153,31 @@ if (!window.browser) {
                 decl.property = "--" + decl.property;
             }
         }
-    }
+    } 3
+
     window.addEventListener('load', (event) => {
         const config = { attributes: true, childList: true, subtree: true };
 
+        Object.defineProperty(HTMLObjectElement.prototype, "data", {
+            get: function getObjectData() {
+                return this.getAttribute("data");
+            },
+            set: function setObjectData(v) {
+                if (v.startsWith("~/")) {
+                    v = ".." + v.substring(1);
+                }
+                if ((this.getAttribute("arib-type") ?? this.type).match(/image\/X-arib-png/i)) {
+                    const clut = document.defaultView?.getComputedStyle(this)?.getPropertyValue("--clut");
+                    if (clut) {
+                        v = v + "?clut=" + window.encodeURIComponent(clut);
+                    }
+                }
+                if (this.getAttribute("data") === v) {
+                    return;
+                }
+                this.setAttribute("data", v);
+            }
+        });
         const observer = new MutationObserver((mutationsList, observer) => {
             for (const mutation of mutationsList) {
                 if (mutation.type === "attributes") {
@@ -176,7 +197,7 @@ if (!window.browser) {
             }
         });
 
-        observer.observe(document.body, config);
+        //observer.observe(document.body, config);
         document.querySelectorAll("arib-style").forEach(style => {
             if (style.textContent) {
                 const parsed = css.parse(style.textContent);
