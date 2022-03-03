@@ -230,11 +230,11 @@ export class BinaryTable implements IBinaryTable {
     }
 
     public get nrow(): number {
-        return this.fields.length;
+        return this.rows.length;
     }
 
     public get ncolumn(): number {
-        return this.rows.length;
+        return this.fields.length;
     }
     public close(): number {
         return 0;
