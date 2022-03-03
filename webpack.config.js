@@ -24,6 +24,6 @@ module.exports = {
             url: false,
         }
     },
-    mode: 'production',
+    mode: 'development',
     devtool: 'source-map',
 };

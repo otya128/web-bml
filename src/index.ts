@@ -419,7 +419,11 @@ router.get('/:component/:module/:filename', async ctx => {
                 return;
             }
         }
-        ctx.body = fs.createReadStream(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
+        if (typeof ctx.query.base64 === "string") {
+            ctx.body = (await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`)).toString('base64');
+        } else {
+            ctx.body = fs.createReadStream(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
+        }
         if (filename.endsWith(".png")) {
             ctx.set("Content-Type", "image/png");
         }
@@ -433,10 +437,6 @@ router.get('/arib.js', async ctx => {
 router.get('/arib.js.map', async ctx => {
     ctx.body = fs.createReadStream("dist/arib.js.map");
     ctx.set('Content-Type', 'application/json')
-});
-
-router.get('/api/', async ctx => {
-    ctx.body = "hello";
 });
 
 app

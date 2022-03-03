@@ -1,10 +1,12 @@
 export { };
 import css from 'css';
+import { BinaryTable, BinaryTableConstructor } from "./binary_table";
 
 interface BMLEvent {
     type: string;
     target: HTMLElement;
 }
+
 
 type BMLObjectElement = HTMLObjectElement;
 
@@ -26,15 +28,21 @@ interface BMLBeventEvent extends BMLEvent {
 
 type BMLElement = HTMLElement;
 declare global {
-    interface Window { browser: any; }
+    interface Window {
+        browser: any;
+        BinaryTable: BinaryTableConstructor;
+    }
     interface Document {
         currentEvent: BMLEvent | null;
         currentFocus: BMLElement | null;
     }
 }
 
+
 if (!window.browser) {
     window.browser = {};
+
+    window.BinaryTable = BinaryTable;
     window.browser.setCurrentDateMode = function setCurrentDateMode(mode: number) {
         console.log("setCurrentDateMode", mode);
     };
