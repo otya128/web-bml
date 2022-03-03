@@ -87,10 +87,10 @@ function readFileAsync(path: string): Promise<String> {
                     ignoreAttributes: false,
                     attributeNamePrefix: "@_",
                     preserveOrder: true,
+                    cdataPropName: "__cdata",
                 };
                 const parser = new XMLParser(opts);
                 let parsed = parser.parse(data);
-                console.log(parsed)
                 parsed = parser.parse(new TextDecoder(parsed[0][":@"]["@_encoding"]).decode(data));
                 parsed[0][":@"]["@_encoding"] = "UTF-8";
                 const builder = new XMLBuilder(opts);
