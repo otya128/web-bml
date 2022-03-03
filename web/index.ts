@@ -52,38 +52,40 @@ if (!window.browser) {
     };
     window.browser.lockModuleOnMemory = function lockModuleOnMemory(module: string): number {
         console.log("lockModuleOnMemory", module);
-        const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleLocked\"]");
-        for (const beitem of Array.from(moduleLocked)) {
-            const moduleRef = beitem.getAttribute("module_ref");
-            if (!moduleRef) {
-                continue;
-            }
-            if (moduleRef === module) {
-                const onoccur = beitem.getAttribute("onoccur");
-                if (onoccur) {
-                    document.currentEvent = {
-                        type: "ModuleLocked",
-                        target: beitem as HTMLElement,
-                        status: 0,
-                        privateData: "",
-                        esRef: "",
-                        messageId: "0",
-                        messageVersion: "0",
-                        messageGroupId: "0",
-                        moduleRef: moduleRef,
-                        languageTag: 0,//?
-                        registerId: 0,
-                        serviceId: "0",
-                        eventId: "0",
-                        peripheralRef: "",
-                        object: null,
-                        segmentId: null,
-                    } as BMLBeventEvent;
-                    eval(onoccur);
-                    document.currentEvent = null;
+        setTimeout(() => {
+            const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleLocked\"]");
+            for (const beitem of Array.from(moduleLocked)) {
+                const moduleRef = beitem.getAttribute("module_ref");
+                if (!moduleRef) {
+                    continue;
+                }
+                if (moduleRef === module) {
+                    const onoccur = beitem.getAttribute("onoccur");
+                    if (onoccur) {
+                        document.currentEvent = {
+                            type: "ModuleLocked",
+                            target: beitem as HTMLElement,
+                            status: 0,
+                            privateData: "",
+                            esRef: "",
+                            messageId: "0",
+                            messageVersion: "0",
+                            messageGroupId: "0",
+                            moduleRef: moduleRef,
+                            languageTag: 0,//?
+                            registerId: 0,
+                            serviceId: "0",
+                            eventId: "0",
+                            peripheralRef: "",
+                            object: null,
+                            segmentId: null,
+                        } as BMLBeventEvent;
+                        new Function(onoccur)();//eval.call(window, onoccur);
+                        document.currentEvent = null;
+                    }
                 }
             }
-        }
+        });
         return 1; // negative or NaN => fail
     };
     window.browser.lockScreen = function lockScreen() {

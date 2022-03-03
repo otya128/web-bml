@@ -8,6 +8,7 @@ export interface IBinaryTable {
     ncolumn: number;
     close(): number;
     toNumber(row: number, column: number): number;
+    toString(row: number, column: number): string | null;
     toArray(startRow: number, numRow: number): any[] | null;
     search(startRow: number, ...args: any[]): number;
 }
@@ -35,6 +36,7 @@ type BinaryTableField = {
 
 export class BinaryTable implements IBinaryTable {
     rows: any[][];
+    fields: BinaryTableField[];
     constructor(table_ref: string, structure: string) {
         var xhr = new XMLHttpRequest();
         if (table_ref.startsWith("~")) {
@@ -72,6 +74,7 @@ export class BinaryTable implements IBinaryTable {
         const lengthByte = Number.parseInt(sep[0]);
         let posBits = 0;
         const fields: BinaryTableField[] = [];
+        this.fields = fields;
         for (const s of sep.slice(1)) {
             const groups = s.match(/^(?<type>[BUISZP]):(?<length>[1-9][0-9]*)(?<unit>[BbVv])$/)?.groups;
             if (!groups) {
@@ -186,17 +189,20 @@ export class BinaryTable implements IBinaryTable {
     }
 
     public get nrow(): number {
-        return 0;
+        return this.fields.length;
     }
 
     public get ncolumn(): number {
-        return 0;
+        return this.rows.length;
     }
     public close(): number {
         return 0;
     }
     public toNumber(row: number, column: number): number {
-        return 0;
+        return Number((this.rows[row] ?? [])[column]);
+    }
+    public toString(row: number, column: number): string | null {
+        return (this.rows[row] ?? [])[column]?.toString();
     }
     public toArray(startRow: number, numRow: number): any[] | null {
         return [0];
