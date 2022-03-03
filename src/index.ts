@@ -102,14 +102,20 @@ function readFileAsync(path: string): Promise<String> {
                 bmlRoot[":@"]["@_xmlns"] = "http://www.w3.org/1999/xhtml";
                 const htmlChildren = bmlRoot["html"];
                 const headChildren = findXmlNode(htmlChildren, "head")[0]["head"];
+                const scripts: any[] = [];
                 visitXmlNodes(bmlRoot, (node) => {
                     if (getXmlNodeName(node) == "script") {
+                        scripts.push({...node});
                         renameXmlNode(node, "arib-script");
                     }
                     if (getXmlNodeName(node) == "style") {
                         renameXmlNode(node, "arib-style");
                     }
                 });
+                const bodyChildren = findXmlNode(htmlChildren, "body")[0]["body"];
+                for (const s of scripts) {
+                    bodyChildren.push(s);
+                }
                 const pMincho = "MS PMincho";
                 const mincho = "MS Mincho";
                 const gothic = "MS Gothic";

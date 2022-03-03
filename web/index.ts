@@ -220,10 +220,5 @@ if (!window.browser) {
             obj.data = obj.data + "?clut=" + window.encodeURIComponent(clut);
             obj.outerHTML = obj.outerHTML;
         });
-        document.querySelectorAll("arib-script").forEach(script => {
-            const newScript = document.createElement("script");
-            newScript.textContent = script.textContent;
-            script.parentElement?.appendChild(newScript);
-        });
     });
 }
