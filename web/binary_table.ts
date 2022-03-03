@@ -205,9 +205,11 @@ export class BinaryTable implements IBinaryTable {
         return (this.rows[row] ?? [])[column]?.toString();
     }
     public toArray(startRow: number, numRow: number): any[] | null {
+        throw new Error("notimpl");
         return [0];
     }
     public search(startRow: number, ...args: any[]): number {
+        throw new Error("notimpl");
         return 0;
     }
 

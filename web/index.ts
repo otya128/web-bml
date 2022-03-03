@@ -97,7 +97,11 @@ if (!window.browser) {
     window.browser.getBrowserSupport = function getBrowserSupport(sProvider: string, functionname: string, additionalinfo?: string): number {
         console.log("getBrowserSupport", sProvider, functionname, additionalinfo);
         return 0;
-    }
+    };
+    window.browser.launchDocument = function launchDocument(documentName: string, transitionStyle: string): number {
+        location.href = documentName;
+        return 0;
+    };
     window.browser.Greg = new Array(256);
     window.browser.Greg.fill("");
     window.browser.setInterval = function setInterval(evalCode: string, a: number, b: number) {
