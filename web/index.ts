@@ -102,8 +102,14 @@ if (!window.browser) {
         location.href = documentName;
         return 0;
     };
-    window.browser.Greg = new Array(256);
-    window.browser.Greg.fill("");
+    window.browser.readPersistentArray = function readPersistentArray(filename: string, structure: string): any[] | null {
+        console.log("readPersistentArray", filename, structure);
+        return null;
+    };
+    window.browser.Ureg = new Array(64);
+    window.browser.Ureg.fill("");
+    window.browser.Ureg = new Array(64);
+    window.browser.Ureg.fill("");
     window.browser.setInterval = function setInterval(evalCode: string, a: number, b: number) {
         console.log("setInterval", evalCode, a, b);
         setTimeout(() => {

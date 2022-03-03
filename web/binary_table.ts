@@ -1,5 +1,6 @@
 
 import encoding from "encoding-japanese";
+import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
 export interface BinaryTableConstructor {
     new(table_ref: string, structure: string): IBinaryTable;// | null;
 }
@@ -33,6 +34,33 @@ type BinaryTableField = {
     type: BinaryTableType,
 }
 
+enum SearchOperator {
+    Equal = 0,
+    NotEqual,
+    Less, // <
+    LessEqual, // <=
+    Greater, // >
+    GreaterEqual, // >=
+    And, // &
+    Or, // |
+    Xor, // ^
+    Nand, // ~&
+    Nor, // ~|
+    Nxor, // ~^
+
+    StringMatches = 32,
+    StringIncludes,
+    StringStarsWith,
+    StringEndsWith,
+    StringNotMatch,
+    StringNotInclude,
+
+    BoolEqualTo = 64,
+    BoolNotEqualTo,
+
+    ZipInclude = 96,
+    ZipNotInclude = 97,
+}
 
 export class BinaryTable implements IBinaryTable {
     rows: any[][];
@@ -161,7 +189,7 @@ export class BinaryTable implements IBinaryTable {
                         } else if (field.unit === BinaryTableUnit.Variable) {
                             [lengthByte, posBits] = readBits(posBits, field.length * 8, buffer);
                         } else {
-                            throw new Error("string must be byte or variale");
+                            throw new Error("string must be byte or variable");
                         }
                         fieldData = encoding.convert(buffer.slice(posBits >> 3, (posBits >> 3) + lengthByte), { type: "string", to: "UNICODE", from: "EUCJP" });
                         posBits += lengthByte * 8;
@@ -176,7 +204,20 @@ export class BinaryTable implements IBinaryTable {
                         }
                         break;
                     case BinaryTableType.ZipCode:
-                        throw new Error("notimplemented");
+                        {
+                            if ((posBits & 7) !== 0) {
+                                throw new Error("zip code must be byte aligned");
+                            }
+                            if (field.unit !== BinaryTableUnit.Variable) {
+                                throw new Error("zip code must be variable");
+                            }
+                            let lengthByte: number;
+                            [lengthByte, posBits] = readBits(posBits, field.length * 8, buffer);
+                            const zip = buffer.slice((posBits >> 3), (posBits >> 3) + lengthByte);
+                            fieldData = decodeZipCode(zip);
+                            posBits += lengthByte * 8;
+                        }
+                        break;
                 }
                 if (fieldData != null) {
                     columns.push(fieldData);
@@ -209,8 +250,104 @@ export class BinaryTable implements IBinaryTable {
         return [0];
     }
     public search(startRow: number, ...args: any[]): number {
-        throw new Error("notimpl");
-        return 0;
+        if (args.length % 3 !== 0 || args.length < 6) {
+            throw new TypeError("argument");
+        }
+        const logic = args[args.length - 3] as boolean;
+        const limitCount = args[args.length - 2] as number;
+        const resultArray = args[args.length - 1] as any[];
+        for (let c = 0; c < args.length - 3; c += 3) {
+            const searchedColumn = args[c] as number;
+            const compared = args[c + 1] as any;
+            const operator = args[c + 2] as SearchOperator;
+            for (let i = 0; i < this.rows.length; i++) {
+                const column = this.rows[i][searchedColumn];
+                let result = false;
+                switch (operator) {
+                    case SearchOperator.Equal:
+                        result = column == compared;
+                        break;
+                    case SearchOperator.NotEqual:
+                        result = column != compared;
+                        break;
+                    case SearchOperator.Less: // <
+                        result = column < compared;
+                        break;
+                    case SearchOperator.LessEqual: // <=
+                        result = column <= compared;
+                        break;
+                    case SearchOperator.Greater: // >
+                        result = column > compared;
+                        break;
+                    case SearchOperator.GreaterEqual: // >=
+                        result = column >= compared;
+                        break;
+                    case SearchOperator.And: // &
+                        result = !!(column & compared);
+                        break;
+                    case SearchOperator.Or: // |
+                        result = !!(column | compared);
+                        break;
+                    case SearchOperator.Xor: // ^
+                        result = !!(column ^ compared);
+                        break;
+                    case SearchOperator.Nand: // ~&
+                        result = !!~(column & compared);
+                        break;
+                    case SearchOperator.Nor: // ~|
+                        result = !!~(column | compared);
+                        break;
+                    case SearchOperator.Nxor: // ~^
+                        result = !!~(column ^ compared);
+                        break;
+                    case SearchOperator.StringMatches:
+                        result = column === compared;
+                        break;
+                    case SearchOperator.StringIncludes:
+                        result = (column as string).includes(compared);
+                        break;
+                    case SearchOperator.StringStarsWith:
+                        result = (column as string).startsWith(compared);
+                        break;
+                    case SearchOperator.StringEndsWith:
+                        result = (column as string).endsWith(compared);
+                        break;
+                    case SearchOperator.StringNotMatch:
+                        result = column !== compared;
+                        break;
+                    case SearchOperator.StringNotInclude:
+                        result = !(column as string).includes(compared);
+                        break;
+                    case SearchOperator.BoolEqualTo:
+                        result = column === compared;
+                        break;
+                    case SearchOperator.BoolNotEqualTo:
+                        result = column !== compared;
+                        break;
+                    case SearchOperator.ZipInclude:
+                        result = zipCodeInclude(column as ZipCode, Number(compared))
+                        break;
+                    case SearchOperator.ZipNotInclude:
+                        result = !zipCodeInclude(column as ZipCode, Number(compared))
+                        break;
+                }
+                if (result) {
+                    resultArray.push(this.rows[i].map((v, j) => {
+                        if (typeof v === "object" && "from" in v && "to" in v) {
+                            if (i === j) {
+                                return true;
+                            }
+                            return null;
+                        }
+                        return v;
+                    }));
+                }
+                if (resultArray.length >= limitCount) {
+                    return i;
+                }
+            }
+        }
+        return -1;
     }
 
 }

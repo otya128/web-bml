@@ -291,6 +291,14 @@ function readFileAsync(path: string): Promise<String> {
                     param { display : none; }
                     /* Embedded Object Module(xhtml-object-1.mod) */
                     object { display: block; }
+
+                    /* reset UA CSS */
+                    p {
+                    margin-block-start: 0;
+                    margin-block-end: 0;
+                    margin-inline-start: 0;
+                    margin-inline-end: 0;
+                    }
                 `}]
                 });
                 headChildren.push({ "script": [], ":@": { "@_src": "/arib.js" } });
