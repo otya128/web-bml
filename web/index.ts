@@ -46,6 +46,21 @@ if (!window.browser) {
     window.browser.setCurrentDateMode = function setCurrentDateMode(mode: number) {
         console.log("setCurrentDateMode", mode);
     };
+    window.browser.subDate = function subDate(target: Date, base: Date, unit: Number) {
+        const sub = target.getDate() - base.getDate();
+        if (unit == 1) {
+            return (sub / 1000) | 0;
+        } else if (unit == 2) {
+            return (sub / (1000 * 60)) | 0;
+        } else if (unit == 3) {
+            return (sub / (1000 * 60 * 60)) | 0;
+        } else if (unit == 4) {
+            return (sub / (1000 * 60 * 60 * 24)) | 0;
+        } else if (unit == 5) {
+            return (sub / (1000 * 60 * 60 * 24 * 7)) | 0;
+        }
+        return sub | 0;
+    }
     window.browser.unlockModuleOnMemory = function unlockModuleOnMemory(module: string): number {
         console.log("unlockModuleOnMemory", module);
         return 1; // NaN => fail
@@ -110,11 +125,11 @@ if (!window.browser) {
     window.browser.Ureg.fill("");
     window.browser.Ureg = new Array(64);
     window.browser.Ureg.fill("");
-    window.browser.setInterval = function setInterval(evalCode: string, a: number, b: number) {
-        console.log("setInterval", evalCode, a, b);
+    window.browser.setInterval = function setInterval(evalCode: string, msec: number, iteration: number) {
+        console.log("setInterval", evalCode, msec, iteration);
         setTimeout(() => {
             eval(evalCode);
-        }, a);
+        }, msec);
     }
     Object.defineProperty(HTMLElement.prototype, "normalStyle", { get: function () { return this.style; } })
     function processRule(node: css.Node) {
