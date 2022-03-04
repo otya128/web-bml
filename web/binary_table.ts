@@ -246,8 +246,15 @@ export class BinaryTable implements IBinaryTable {
         return (this.rows[row] ?? [])[column]?.toString();
     }
     public toArray(startRow: number, numRow: number): any[] | null {
-        throw new Error("notimpl");
-        return [0];
+        return this.rows.slice(startRow, startRow + numRow).map(x => {
+            return x.map(v => {
+                if (typeof v === "object" && "from" in v && "to" in v) {
+                    return null;
+                } else {
+                    return v;
+                }
+            })
+        });
     }
     public search(startRow: number, ...args: any[]): number {
         if (args.length % 3 !== 0 || args.length < 6) {
