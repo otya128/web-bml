@@ -10,6 +10,10 @@ interface BMLEvent {
 
 type BMLObjectElement = HTMLObjectElement;
 
+interface BMLIntrinsicEvent extends BMLEvent {
+    keyCode: number;
+}
+
 interface BMLBeventEvent extends BMLEvent {
     status: number;
     privateData: string;
@@ -227,6 +231,15 @@ if (!window.browser) {
         const uri = uriMatch.groups["uri"].replace(/\\/g, "");
         return new URL(uri, location.href).pathname;
     }
+    HTMLElement.prototype.focus = function focus(options?: FocusOptions) {
+        document.currentFocus = this as BMLElement;
+    };
+    Object.defineProperty(Document.prototype, "currentFocus", {
+        get: function () { return this._currentFocus; },
+        set: function (elem: BMLElement) {
+            this._currentFocus = elem;
+        }
+    });
     Object.defineProperty(HTMLElement.prototype, "normalStyle", { get: function () { return this.style; } })
     function processRule(node: css.Node): undefined | string {
         if (node.type === "stylesheet") {
@@ -277,7 +290,78 @@ if (!window.browser) {
         }
     }
 
+    function keyCodeToAribKey(keyCode: string): number {
+        // STD-B24 Table 5-2 Table 5-9
+        switch (keyCode) {
+            case "ArrowUp":
+                return 1;
+            case "ArrowDown":
+                return 2;
+            case "ArrowLeft":
+                return 3;
+            case "ArrowRight":
+                return 4;
+            case "Digit0":
+                return 5;
+            case "Digit1":
+                return 6;
+            case "Digit2":
+                return 7;
+            case "Digit3":
+                return 8;
+            case "Digit4":
+                return 9;
+            case "Digit5":
+                return 10;
+            case "Digit6":
+                return 11;
+            case "Digit7":
+                return 12;
+            case "Digit8":
+                return 13;
+            case "Digit9":
+                return 14;
+            case "Enter":
+            case "Space":
+                return 18;
+            case "Backspace":
+            case "KeyX":
+                return 19;
+            case "KeyB":
+                return 21;
+            case "KeyR":
+                return 22;
+            case "KeyG":
+                return 23;
+            case "KeyY":
+                return 24;
+            case "KeyE":
+                return 25;
+            case "KeyF":
+                return 26;
+            default:
+                return -1;
+        }
+    }
     window.addEventListener('load', (event) => {
+        window.addEventListener("keydown", (event) => {
+            if (!document.currentFocus) {
+                return;
+            }
+            if (document.currentFocus.onkeydown) {
+                const k = keyCodeToAribKey(event.code);
+                if (k == -1) {
+                    return;
+                }
+                document.currentEvent = {
+                    keyCode: k,
+                    type: "keydown",
+                    target: event.target,
+                } as BMLIntrinsicEvent;
+                (document.currentFocus.onkeydown as () => void)();
+                document.currentEvent = null;
+            }
+        });
         const config = { attributes: true, childList: true, subtree: true };
 
         Object.defineProperty(HTMLObjectElement.prototype, "data", {
@@ -325,7 +409,7 @@ if (!window.browser) {
                         }
                     });
                 }
-                if (mutation.type === "attributes"&&0) {
+                if (mutation.type === "attributes" && 0) {
                     if (mutation.attributeName === "data" && mutation.target.nodeName === "object") {
                         const obj = mutation.target as HTMLObjectElement;
                         if (!(obj.getAttribute("arib-type") ?? obj.type).match(/image\/X-arib-png/i)) {

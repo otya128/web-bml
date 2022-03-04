@@ -111,6 +111,12 @@ function readFileAsync(path: string): Promise<String> {
                     if (getXmlNodeName(node) == "style") {
                         renameXmlNode(node, "arib-style");
                     }
+                    /*
+                    // keyイベントは独自なのでエミュレートした方がよさそう
+                    const attrs = node[":@"] as any;
+                    if (attrs && Object.keys(attrs).some(x => x.toLowerCase().startsWith("@_onkey"))) {
+                        attrs["@_tabindex"] = "-1";
+                    } */
                 });
                 const bodyChildren = findXmlNode(htmlChildren, "body")[0]["body"];
                 for (const s of scripts) {
