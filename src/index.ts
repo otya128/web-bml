@@ -105,7 +105,7 @@ function readFileAsync(path: string): Promise<String> {
                 const scripts: any[] = [];
                 visitXmlNodes(bmlRoot, (node) => {
                     if (getXmlNodeName(node) == "script") {
-                        scripts.push({...node});
+                        scripts.push({ ...node });
                         renameXmlNode(node, "arib-script");
                     }
                     if (getXmlNodeName(node) == "style") {
@@ -123,6 +123,7 @@ function readFileAsync(path: string): Promise<String> {
                     "style": [{
                         "#text": `p, div, input, object {
                     position: absolute;
+                    overflow: hidden;
                 }
                 br, span, a {
                     position: static;
@@ -305,6 +306,17 @@ function readFileAsync(path: string): Promise<String> {
                     margin-inline-start: 0;
                     margin-inline-end: 0;
                     }
+                    p {
+                        white-space: pre-wrap;
+                    }
+                    body {
+                        padding: 0!important; /* NHK BS1とかbodyにpadding: 6pt;があって崩れる? */
+                        margin: 0!important;
+                    }
+                    @font-face {
+                        font-family: "丸ゴシック";
+                        src: local('MS Gothic');
+                     }
                 `}]
                 });
                 headChildren.push({ "script": [], ":@": { "@_src": "/arib.js" } });
@@ -415,25 +427,38 @@ router.get('/:component/:module/:filename', async ctx => {
     } else {
         if (typeof ctx.query.clut === "string") {
             const clut = ctx.query.clut;
-            const uriMatch = /url\("?(?<uri>.+?)"?\)/.exec(clut);
-            if (uriMatch?.groups) {
-                const uri = uriMatch.groups["uri"];
-                const table = await readCLUT(`${process.env.BASE_DIR}/${component}/${module}/${uri}`);
-                const png = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-                const plte = preparePLTE(table);
-                const trns = prepareTRNS(table);
-                const output = Buffer.alloc(png.length + plte.length + trns.length);
-                let off = 0;
-                off += png.copy(output, off, 0, 33);
-                off += plte.copy(output, off);
-                off += trns.copy(output, off);
-                off += png.copy(output, off, 33);
-                ctx.body = output;
-                ctx.set("Content-Type", "image/png");
-                return;
-            }
+            const table = await readCLUT(`${process.env.BASE_DIR}/${clut}`);
+            const png = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
+            const plte = preparePLTE(table);
+            const trns = prepareTRNS(table);
+            const output = Buffer.alloc(png.length + plte.length + trns.length);
+            let off = 0;
+            off += png.copy(output, off, 0, 33);
+            off += plte.copy(output, off);
+            off += trns.copy(output, off);
+            off += png.copy(output, off, 33);
+            ctx.body = output;
+            ctx.set("Content-Type", "image/png");
+            return;
         }
-        if (typeof ctx.query.base64 === "string") {
+        if (typeof ctx.query.css === "string") {
+            const uriMatch = /url\("?(?<uri>.+?)"?\)/.exec(filename);
+            if (uriMatch?.groups) {
+                const uri = uriMatch.groups["uri"].replace("\\", "");
+                const table = await readCLUT(`${process.env.BASE_DIR}/${component}/${module}/${uri}`);
+                const ret = [];
+                let i = 0;
+                for (const t of table) {
+                    ret.push({
+                        type: "declaration",
+                        property: "--clut-color-" + i,
+                        value: `rgba(${t[0]},${t[1]},${t[2]},${t[3] / 255})`,
+                    });
+                    i++;
+                }
+                ctx.body = ret;
+            }
+        } else if (typeof ctx.query.base64 === "string") {
             ctx.body = (await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`)).toString('base64');
         } else {
             ctx.body = fs.createReadStream(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
@@ -453,6 +478,15 @@ router.get('/arib.js.map', async ctx => {
     ctx.set('Content-Type', 'application/json')
 });
 
+router.get('/api/sleep', async ctx => {
+    let ms = Number(ctx.query.ms ?? "0");
+    await new Promise<void>((resolve, reject) => {
+        setTimeout(() => {
+            resolve()
+        }, ms);
+    });
+    ctx.body = "OK";
+});
 app
     .use(router.routes())
     .use(router.allowedMethods());
