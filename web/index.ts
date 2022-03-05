@@ -300,10 +300,10 @@ if (!window.browser) {
     window.browser.setInterval = function setInterval(evalCode: string, msec: number, iteration: number): number {
         const handle = window.setInterval(() => {
             iteration--;
-            eval(evalCode);
             if (iteration === 0) {
                 window.clearInterval(handle);
             }
+            eval(evalCode);
         }, msec);
         console.log("setInterval", evalCode, msec, iteration, handle);
         return handle;
