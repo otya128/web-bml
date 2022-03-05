@@ -1,6 +1,6 @@
 import Koa from 'koa';
 import Router from 'koa-router';
-import fs from "fs"
+import fs, { readFileSync } from "fs"
 import 'dotenv/config'
 import { TextDecoder } from 'util';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
@@ -113,6 +113,11 @@ function readFileAsync(path: string): Promise<string> {
                     if (getXmlNodeName(node) == "style") {
                         renameXmlNode(node, "arib-style");
                     }
+                    if (getXmlNodeName(node) == "link") {
+                        if (!node[":@"]["@_rel"]) {
+                            node[":@"]["@_rel"] = "stylesheet";
+                        }
+                    }
                     /*
                     // keyイベントは独自なのでエミュレートした方がよさそう
                     const attrs = node[":@"] as any;
@@ -145,12 +150,11 @@ function readFileAsync(path: string): Promise<string> {
 }
 
 import { defaultCLUT } from './default_clut';
-async function readCLUT(path: string): Promise<number[][]> {
+function readCLUT(clut: Buffer): number[][] {
     let table = defaultCLUT.slice();
     const prevLength = table.length;
     table.length = 256;
     table = table.fill([0, 0, 0, 255], prevLength, 256);
-    const clut = await readFileAsync2(path);
     const clutType = clut[0] & 0x80;
     const depth = (clut[0] & 0x60) >> 5;
     const regionFlag = clut[0] & 0x10;
@@ -207,6 +211,7 @@ async function readCLUT(path: string): Promise<number[][]> {
 }
 
 import CRC32 from "crc-32";
+import { transpileCSS } from './transpile_css';
 
 function preparePLTE(clut: number[][]): Buffer {
     const plte = Buffer.alloc(4 /* PLTE */ + 4 /* size */ + clut.length * 3 + 4 /* CRC32 */);
@@ -234,6 +239,22 @@ function prepareTRNS(clut: number[][]): Buffer {
     return trns;
 }
 
+function clutToDecls(table: number[][]): CSSDeclaration[] {
+    const ret = [];
+    let i = 0;
+    for (const t of table) {
+        const decl: CSSDeclaration = {
+            type: "declaration",
+            property: "--clut-color-" + i,
+            value: `rgba(${t[0]},${t[1]},${t[2]},${t[3] / 255})`,
+        };
+        ret.push(decl);
+        i++;
+    }
+    return ret;
+}
+
+
 router.get('/:component/:module/:filename', async ctx => {
     const component = ctx.params.component as string;
     const module = ctx.params.module as string;
@@ -243,6 +264,15 @@ router.get('/:component/:module/:filename', async ctx => {
         const file = new TextDecoder("euc-jp").decode(b);
         ctx.body = transpile(file);
         ctx.set("Content-Type", "text/X-arib-ecmascript");
+    } else if (ctx.headers["sec-fetch-dest"] === "style" || filename.endsWith(".css")) {
+        const b = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
+        const file = new TextDecoder("euc-jp").decode(b);
+        ctx.body = transpileCSS(file, {
+            inline: false, href: ctx.href, clutReader(cssValue: string) {
+                return clutToDecls(readCLUT(readFileSync(`${process.env.BASE_DIR}/${component}/${module}/${filename}`)));
+            }
+        });
+        ctx.set("Content-Type", "text/css");
     } else if (filename.endsWith(".bml")) {
         const file = await readFileAsync(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
         ctx.body = file;
@@ -250,7 +280,7 @@ router.get('/:component/:module/:filename', async ctx => {
     } else {
         if (typeof ctx.query.clut === "string") {
             const clut = ctx.query.clut;
-            const table = await readCLUT(`${process.env.BASE_DIR}/${clut}`);
+            const table = readCLUT(await readFileAsync2(`${process.env.BASE_DIR}/${clut}`));
             const png = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
             const plte = preparePLTE(table);
             const trns = prepareTRNS(table);
@@ -265,19 +295,9 @@ router.get('/:component/:module/:filename', async ctx => {
             return;
         }
         if (typeof ctx.query.css === "string") {
-            const table = await readCLUT(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-            const ret = [];
-            let i = 0;
-            for (const t of table) {
-                const decl: CSSDeclaration = {
-                    type: "declaration",
-                    property: "--clut-color-" + i,
-                    value: `rgba(${t[0]},${t[1]},${t[2]},${t[3] / 255})`,
-                };
-                ret.push(decl);
-                i++;
-            }
-            ctx.body = ret;
+            const clut = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
+            const table = readCLUT(clut);
+            ctx.body = clutToDecls(table);
         } else if (typeof ctx.query.base64 === "string") {
             ctx.body = (await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`)).toString('base64');
         } else {
