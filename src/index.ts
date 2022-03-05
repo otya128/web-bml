@@ -5,6 +5,7 @@ import 'dotenv/config'
 import { TextDecoder } from 'util';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import { transpile } from "./transpile_ecm";
+import { Declaration as CSSDeclaration } from "css";
 
 const app = new Koa();
 const router = new Router();
@@ -356,6 +357,7 @@ async function readCLUT(path: string): Promise<number[][]> {
         index += 2;
         index += 2;
         index += 2;
+        console.error("region is not implemented");
     }
     let startIndex: number;
     let endIndex: number;
@@ -454,22 +456,19 @@ router.get('/:component/:module/:filename', async ctx => {
             return;
         }
         if (typeof ctx.query.css === "string") {
-            const uriMatch = /url\("?(?<uri>.+?)"?\)/.exec(filename);
-            if (uriMatch?.groups) {
-                const uri = uriMatch.groups["uri"].replace("\\", "");
-                const table = await readCLUT(`${process.env.BASE_DIR}/${component}/${module}/${uri}`);
-                const ret = [];
-                let i = 0;
-                for (const t of table) {
-                    ret.push({
-                        type: "declaration",
-                        property: "--clut-color-" + i,
-                        value: `rgba(${t[0]},${t[1]},${t[2]},${t[3] / 255})`,
-                    });
-                    i++;
-                }
-                ctx.body = ret;
+            const table = await readCLUT(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
+            const ret = [];
+            let i = 0;
+            for (const t of table) {
+                const decl: CSSDeclaration = {
+                    type: "declaration",
+                    property: "--clut-color-" + i,
+                    value: `rgba(${t[0]},${t[1]},${t[2]},${t[3] / 255})`,
+                };
+                ret.push(decl);
+                i++;
             }
+            ctx.body = ret;
         } else if (typeof ctx.query.base64 === "string") {
             ctx.body = (await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`)).toString('base64');
         } else {

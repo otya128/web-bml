@@ -1,5 +1,6 @@
 export { };
-import css from 'css';
+import { transpileCSS } from "../src/transpile_css";
+import css from "css";
 import { BinaryTable, BinaryTableConstructor } from "./binary_table";
 import { readPersistentArray, writePersistentArray } from "./nvram";
 
@@ -386,56 +387,6 @@ if (!window.browser) {
         }
     });
     Object.defineProperty(HTMLElement.prototype, "normalStyle", { get: function () { return this.style; } })
-    function processRule(node: css.Node): undefined | string {
-        if (node.type === "stylesheet") {
-            const stylesheet = node as css.Stylesheet;
-            if (stylesheet.stylesheet) {
-                for (const rule of stylesheet.stylesheet.rules) {
-                    processRule(rule);
-                }
-            }
-        } else if (node.type === "rule") {
-            const rule = node as css.Rule;
-            if (rule.declarations) {
-                let clut: string | undefined;
-                for (const decl of rule.declarations) {
-                    let c = processRule(decl);
-                    if (c) {
-                        clut = c;
-                    }
-                }
-                if (clut) {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("GET", window.encodeURIComponent(clut) + "?css", false);
-                    xhr.onload = (e) => {
-                        if (xhr.readyState === 4) {
-                            if (xhr.status === 200) {
-                                const a = JSON.parse(xhr.response);
-                                for (const i of a) {
-                                    rule.declarations?.push(i);
-                                }
-                            }
-                        }
-                    };
-                    xhr.send(null);
-                }
-            }
-        } else if (node.type == "declaration") {
-            const decl = node as css.Declaration;
-            if (decl.property === "clut") {
-                decl.property = "--" + decl.property;
-                return decl.value;
-            } else if (decl.property == "background-color-index") {
-                decl.property = "background-color";
-                decl.value = "var(--clut-color-" + decl.value + ")";
-            } else if (decl.property == "color-index") {
-                decl.property = "color";
-                decl.value = "var(--clut-color-" + decl.value + ")";
-            } else if (decl.property == "nav-index") {
-                decl.property = "--" + decl.property;
-            }
-        }
-    }
 
     function keyCodeToAribKey(keyCode: string): number {
         // STD-B24 Table 5-2 Table 5-9
@@ -574,29 +525,36 @@ if (!window.browser) {
             }
         });
 
+        function getCLUT(clut: string): css.Declaration[] {
+            var xhr = new XMLHttpRequest();
+            let result: css.Declaration[] = [];
+            xhr.open("GET", clut + "?css", false);
+            xhr.onload = (e) => {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        result = JSON.parse(xhr.response) as css.Declaration[];
+                    }
+                }
+            };
+            xhr.send(null);
+            return result;
+        }
+
         //observer.observe(document.body, config);
         document.querySelectorAll("arib-style").forEach(style => {
             if (style.textContent) {
-                const parsed = css.parse(style.textContent);
-                processRule(parsed);
                 const newStyle = document.createElement("style");
-                newStyle.textContent = css.stringify(parsed);
+                newStyle.textContent = transpileCSS(style.textContent, { inline: false, href: location.href, clutReader: getCLUT });
                 style.parentElement?.appendChild(newStyle);
             }
         });
+
         document.querySelectorAll("[style]").forEach(style => {
             const styleAttribute = style.getAttribute("style");
             if (!styleAttribute) {
                 return;
             }
-            const parsed = css.parse("*{" + styleAttribute + "}");
-            if (!parsed) {
-                return;
-            }
-            processRule(parsed);
-            let a = css.stringify(parsed, { compress: true });
-            a = a.replace(/^\*\{|\}$/g, "");
-            style.setAttribute("style", a);
+            style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: location.href, clutReader: getCLUT }));
         });
         document.querySelectorAll("object").forEach(obj => {
             if (!obj.type.match(/image\/X-arib-png/i)) {
