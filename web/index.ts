@@ -216,7 +216,7 @@ if (!window.browser) {
         console.log("getLockedModuleInfo");
         const l: LockedModuleInfo[] = [];
         for (const [module, { isEx }] of window.lockedModules) {
-            l.push([module, isEx ? 2 : 0, 1]);
+            l.push([module, isEx ? 2 : 1, 1]);
         }
         return l;
     }
