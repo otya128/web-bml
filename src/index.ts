@@ -273,7 +273,7 @@ router.get('/:component/:module/:filename', async ctx => {
         const file = new TextDecoder("euc-jp").decode(b);
         ctx.body = transpileCSS(file, {
             inline: false, href: ctx.href, clutReader(cssValue: string) {
-                return clutToDecls(readCLUT(readFileSync(`${process.env.BASE_DIR}/${component}/${module}/${filename}`)));
+                return clutToDecls(readCLUT(readFileSync(`${process.env.BASE_DIR}/${cssValue}`)));
             }
         });
         ctx.set("Content-Type", "text/css");

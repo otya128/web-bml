@@ -1,7 +1,7 @@
 import css from 'css';
 
 function parseCSSValue(href: string, value: string): string | null {
-    const uriMatch = /url\("?(?<uri>.+?)"?\)/.exec(value);
+    const uriMatch = /url\(["']?(?<uri>.+?)['"]?\)/.exec(value);
     if (uriMatch?.groups == null) {
         return null;
     }
