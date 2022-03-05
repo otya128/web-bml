@@ -60,7 +60,7 @@ p {
     margin-inline-end: 0;
 }
 p {
-    white-space: pre-wrap !important;
+    white-space: break-spaces !important;
 }
 body {
     padding: 0!important; /* NHK BS1とかbodyにpadding: 6pt;があって崩れる? */
