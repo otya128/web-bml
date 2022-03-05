@@ -103,7 +103,7 @@ function readFileAsync(path: string): Promise<string> {
                 }
                 bmlRoot[":@"]["@_xmlns"] = "http://www.w3.org/1999/xhtml";
                 const htmlChildren = bmlRoot["html"];
-                const headChildren = findXmlNode(htmlChildren, "head")[0]["head"];
+                const headChildren: any[] = findXmlNode(htmlChildren, "head")[0]["head"];
                 const scripts: any[] = [];
                 visitXmlNodes(bmlRoot, (node) => {
                     if (getXmlNodeName(node) == "script") {
@@ -134,14 +134,18 @@ function readFileAsync(path: string): Promise<string> {
                     }
                     bodyChildren.push(s);
                 }
-                headChildren.push({
+                headChildren.splice(0, 0, {
                     "link": [],
                     ":@": {
                         "@_href": "/default.css",
                         "@_rel": "stylesheet"
                     }
+                }, {
+                    "script": [],
+                    ":@": {
+                        "@_src": "/arib.js"
+                    }
                 });
-                headChildren.push({ "script": [], ":@": { "@_src": "/arib.js" } });
                 //console.log(JSON.stringify(parsed, null, 4));
                 resolve(builder.build(parsed));
             }

@@ -47,7 +47,8 @@ span, a { letter-spacing : inherit !important }
 /* background-color-index */
 body {background-color : var(--clut-color-0)}
 div, p, span, a, input { background-color : var(--clut-color-8) }
-object { background-color : var(--clut-color-0) !important}
+/* ?? これだとobjectが透過できなくなる */
+/* object { background-color : var(--clut-color-0) !important} */
 /* grayscale-color-index */
 p, input { --grayscale-color-index : 30 15 }
 
