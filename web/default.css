@@ -42,7 +42,8 @@ p, input { text-align : left }
 /* letter-spacing */
 span, a { letter-spacing : inherit !important }
 /* white-space */
-p, input { white-space : normal !important }
+/* CDATA? */
+/* p, input { white-space : normal !important } */
 /* background-color-index */
 body {background-color : --var(--clut-color-0)}
 div, p, span, a, input { background-color : --var(--clut-color-8) }
@@ -58,7 +59,7 @@ p {
     margin-inline-end: 0;
 }
 p {
-    white-space: pre-wrap;
+    white-space: pre-wrap !important;
 }
 body {
     padding: 0!important; /* NHK BS1とかbodyにpadding: 6pt;があって崩れる? */

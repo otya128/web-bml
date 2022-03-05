@@ -79,8 +79,8 @@ function readFileAsync2(path: string): Promise<Buffer> {
     })
 }
 
-function readFileAsync(path: string): Promise<String> {
-    return new Promise<String>((resolve, reject) => {
+function readFileAsync(path: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
         fs.readFile(path, null, (err, data) => {
             if (err) {
                 reject(err);
@@ -238,7 +238,12 @@ router.get('/:component/:module/:filename', async ctx => {
     const component = ctx.params.component as string;
     const module = ctx.params.module as string;
     const filename = ctx.params.filename as string;
-    if (filename.endsWith(".bml")) {
+    if (ctx.headers["sec-fetch-dest"] === "script" || filename.endsWith(".ecm")) {
+        const b = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
+        const file = new TextDecoder("euc-jp").decode(b);
+        ctx.body = transpile(file);
+        ctx.set("Content-Type", "text/X-arib-ecmascript");
+    } else if (filename.endsWith(".bml")) {
         const file = await readFileAsync(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
         ctx.body = file;
         ctx.set('Content-Type', 'application/xhtml+xml')
