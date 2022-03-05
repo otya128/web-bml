@@ -4,10 +4,7 @@ import fs from "fs"
 import 'dotenv/config'
 import { TextDecoder } from 'util';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
-import { parse } from "@babel/parser";
-import generate from "@babel/generator";
-import traverse from "@babel/traverse";
-import { callExpression, identifier } from "@babel/types";
+import { transpile } from "./transpile_ecm";
 
 const app = new Koa();
 const router = new Router();
@@ -127,24 +124,7 @@ function readFileAsync(path: string): Promise<String> {
                     const __cdata = s["script"][0] && s["script"][0]["__cdata"];
                     if (__cdata) {
                         const code = __cdata[0]["#text"];
-                        const ast = parse(code);
-                        traverse(ast, {
-                            enter(path) {
-                                if (path.isNewExpression()) {
-                                    if (path.node.callee.type !== "V8IntrinsicIdentifier") {
-                                        path.replaceWith(callExpression(identifier("__newBT"), [path.node.callee, ...path.node.arguments]));
-                                    }
-                                }
-                            }
-                        })
-                        const output = generate(
-                            ast,
-                            {
-                            },
-                            code
-                        );
-
-                        __cdata[0]["#text"] = output.code.replace(/new BinaryTable/g, "window.newBinaryTable");
+                        __cdata[0]["#text"] = transpile(code);
                     }
                     bodyChildren.push(s);
                 }
