@@ -454,11 +454,12 @@ export class BinaryTable implements IBinaryTable {
         const logic = args[args.length - 3] as boolean;
         const limitCount = args[args.length - 2] as number;
         const resultArray = args[args.length - 1] as any[];
-        for (let c = 0; c < args.length - 3; c += 3) {
-            const searchedColumn = args[c] as number;
-            const compared = args[c + 1] as any;
-            const operator = args[c + 2] as SearchOperator;
-            for (let i = 0; i < this.rows.length; i++) {
+        for (let i = startRow; i < this.rows.length; i++) {
+            let results = new Array(args.length / 3 - 1);
+            for (let c = 0; c < args.length - 3; c += 3) {
+                const searchedColumn = args[c] as number;
+                const compared = args[c + 1] as any;
+                const operator = args[c + 2] as SearchOperator;
                 const column = this.rows[i][searchedColumn];
                 let result = false;
                 switch (operator) {
@@ -529,20 +530,32 @@ export class BinaryTable implements IBinaryTable {
                         result = !zipCodeInclude(column as ZipCode, Number(compared))
                         break;
                 }
-                if (result) {
-                    resultArray.push(this.rows[i].map((v, j) => {
-                        if (typeof v === "object" && "from" in v && "to" in v) {
-                            if (i === j) {
-                                return true;
+                results[c / 3] = result;
+            }
+            // logic: true => OR
+            // logic: false => AND
+            let result: boolean;
+            if (logic) {
+                result = results.some(x => x);
+            } else {
+                result = !results.some(x => !x);
+            }
+            if (result) {
+                resultArray.push(this.rows[i].map((v, j) => {
+                    if (typeof v === "object" && "from" in v && "to" in v) {
+                        for (let c = 0; c < args.length - 3; c += 3) {
+                            const searchedColumn = args[c] as number;
+                            if (searchedColumn === j) {
+                                return results[c / 3];
                             }
-                            return null;
                         }
-                        return v;
-                    }));
-                }
-                if (resultArray.length >= limitCount) {
-                    return i;
-                }
+                        return null;
+                    }
+                    return v;
+                }));
+            }
+            if (resultArray.length >= limitCount) {
+                return i;
             }
         }
         return -1;
