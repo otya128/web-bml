@@ -129,208 +129,12 @@ function readFileAsync(path: string): Promise<String> {
                     }
                     bodyChildren.push(s);
                 }
-                const pMincho = "MS PMincho";
-                const mincho = "MS Mincho";
-                const gothic = "MS Gothic";
                 headChildren.push({
-                    "style": [{
-                        "#text": `p, div, input, object {
-                    position: absolute;
-                    overflow: hidden;
-                }
-                br, span, a {
-                    position: static;
-                }
-                arib-style {
-                    display: none;
-                }
-                arib-script {
-                    display: none;
-                }
-
-                @page { size: 210mm 297mm;
-                    margin : 3mm 3mm 3mm 3mm;
-                    @top { text-align: center; }
-                    @bottom { text-align: center; }
+                    "link": [],
+                    ":@": {
+                        "@_href": "/default.css",
+                        "@_rel": "stylesheet"
                     }
-                    /* Structure Module(xhtml-struct-1.mod) */
-                    html { }
-                    head { display: none; }
-                    body { color : black;
-                    display: block;
-                    font-size: 10.5pt;
-                    font-family: ${pMincho},serif;
-                    list-style-type: disc;
-                    text-align: left;
-                    line-height: 1.2;
-                    padding: 6pt;
-                    }
-                    /* Text Module(xhtml-text-1.mod) */
-                    /* Text: Inline Structural Module(xhtml-inlstruct-1.mod) */
-                    br { }
-                    span { }
-                    /* Text: Inline Phrasal Module(xhtml-inlphras-1.mod) */
-                    abbr { font-variant : small-caps;
-                    letter-spacing : 0.1em;
-                    }
-                    acronym { font-variant : small-caps;
-                    letter-spacing : 0.1em;
-                    }
-                    cite { font-style : italic; }
-                    code { font-family : ${gothic}, monospace; }
-                    em { font-style : italic; }
-                    kbd { font-family : ${gothic}, monospace;}
-                    q { }
-                    samp { font-family : ${gothic}, monospace;}
-                    strong { font-weight : bolder; }
-                    var { font-style : italic; }
-                   
-                    /* Text: Block Structural Module(xhtml-blkstruct-1.mod) */
-                    div, p, address, blockquote, pre, h1, h2, h3, h4, h5, h6 {
-                    display: block;
-                    }
-                    div { }
-                    p { margin : 1.33em 0; }
-                   
-                    /* Text: Block Phrasal Module(xhtml-blkphras-1.mod) */
-                    address { font-style : italic; }
-                    blockquote{ page-break-inside: avoid;
-                    margin : 1.33em 40pt;
-                    }
-                    pre { page-break-inside : avoid;
-                    font-family : ${gothic}, monospace;
-                    white-space : pre;
-                    }
-                    h1 { page-break-inside : avoid;
-                    font-size : 2.00em;
-                    margin : 0.67em 0;
-                    line-height : 1.00em;
-                    font-weight : bolder;
-                    }
-                    h2 { page-break-inside : avoid;
-                    font-size : 1.50em;
-                    margin : 0.83em 0;
-                    line-height : 1.00em;
-                    font-weight : bolder;
-                    }
-                    h3 { page-break-inside : avoid;
-                    font-size : 1.17em;
-                    margin : 1.00em 0;
-                    line-height : 1.00em;
-                    font-weight : bolder;
-                    }
-                    h4 { page-break-inside : avoid;
-                    font-size : 1.00em;
-                    margin : 1.33em 0;
-                    line-height : 1.00em;
-                    font-weight : bolder;
-                    }
-                    h5 { page-break-inside : avoid;
-                    font-size : 0.83em;
-                    margin : 1.67em 0;
-                    line-height : 1.17em;
-                    font-weight : bolder;
-                    }
-                    h6 { page-break-inside : avoid;
-                    font-size : 0.67em;
-                    margin : 2.33em 0;
-                    line-height : 1.33em;
-                    font-weight : bolder;
-                    }
-                    /* Hypertext Module(xhtml-hypertext-1.mod) */
-                    a { text-decoration : underline; }
-                    /* Lists Module(xhtml-list-1.mod) */
-                    dl, dt, dd, ul, ol { display: block; }
-                    dl { margin : 1.33em 0;
-                    }
-                    dt { }
-                    dd { margin-left: 40pt; }
-                    ul { margin : 1.33em 0 1.33em 40pt;
-                    }
-                    ol { margin : 1.33em 0 1.33em 40pt;
-                    list-style-type: decimal;
-                    }
-                    li { display : list-item; }
-                    /* Image Module(xhtml-image-1.mod) */
-                    img { }
-                    /* Basic Table Module(xhtml-basic-table-1.mod) */
-                    table { display: table; }
-                    caption { color : black;
-                    text-align: center;
-                    display: table-caption;
-                    }
-                    tr { display: table-row;
-                    page-break-inside: avoid;
-                    }
-                    th { display: table-cell;
-                    font-weight: bolder;
-                    text-align: center;
-                    page-break-inside: avoid;
-                    }
-                    td { display: table-cell;
-                    page-break-inside: avoid;
-                    }
-                    /* Simplified Forms Module(xhtml-basic-form-1.mod) */
-                    form { display: block; }
-                    form { margin : 1.33em 0; }
-                    label { }
-                    input { }
-                    select { }
-                    option { }
-                    textarea { font-family: ${mincho}, monospace;
-                    white-space: pre;
-                    }
-                    /* Presentation Module(xhtml-pres-1.mod) */
-                    /* Presentational: Inline Presentation Module(xhtml-inlpres-1.mod) */
-                    b { font-weight : bolder; }
-                    big { font-size : 1.7em; }
-                    i { font-style : italic; }
-                    small { font-size : 0.83em; }
-                    sub { font-size : 0.83em;
-                    vertical-align : sub;
-                    }
-                    sup { font-size : 0.83em;
-                    vertical-align : super;
-                    }
-                    tt { font-family : ${gothic}, monospace; }
-                    /* Presentation: Block Presentation Module(xhtml-blkpres-1.mod) */
-                    hr { border : 1pt black solid;
-                    border-color : black silver black silver;
-                    padding-top : 1pt;
-                    display: block;
-                    }
-                    /* Link Element Module(xhtml-link-1.mod) */
-                    link { display: none; }
-                    /* Document Metainformation Module(xhtml-meta-1.mod) */
-                    meta { display: none; }
-                    /* Base Element Module(xhtml-base-1.mod) */
-                    base { display: none; }
-                    /* Style Sheets Module(xhtml-style-1.mod) */
-                    style { display: none; }
-                    /* Param Element Module(xhtml-param-1.mod) */
-                    param { display : none; }
-                    /* Embedded Object Module(xhtml-object-1.mod) */
-                    object { display: block; }
-
-                    /* reset UA CSS */
-                    p {
-                    margin-block-start: 0;
-                    margin-block-end: 0;
-                    margin-inline-start: 0;
-                    margin-inline-end: 0;
-                    }
-                    p {
-                        white-space: pre-wrap;
-                    }
-                    body {
-                        padding: 0!important; /* NHK BS1とかbodyにpadding: 6pt;があって崩れる? */
-                        margin: 0!important;
-                    }
-                    @font-face {
-                        font-family: "丸ゴシック";
-                        src: local('MS Gothic');
-                     }
-                `}]
                 });
                 headChildren.push({ "script": [], ":@": { "@_src": "/arib.js" } });
                 //console.log(JSON.stringify(parsed, null, 4));
@@ -484,9 +288,15 @@ router.get('/arib.js', async ctx => {
     ctx.body = fs.createReadStream("dist/arib.js");
     ctx.set('Content-Type', 'text/javascript')
 });
+
 router.get('/arib.js.map', async ctx => {
     ctx.body = fs.createReadStream("dist/arib.js.map");
     ctx.set('Content-Type', 'application/json')
+});
+
+router.get('/default.css', async ctx => {
+    ctx.body = fs.createReadStream("web/default.css");
+    ctx.set('Content-Type', 'text/css')
 });
 
 router.get('/api/sleep', async ctx => {
