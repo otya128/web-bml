@@ -65,6 +65,10 @@ body {
     margin: 0!important;
 }
 
+body {
+    font-family: "round gothic";
+}
+
 /* STD-B24 A1-13.7.7 */
 @font-face {
     font-family: "ゴシック";
