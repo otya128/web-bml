@@ -1,6 +1,7 @@
 export { };
 import css from 'css';
 import { BinaryTable, BinaryTableConstructor } from "./binary_table";
+import { readPersistentArray, writePersistentArray } from "./nvram";
 
 interface BMLEvent {
     type: string;
@@ -36,6 +37,9 @@ declare global {
         browser: any;
         dummy: any;
         BinaryTable: BinaryTableConstructor;
+        lockedModules: Map<string, { isEx: boolean }>;
+        newBinaryTable: any;
+        __newBT: any;
     }
     interface Document {
         currentEvent: BMLEvent | null;
@@ -47,12 +51,30 @@ declare global {
 if (!window.browser) {
     window.dummy = undefined;
     window.browser = {};
+    window.__newBT = function __newBT(klass: any, ...args: any[]) {
+        if (klass === BinaryTable) {
+            try {
+                return new klass(...args);
+            } catch {
+                return null;
+            }
+        } else {
+            return new klass(...args);
+        }
+    }
 
     window.BinaryTable = BinaryTable;
+    window.newBinaryTable = function newBinaryTable(table_ref: string, structure: string) {
+        try {
+            return new BinaryTable(table_ref, structure);
+        } catch {
+            return null;
+        }
+    }
     window.browser.setCurrentDateMode = function setCurrentDateMode(mode: number) {
         console.log("setCurrentDateMode", mode);
     };
-    window.browser.subDate = function subDate(target: Date, base: Date, unit: Number) {
+    window.browser.subDate = function subDate(target: Date, base: Date, unit: number) {
         const sub = target.getDate() - base.getDate();
         if (unit == 1) {
             return (sub / 1000) | 0;
@@ -67,23 +89,47 @@ if (!window.browser) {
         }
         return sub | 0;
     }
+    window.browser.addDate = function addDate(base: Date, time: number, unit: number): Date | number {
+        if (Number.isNaN(time)) {
+            return base;
+        }
+        if (unit == 0) {
+            return new Date(base.getTime() + time);
+        } else if (unit == 1) {
+            return new Date(base.getTime() + (time * 1000));
+        } else if (unit == 2) {
+            return new Date(base.getTime() + (time * 1000 * 60));
+        } else if (unit == 3) {
+            return new Date(base.getTime() + (time * 1000 * 60 * 60));
+        } else if (unit == 4) {
+            return new Date(base.getTime() + (time * 1000 * 60 * 60 * 24));
+        } else if (unit == 5) {
+            return new Date(base.getTime() + (time * 1000 * 60 * 60 * 24 * 7));
+        }
+        return NaN;
+    }
     window.browser.unlockModuleOnMemory = function unlockModuleOnMemory(module: string): number {
+        window.lockedModules.delete(module);
         console.log("unlockModuleOnMemory", module);
         return 1; // NaN => fail
     };
     window.browser.unlockModuleOnMemoryEx = function unlockModuleOnMemoryEx(module: string): number {
+        window.lockedModules.delete(module);
         console.log("unlockModuleOnMemoryEx", module);
         return 1; // NaN => fail
     };
     window.browser.unlockAllModulesOnMemory = function unlockAllModulesOnMemory(): number {
+        window.lockedModules = new Map<string, { isEx: boolean }>();
         console.log("unlockAllModulesOnMemory");
         return 1; // NaN => fail
     };
+    window.lockedModules = new Map<string, { isEx: boolean }>();
     window.browser.lockModuleOnMemory = function lockModuleOnMemory(module: string): number {
         console.log("lockModuleOnMemory", module);
-        if (module.startsWith("/50/")) {
-            return -1;
-        }
+        // if (module.startsWith("/50/")) {
+        //     return -1;
+        // }
+        window.lockedModules.set(module, { isEx: false });
         window.postMessage({ module }, "*");
         return 1;
     }
@@ -125,9 +171,10 @@ if (!window.browser) {
     });
     window.browser.lockModuleOnMemoryEx = function lockModuleOnMemoryEx(module: string): number {
         console.log("lockModuleOnMemoryEx", module);
-        if (module.startsWith("/50/")) {
-            return -1;
-        }
+        // if (module.startsWith("/50/")) {
+        //     return -1;
+        // }
+        window.lockedModules.set(module, { isEx: true });
         window.postMessage({ module }, "*");
         return 1;
     }
@@ -145,24 +192,35 @@ if (!window.browser) {
         location.href = documentName;
         return 0;
     };
-    window.browser.readPersistentArray = function readPersistentArray(filename: string, structure: string): any[] | null {
+    window.browser.readPersistentArray = function (filename: string, structure: string): any[] | null {
         console.log("readPersistentArray", filename, structure);
-        return [];
-        if (filename === "nvram://receiverinfo/zipcode") {
-            if (structure === "S:7B") {
-                return ["000000"];
-            }
-        }
-        console.log("readPersistentArray", filename, structure);
-        return null;
+        return readPersistentArray(filename, structure);
+    };
+    window.browser.writePersistentArray = function (filename: string, structure: string, data: any[], period?: Date): number {
+        console.log("writePersistentArray", filename, structure, data, period);
+        return writePersistentArray(filename, structure, data, period);
+    };
+    window.browser.random = function random(num: number): number {
+        return Math.floor(Math.random() * num);
     };
     window.browser.getActiveDocument = function getActiveDocument(): string | null {
         return location.pathname;
     }
-    window.browser.getProgramID = function getProgramID(type: number): string | null {
-        if (type == 2) {
-            return "0xDC00";
+    window.browser.getResidentAppVersion = function getResidentAppVersion(appName: string): any[] | null {
+        console.log("getResidentAppVersion", appName);
+        return null;
+    }
+    type LockedModuleInfo = [moduleName: string, func: number, status: number];
+    window.browser.getLockedModuleInfo = function getLockedModuleInfo(): LockedModuleInfo[] | null {
+        console.log("getLockedModuleInfo");
+        const l: LockedModuleInfo[] = [];
+        for (const [module, { isEx }] of window.lockedModules) {
+            l.push([module, isEx ? 2 : 0, 1]);
         }
+        return l;
+    }
+    window.browser.getProgramID = function getProgramID(type: number): string | null {
+
         return null;
     }
     window.browser.sleep = function sleep(interval: number): number | null {
@@ -183,10 +241,61 @@ if (!window.browser) {
         console.log("playRomSound", soundID);
         return 1;
     };
+    window.browser.getBrowserVersion = function getBrowserVersion(): string[] {
+        return ["BMLHTML", "BMLHTML", "001", "000"];
+    }
+    window.browser.getIRDID = function getIRDID(type: number): string | null {
+        console.log("getIRDID", type);
+        return null;
+    }
+    window.browser.isIPConnected = function isIPConnected(): number {
+        console.log("isIPConnected");
+        return 0;
+    }
     window.browser.Ureg = new Array(64);
     window.browser.Ureg.fill("");
+    const ureg = sessionStorage.getItem("Ureg");
+    if (ureg) {
+        const uregParsed = JSON.parse(ureg);
+        if (uregParsed.length === 64) {
+            window.browser.Ureg = uregParsed;
+        }
+    }
     window.browser.Greg = new Array(64);
     window.browser.Greg.fill("");
+    const greg = sessionStorage.getItem("Greg");
+    if (greg) {
+        const gregParsed = JSON.parse(greg);
+        if (gregParsed.length === 64) {
+            window.browser.Greg = gregParsed;
+        }
+    }
+    window.browser.Ureg = new Proxy(window.browser.Ureg, {
+        get: (obj, prop) => {
+            return obj[prop];
+        },
+        set: (obj, prop, value) => {
+            if (Number(prop) >= 0 && Number(prop) <= 63) {
+                value = value.toString();
+                obj[prop] = value;
+                sessionStorage.setItem("Ureg", JSON.stringify(obj));
+            }
+            return true;
+        }
+    })
+    window.browser.Greg = new Proxy(window.browser.Greg, {
+        get: (obj, prop) => {
+            return obj[prop];
+        },
+        set: (obj, prop, value) => {
+            if (Number(prop) >= 0 && Number(prop) <= 63) {
+                value = value.toString();
+                obj[prop] = value;
+                sessionStorage.setItem("Greg", JSON.stringify(obj));
+            }
+            return true;
+        }
+    })
     window.browser.setInterval = function setInterval(evalCode: string, msec: number, iteration: number): number {
         const handle = window.setInterval(() => {
             iteration--;
@@ -218,6 +327,42 @@ if (!window.browser) {
         set: function (v: boolean) {
             if (v) {
                 (this as HTMLElement).setAttribute("subscribe", "subscribe");
+                if (this.getAttribute("type") === "ModuleUpdated") {
+                    const module: string = this.getAttribute("module_ref") ?? "";
+                    console.log("hack: ModuleUpdated", module);
+                    const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
+                    for (const beitem of Array.from(moduleLocked)) {
+                        if (beitem.getAttribute("subscribe") !== "subscribe") {
+                            continue;
+                        }
+                        const moduleRef = beitem.getAttribute("module_ref");
+                        if (moduleRef === module) {
+                            const onoccur = beitem.getAttribute("onoccur");
+                            if (onoccur) {
+                                document.currentEvent = {
+                                    type: "ModuleUpdated",
+                                    target: beitem as HTMLElement,
+                                    status: 0,
+                                    privateData: "",
+                                    esRef: "",
+                                    messageId: "0",
+                                    messageVersion: "0",
+                                    messageGroupId: "0",
+                                    moduleRef: module,
+                                    languageTag: 0,//?
+                                    registerId: 0,
+                                    serviceId: "0",
+                                    eventId: "0",
+                                    peripheralRef: "",
+                                    object: null,
+                                    segmentId: null,
+                                } as BMLBeventEvent;
+                                new Function(onoccur)();//eval.call(window, onoccur);
+                                document.currentEvent = null;
+                            }
+                        }
+                    }
+                }
             } else {
                 (this as HTMLElement).removeAttribute("subscribe");
             }
@@ -286,6 +431,8 @@ if (!window.browser) {
             } else if (decl.property == "color-index") {
                 decl.property = "color";
                 decl.value = "var(--clut-color-" + decl.value + ")";
+            } else if (decl.property == "nav-index") {
+                decl.property = "--" + decl.property;
             }
         }
     }
@@ -467,6 +614,14 @@ if (!window.browser) {
             if (!obj.data.includes("?clut="))
                 obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
             obj.outerHTML = obj.outerHTML;
+        });
+        document.body.querySelectorAll("*").forEach(elem => {
+            if (!(elem instanceof HTMLElement)) {
+                return;
+            }
+            if (elem.style.getPropertyValue("--nav-index") === "0") {
+                document.currentFocus = elem;
+            }
         });
     });
 }

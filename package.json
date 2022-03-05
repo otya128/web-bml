@@ -4,6 +4,10 @@
   "main": "src/index.ts",
   "license": "MIT",
   "dependencies": {
+    "@babel/generator": "^7.17.3",
+    "@babel/parser": "^7.17.3",
+    "@babel/traverse": "^7.17.3",
+    "@babel/types": "^7.17.0",
     "crc-32": "^1.2.1",
     "css": "^3.0.0",
     "dotenv": "^16.0.0",
@@ -21,6 +25,8 @@
     "dev": "ts-node src/index.ts"
   },
   "devDependencies": {
+    "@types/babel__generator": "^7.6.4",
+    "@types/babel__traverse": "^7.14.2",
     "@types/css": "^0.0.33",
     "@types/encoding-japanese": "^1.0.18",
     "@types/koa": "^2.13.4",

@@ -62,6 +62,305 @@ enum SearchOperator {
     ZipNotInclude = 97,
 }
 
+function readBits(posBits: number, bits: number, buffer: Uint8Array): [value: number, posBits: number] {
+    let value = 0;
+    for (let i = 0; i < bits; i++) {
+        value <<= 1;
+        value |= (buffer[posBits >> 3] & (1 << (7 - (posBits & 7)))) ? 1 : 0;
+        posBits++;
+    }
+    return [value, posBits];
+}
+
+function writeBits(posBits: number, bits: number, buffer: Uint8Array, value: number): number {
+    for (let i = bits - 1; i >= 0; i--) {
+        const b = 1 << (7 - (posBits & 7));
+        buffer[posBits >> 3] &= ~b;
+        if (value & (1 << i)) {
+            buffer[posBits >> 3] |= b;
+        }
+        posBits++;
+    }
+    return posBits;
+}
+
+export function parseBinaryStructure(structure: string): BinaryTableField[] | null {
+    const sep = structure.split(",");
+    const fields: BinaryTableField[] = [];
+    for (const s of sep) {
+        const groups = s.match(/^(?<type>[BUISZP]):(?<length>[1-9][0-9]*)(?<unit>[BbVv])$/)?.groups;
+        if (!groups) {
+            return null;
+        }
+        const type = groups["type"] as BinaryTableType;
+        const length = Number.parseInt(groups["length"]);
+        let unit = groups["unit"] as BinaryTableUnit;
+        if (unit === "v" as BinaryTableUnit) {
+            unit = BinaryTableUnit.Variable;
+        }
+        fields.push({ type, length, unit })
+    }
+    return fields;
+}
+
+export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[]): [result: any[], readBits: number] {
+    let posBits = 0;
+    const columns: any[] = [];
+    for (const field of fields) {
+        let fieldData: any = null;
+        switch (field.type) {
+            case BinaryTableType.Boolean:
+                if (field.unit !== BinaryTableUnit.Bit) {
+                    throw new Error("FIXME");
+                }
+                if (field.length !== 1) {
+                    throw new Error("FIXME");
+                }
+                [fieldData, posBits] = readBits(posBits, field.length, buffer);
+                fieldData = fieldData != 0;
+                break;
+            case BinaryTableType.UnsignedInteger:
+                let lengthInBits: number;
+                if (field.unit === BinaryTableUnit.Bit) {
+                    lengthInBits = field.length;
+                } else if (field.unit === BinaryTableUnit.Byte) {
+                    lengthInBits = field.length * 8;
+                } else {
+                    throw new Error("FIXME");
+                }
+                if (lengthInBits > 32) {
+                    throw new Error("FIXME");
+                }
+                [fieldData, posBits] = readBits(posBits, lengthInBits, buffer);
+                break;
+            case BinaryTableType.Integer:
+                if (field.unit !== BinaryTableUnit.Byte) {
+                    throw new Error("must be byte");
+                }
+                if ((posBits & 7) !== 0) {
+                    throw new Error("must be byte aligned");
+                }
+                if (field.length === 1) {
+                    fieldData = buffer[posBits >> 3] << (32 - 8) >> (32 - 8);
+                    posBits += 8;
+                } else if (field.length === 2) {
+                    fieldData = ((buffer[(posBits >> 3) + 0] << 8) | buffer[(posBits >> 3) + 1]) << (32 - 16) >> (32 - 16);
+                    posBits += 16;
+                } else if (field.length === 4) {
+                    fieldData = ((buffer[(posBits >> 3) + 0] << 24) | (buffer[(posBits >> 3) + 1] << 16) | (buffer[(posBits >> 3) + 2] << 8) | (buffer[(posBits >> 3) + 3] << 0));
+                    posBits += 32;
+                } else {
+                    throw new Error("length must be 1, 2, or 4");
+                }
+                break;
+            case BinaryTableType.String:
+                if ((posBits & 7) !== 0) {
+                    throw new Error("string must be byte aligned");
+                }
+                let lengthByte: number;
+                if (field.unit === BinaryTableUnit.Byte) {
+                    lengthByte = field.length;
+                } else if (field.unit === BinaryTableUnit.Variable) {
+                    [lengthByte, posBits] = readBits(posBits, field.length * 8, buffer);
+                } else {
+                    throw new Error("string must be byte or variable");
+                }
+                fieldData = encoding.convert(buffer.slice(posBits >> 3, (posBits >> 3) + lengthByte), { type: "string", to: "UNICODE", from: "EUCJP" });
+                posBits += lengthByte * 8;
+                break;
+            case BinaryTableType.Pad:
+                if (field.unit === BinaryTableUnit.Byte) {
+                    posBits += field.length * 8;
+                } else if (field.unit === BinaryTableUnit.Bit) {
+                    posBits += field.length;
+                } else {
+                    throw new Error("variable not allowed");
+                }
+                break;
+            case BinaryTableType.ZipCode:
+                {
+                    if ((posBits & 7) !== 0) {
+                        throw new Error("zip code must be byte aligned");
+                    }
+                    if (field.unit !== BinaryTableUnit.Variable) {
+                        throw new Error("zip code must be variable");
+                    }
+                    let lengthByte: number;
+                    [lengthByte, posBits] = readBits(posBits, field.length * 8, buffer);
+                    const zip = buffer.slice((posBits >> 3), (posBits >> 3) + lengthByte);
+                    fieldData = decodeZipCode(zip);
+                    posBits += lengthByte * 8;
+                }
+                break;
+        }
+        if (fieldData != null) {
+            columns.push(fieldData);
+        }
+    }
+    return [columns, posBits];
+}
+
+export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint8Array {
+    if (data.length !== fields.length) {
+        throw new Error("FIXME");
+    }
+
+    let sizeBits = 0;
+    for (let i = 0; i < fields.length; i++) {
+        const field = fields[i];
+        switch (field.type) {
+            case BinaryTableType.Boolean:
+                if (field.unit !== BinaryTableUnit.Bit) {
+                    throw new Error("FIXME");
+                }
+                if (field.length !== 1) {
+                    throw new Error("FIXME");
+                }
+                sizeBits++;
+                break;
+            case BinaryTableType.UnsignedInteger:
+                if (field.unit === BinaryTableUnit.Bit) {
+                    sizeBits += field.length;
+                } else if (field.unit === BinaryTableUnit.Byte) {
+                    sizeBits += field.length * 8;
+                } else {
+                    throw new Error("FIXME");
+                }
+                break;
+            case BinaryTableType.Integer:
+                if (field.unit !== BinaryTableUnit.Byte) {
+                    throw new Error("must be byte");
+                }
+                if ((sizeBits & 7) !== 0) {
+                    throw new Error("must be byte aligned");
+                }
+                if (field.length === 1) {
+                    sizeBits += 8;
+                } else if (field.length === 2) {
+                    sizeBits += 16;
+                } else if (field.length === 4) {
+                    sizeBits += 32;
+                } else {
+                    throw new Error("length must be 1, 2, or 4");
+                }
+                break;
+            case BinaryTableType.String:
+                if ((sizeBits & 7) !== 0) {
+                    throw new Error("string must be byte aligned");
+                }
+                if (field.unit === BinaryTableUnit.Byte) {
+                    sizeBits += field.length * 8;
+                } else if (field.unit === BinaryTableUnit.Variable) {
+                    sizeBits += field.length * 8;
+                    let encoded = new Uint8Array(encoding.convert(data[i], { to: "EUCJP", type: "arraybuffer" }));
+                    sizeBits += encoded.length * 8;
+                } else {
+                    throw new Error("string must be byte or variable");
+                }
+                break;
+            case BinaryTableType.Pad:
+                if (field.unit === BinaryTableUnit.Byte) {
+                    sizeBits += field.length * 8;
+                } else if (field.unit === BinaryTableUnit.Bit) {
+                    sizeBits += field.length;
+                } else {
+                    throw new Error("variable not allowed");
+                }
+                break;
+            case BinaryTableType.ZipCode:
+                throw new Error("Z is not allowed");
+        }
+    }
+    const buffer = new Uint8Array((sizeBits + 7) >> 3);
+    let posBits = 0;
+    for (let i = 0; i < fields.length; i++) {
+        const field = fields[i];
+        switch (field.type) {
+            case BinaryTableType.Boolean:
+                if (field.unit !== BinaryTableUnit.Bit) {
+                    throw new Error("FIXME");
+                }
+                if (field.length !== 1) {
+                    throw new Error("FIXME");
+                }
+                posBits = writeBits(posBits, 1, buffer, data[i] ? 1 : 0);
+                break;
+            case BinaryTableType.UnsignedInteger:
+                let lengthInBits: number;
+                if (field.unit === BinaryTableUnit.Bit) {
+                    lengthInBits = field.length;
+                } else if (field.unit === BinaryTableUnit.Byte) {
+                    lengthInBits = field.length * 8;
+                } else {
+                    throw new Error("FIXME");
+                }
+                if (lengthInBits > 32) {
+                    throw new Error("FIXME");
+                }
+                posBits = writeBits(posBits, lengthInBits, buffer, Number(data[i]));
+                break;
+            case BinaryTableType.Integer:
+                if (field.unit !== BinaryTableUnit.Byte) {
+                    throw new Error("must be byte");
+                }
+                if ((posBits & 7) !== 0) {
+                    throw new Error("must be byte aligned");
+                }
+                if (field.length === 1) {
+                    buffer[posBits >> 3] = Number(data[i]);
+                    posBits += 8;
+                } else if (field.length === 2) {
+                    buffer[posBits >> 3] = Number(data[i] >> 8);
+                    posBits += 8;
+                    buffer[posBits >> 3] = Number(data[i]);
+                    posBits += 8;
+                } else if (field.length === 4) {
+                    buffer[posBits >> 3] = Number(data[i] >> 24);
+                    posBits += 8;
+                    buffer[posBits >> 3] = Number(data[i] >> 16);
+                    posBits += 8;
+                    buffer[posBits >> 3] = Number(data[i] >> 8);
+                    posBits += 8;
+                    buffer[posBits >> 3] = Number(data[i]);
+                    posBits += 8;
+                } else {
+                    throw new Error("length must be 1, 2, or 4");
+                }
+                break;
+            case BinaryTableType.String:
+                if ((posBits & 7) !== 0) {
+                    throw new Error("string must be byte aligned");
+                }
+                let encoded = new Uint8Array(encoding.convert(data[i], { to: "EUCJP", type: "arraybuffer" }));
+                if (field.unit === BinaryTableUnit.Byte) {
+                    if (encoded.length != field.length) {
+                        throw new Error("MISMATCH should be padded?");
+                    }
+                } else if (field.unit === BinaryTableUnit.Variable) {
+                    posBits = writeBits(posBits, field.length * 8, buffer, encoded.length);
+                } else {
+                    throw new Error("string must be byte or variable");
+                }
+                buffer.set(encoded, posBits >> 3);
+                posBits += encoded.length * 8;
+                break;
+            case BinaryTableType.Pad:
+                if (field.unit === BinaryTableUnit.Byte) {
+                    posBits += field.length * 8;
+                } else if (field.unit === BinaryTableUnit.Bit) {
+                    posBits += field.length;
+                } else {
+                    throw new Error("variable not allowed");
+                }
+                break;
+            case BinaryTableType.ZipCode:
+                throw new Error("Z is not allowed");
+        }
+    }
+    return buffer;
+}
+
+
 export class BinaryTable implements IBinaryTable {
     rows: any[][];
     fields: BinaryTableField[];
@@ -92,6 +391,7 @@ export class BinaryTable implements IBinaryTable {
             throw new Error("FIXME");
         }
         let buffer: Uint8Array = xhrBuffer as Uint8Array;
+
         const sep = structure.split(",");
         if (sep.length < 2) {
             throw new Error("FIXME");
@@ -101,29 +401,9 @@ export class BinaryTable implements IBinaryTable {
         }
         const lengthByte = Number.parseInt(sep[0]);
         let posBits = 0;
-        const fields: BinaryTableField[] = [];
-        this.fields = fields;
-        for (const s of sep.slice(1)) {
-            const groups = s.match(/^(?<type>[BUISZP]):(?<length>[1-9][0-9]*)(?<unit>[BbVv])$/)?.groups;
-            if (!groups) {
-                throw new Error("FIXME");
-            }
-            const type = groups["type"] as BinaryTableType;
-            const length = Number.parseInt(groups["length"]);
-            let unit = groups["unit"] as BinaryTableUnit;
-            if (unit === "v" as BinaryTableUnit) {
-                unit = BinaryTableUnit.Variable;
-            }
-            fields.push({ type, length, unit })
-        }
-        function readBits(posBits: number, bits: number, buffer: Uint8Array): [value: number, posBits: number] {
-            let value = 0;
-            for (let i = 0; i < bits; i++) {
-                value <<= 1;
-                value |= (buffer[posBits >> 3] & (1 << (7 - (posBits & 7)))) ? 1 : 0;
-                posBits++;
-            }
-            return [value, posBits];
+        const fields = parseBinaryStructure(structure.substring(structure.indexOf(",") + 1));
+        if (!fields) {
+            throw new Error("FIXME: failed to parse structure");
         }
         const rows: Array<Array<any>> = [];
         while (posBits < buffer.length * 8) {
@@ -131,101 +411,12 @@ export class BinaryTable implements IBinaryTable {
             if (lengthByte) {
                 [length, posBits] = readBits(posBits, 8 * lengthByte, buffer);
             }
-            const columns: any[] = [];
-            for (const field of fields) {
-                let fieldData: any = null;
-                switch (field.type) {
-                    case BinaryTableType.Boolean:
-                        if (field.unit !== BinaryTableUnit.Bit) {
-                            throw new Error("FIXME");
-                        }
-                        if (field.length !== 1) {
-                            throw new Error("FIXME");
-                        }
-                        [fieldData, posBits] = readBits(posBits, field.length, buffer);
-                        fieldData = fieldData != 0;
-                        break;
-                    case BinaryTableType.UnsignedInteger:
-                        let lengthInBits: number;
-                        if (field.unit === BinaryTableUnit.Bit) {
-                            lengthInBits = field.length;
-                        } else if (field.unit === BinaryTableUnit.Byte) {
-                            lengthInBits = field.length * 8;
-                        } else {
-                            throw new Error("FIXME");
-                        }
-                        if (lengthInBits > 32) {
-                            throw new Error("FIXME");
-                        }
-                        [fieldData, posBits] = readBits(posBits, lengthInBits, buffer);
-                        break;
-                    case BinaryTableType.Integer:
-                        if (field.unit !== BinaryTableUnit.Byte) {
-                            throw new Error("must be byte");
-                        }
-                        if ((posBits & 7) !== 0) {
-                            throw new Error("must be byte aligned");
-                        }
-                        if (field.length === 1) {
-                            fieldData = buffer[posBits >> 3] << (32 - 8) >> (32 - 8);
-                            posBits += 8;
-                        } else if (field.length === 2) {
-                            fieldData = ((buffer[(posBits >> 3) + 0] << 8) | buffer[(posBits >> 3) + 1]) << (32 - 16) >> (32 - 16);
-                            posBits += 16;
-                        } else if (field.length === 4) {
-                            fieldData = ((buffer[(posBits >> 3) + 0] << 24) | (buffer[(posBits >> 3) + 1] << 16) | (buffer[(posBits >> 3) + 2] << 8) | (buffer[(posBits >> 3) + 3] << 0));
-                            posBits += 32;
-                        } else {
-                            throw new Error("length must be 1, 2, or 4");
-                        }
-                        break;
-                    case BinaryTableType.String:
-                        if ((posBits & 7) !== 0) {
-                            throw new Error("string must be byte aligned");
-                        }
-                        let lengthByte: number;
-                        if (field.unit === BinaryTableUnit.Byte) {
-                            lengthByte = field.length;
-                        } else if (field.unit === BinaryTableUnit.Variable) {
-                            [lengthByte, posBits] = readBits(posBits, field.length * 8, buffer);
-                        } else {
-                            throw new Error("string must be byte or variable");
-                        }
-                        fieldData = encoding.convert(buffer.slice(posBits >> 3, (posBits >> 3) + lengthByte), { type: "string", to: "UNICODE", from: "EUCJP" });
-                        posBits += lengthByte * 8;
-                        break;
-                    case BinaryTableType.Pad:
-                        if (field.unit === BinaryTableUnit.Byte) {
-                            posBits += field.length * 8;
-                        } else if (field.unit === BinaryTableUnit.Bit) {
-                            posBits += field.length;
-                        } else {
-                            throw new Error("variable not allowed");
-                        }
-                        break;
-                    case BinaryTableType.ZipCode:
-                        {
-                            if ((posBits & 7) !== 0) {
-                                throw new Error("zip code must be byte aligned");
-                            }
-                            if (field.unit !== BinaryTableUnit.Variable) {
-                                throw new Error("zip code must be variable");
-                            }
-                            let lengthByte: number;
-                            [lengthByte, posBits] = readBits(posBits, field.length * 8, buffer);
-                            const zip = buffer.slice((posBits >> 3), (posBits >> 3) + lengthByte);
-                            fieldData = decodeZipCode(zip);
-                            posBits += lengthByte * 8;
-                        }
-                        break;
-                }
-                if (fieldData != null) {
-                    columns.push(fieldData);
-                }
-            }
+            let [columns, read] = readBinaryFields(buffer.slice(posBits >> 3), fields);
+            posBits += read;
             rows.push(columns);
         }
         this.rows = rows;
+        this.fields = fields;
         //const regex = /^(?<lengthByte>[1-9][0-9]*|0)(,(?<type>[BUISZP]):(?<length>[1-9][0-9]*)(?<unit>[BbV]))+$/;
     }
 
