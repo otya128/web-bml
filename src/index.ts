@@ -7,6 +7,7 @@ import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import { transpile } from "./transpile_ecm";
 import { Declaration as CSSDeclaration } from "css";
 import path from "path";
+import { decodeEUCJP } from './euc_jp';
 
 const baseDir = process.env.BASE_DIR;
 if (!baseDir) {
@@ -26,7 +27,7 @@ type File = {
     [key: string]: {}
 };
 
-const components: {[key: string]: Component} = {};
+const components: { [key: string]: Component } = {};
 
 for (const componentDirent of fs.readdirSync(baseDir, { withFileTypes: true })) {
     if (!componentDirent.isDirectory() || componentDirent.name.length !== 2) {
@@ -122,6 +123,14 @@ function readFileAsync2(path: string): Promise<Buffer> {
     })
 }
 
+function decodeText(enc: string, data: Buffer | Uint8Array) {
+    if (enc.match(/euc[-_]?jp/i)) {
+        return decodeEUCJP(data);
+    } else {
+        return new TextDecoder(enc).decode(data);
+    }
+}
+
 function readFileAsync(path: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
         fs.readFile(path, null, (err, data) => {
@@ -136,7 +145,7 @@ function readFileAsync(path: string): Promise<string> {
                 };
                 const parser = new XMLParser(opts);
                 let parsed = parser.parse(data);
-                parsed = parser.parse(new TextDecoder(parsed[0][":@"]["@_encoding"]).decode(data));
+                parsed = parser.parse(decodeText(parsed[0][":@"]["@_encoding"], data));
                 parsed[0][":@"]["@_encoding"] = "UTF-8";
                 const builder = new XMLBuilder(opts);
                 const bmlRoot = findXmlNode(parsed, "bml")[0];
