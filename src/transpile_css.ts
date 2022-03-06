@@ -19,6 +19,9 @@ export function convertCSSProperty(propName: string, value: any): [propName: str
     if (propName === "colorIndex") {
         propName = "color";
         value = `var(--clut-color-${value})`;
+    } else if (propName === "backgroundColorIndex") {
+        propName = "backgroundColor";
+        value = `var(--clut-color-${value})`;
     } else if (propName === "borderBottomColorIndex") {
         propName = "borderBottomColor";
         value = `var(--clut-color-${value})`;
