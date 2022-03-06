@@ -84,12 +84,12 @@ body {
 
 @font-face {
     font-family: "丸ゴシック";
-    src: url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+    src: url("/KosugiMaru-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
 }
 
 @font-face {
     font-family: "round gothic";
-    src: url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+    src: url("/KosugiMaru-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
 }
 
 @font-face {

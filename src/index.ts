@@ -413,6 +413,9 @@ router.get("/rounded-mplus-1m-arib.ttf", async ctx => {
     ctx.body = fs.createReadStream("dist/rounded-mplus-1m-arib.ttf");
 });
 
+router.get("/KosugiMaru-Regular.ttf", async ctx => {
+    ctx.body = fs.createReadStream("dist/KosugiMaru-Regular.ttf");
+});
 router.get('/api/sleep', async ctx => {
     let ms = Number(ctx.query.ms ?? "0");
     await new Promise<void>((resolve, reject) => {
