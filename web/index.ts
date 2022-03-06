@@ -290,8 +290,38 @@ if (!window.browser) {
         console.log("detectComponent", component_ref);
         return 1;
     }
-    window.browser.loadDRCS = function loadDRCS(loadDRCS: string): Number {
-        console.log("loadDRCS", loadDRCS);
+    window.browser.loadDRCS = function loadDRCS(DRCS_ref: string): Number {
+        console.log("loadDRCS", DRCS_ref);
+        const { component, module, filename } = parseURL(DRCS_ref);
+        const id = `drcs-${component}/${module}/${filename}`;
+        const css = document.getElementById(id);
+        if (!css) {
+            const style = document.createElement("style");
+            style.id = id;
+            let tc = "";
+            for (const font of [
+                "ゴシック",
+                "Ｐゴシック",
+                "round gothic",
+                "丸ゴシック",
+                "bold round gothic",
+                "square gothic",
+                "Ｐ丸ゴシック",
+                "太ゴシック",
+                "角ゴシック",
+                "明朝",
+                "Ｐ明朝"
+            ]) {
+                tc += `@font-face {
+    font-family: "${font}";
+    src: url("/${component}/${module}/${filename}?ttf");
+    unicode-range: U+EC00-FE00;
+}
+`;
+            }
+            style.textContent = tc;
+            document.head.appendChild(style);
+        }
         return 1;
     };
     window.browser.playRomSound = function playRomSound(soundID: string): Number {

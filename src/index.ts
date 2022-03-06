@@ -8,6 +8,7 @@ import { transpile } from "./transpile_ecm";
 import { Declaration as CSSDeclaration } from "css";
 import path from "path";
 import { decodeEUCJP } from './euc_jp';
+import { loadDRCS, toTTF } from './drcs';
 
 const baseDir = process.env.BASE_DIR;
 if (!baseDir) {
@@ -394,6 +395,9 @@ router.get('/:component/:module/:filename', async ctx => {
             ctx.body = clutToDecls(table);
         } else if (typeof ctx.query.base64 === "string") {
             ctx.body = (await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`)).toString('base64');
+        } else if (typeof ctx.query.ttf === "string") {
+            const drcs = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
+            ctx.body = toTTF(loadDRCS(drcs));
         } else {
             ctx.body = fs.createReadStream(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
         }
