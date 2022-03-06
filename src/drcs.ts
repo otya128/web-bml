@@ -548,25 +548,27 @@ function writeEBDT(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
 function writeCBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(3);
     writer.writeUInt16BE(0);
-    const gs = [1];//glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index, glyph })));
-    writer.writeUInt32BE(gs.length);
+    const gs = new Array(glyphs.length - 1);//glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index, glyph }))).filter(x => x.glyphIndex);
+    for (let i = 0; i < gs.length; i++) gs[i] = {glyphIndex: i + 1};
+    writer.writeUInt32BE(1/*gs.length*/);
     const headerSize = 2 * 2 + 4;
     const sizeOfSbitLineMetrics = 12;
     const sizeofBitmapSize = 4 * 4 + sizeOfSbitLineMetrics * 2 + 2 * 2 + 4;
-    let indexSubTableArrayOffset = ((headerSize + sizeofBitmapSize * gs.length) + 3) & ~3;
+    let indexSubTableArrayOffset = ((headerSize + sizeofBitmapSize * /*gs.length*/1) + 3) & ~3;
     const sizeOfIndexSubTableArray = 2 + 2 + 4;
     // BitmapSize
-    for (const g of gs) {
+    let aj = 0;
+    /*for (const g of gs) */{
         writer.writeUInt32BE(indexSubTableArrayOffset); // indexSubTableArrayOffset
         indexSubTableArrayOffset += sizeOfIndexSubTableArray + 16;
-        writer.writeUInt32BE(sizeOfIndexSubTableArray * 1 + 16); // indexTablesSize
+        writer.writeUInt32BE(sizeOfIndexSubTableArray * 1 + 2 + 2 + 4 + 4 + gs.length * 4); // indexTablesSize
         writer.writeUInt32BE(1); // numberOfIndexSubTables
         writer.writeUInt32BE(0); // colorRef
         // hori
         {
-            writer.writeInt8(101); // ascender
+            writer.writeInt8(101 - aj); // ascender
             writer.writeInt8(-27); // descender
-            writer.writeUInt8(136); // widthMax
+            writer.writeUInt8(136 + aj); // widthMax
             writer.writeInt8(0); // caretSlopeNumerator
             writer.writeInt8(0); // caretSlopeDenominator
             writer.writeInt8(0); // caretOffset
@@ -579,9 +581,9 @@ function writeCBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
         }
         // vert
         {
-            writer.writeInt8(101); // ascender
+            writer.writeInt8(101 - aj); // ascender
             writer.writeInt8(-27); // descender
-            writer.writeUInt8(136); // widthMax
+            writer.writeUInt8(136 + aj); // widthMax
             writer.writeInt8(0); // caretSlopeNumerator
             writer.writeInt8(0); // caretSlopeDenominator
             writer.writeInt8(0); // caretOffset
@@ -592,12 +594,13 @@ function writeCBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
             writer.writeInt8(0); // pad1
             writer.writeInt8(0); // pad2
         }
-        writer.writeUInt16BE(1); // startGlyphIndex
-        writer.writeUInt16BE(1); // endGlyphIndex
-        writer.writeInt8(109); // ppemX
-        writer.writeInt8(109); // ppemY
+        writer.writeUInt16BE(gs[0].glyphIndex); // startGlyphIndex
+        writer.writeUInt16BE(gs[gs.length - 1].glyphIndex); // endGlyphIndex
+        writer.writeInt8(109 - aj); // ppemX
+        writer.writeInt8(109 - aj); // ppemY
         writer.writeInt8(32); // bitDepth
         writer.writeInt8(1); // flags HORIZONTAL_METRICS
+        aj++;
     }
     // IndexSubTableArray
     const sizeofIndexSubHeader = 2 + 2 + 4;
@@ -605,9 +608,9 @@ function writeCBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     const sizeofSmallGlyphMetrics = 5;
     const aho = fs.readFileSync("1f92e2.png").length;
     let ebdtOffset = 2 + 2; // majorVersion, minorVersion
-    for (const g of gs) {
-        writer.writeUInt16BE(1); // firstGlyphIndex
-        writer.writeUInt16BE(1); // lastGlyphIndex
+    /*for (const g of gs)*/ {
+        writer.writeUInt16BE(gs[0].glyphIndex); // firstGlyphIndex
+        writer.writeUInt16BE(gs[gs.length - 1].glyphIndex); // lastGlyphIndex
         writer.writeUInt32BE(2 + 2 + 4); // additionalOffsetToIndexSubtable
         if (writer.position & 3) {
             throw new Error("must be DWORD-aligned");
@@ -619,8 +622,12 @@ function writeCBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
         writer.writeUInt16BE(17); // imageFormat = Format 1: small metrics, byte-aligned data
         writer.writeUInt32BE(ebdtOffset); // imageDataOffset
         writer.writeUInt32BE(0); // sbitOffsets
-        writer.writeUInt32BE(sizeofSmallGlyphMetrics + 4 + aho); // sbitOffsets
+        ebdtOffset-=4;
         ebdtOffset += sizeofSmallGlyphMetrics + 4 + aho;
+        for (const g of gs) {
+            writer.writeUInt32BE(ebdtOffset); // sbitOffsets
+            ebdtOffset += sizeofSmallGlyphMetrics + 4 + aho;
+        }
         if (writer.position & 3) {
             throw new Error("must be DWORD-aligned");
         }
@@ -632,7 +639,8 @@ function writeCBDT(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(0);
     // SmallGlyphMetrics
     const aho = fs.readFileSync("1f92e2.png");
-    const gs = glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index, glyph })));
+    const gs = new Array(glyphs.length - 1);//glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index, glyph }))).filter(x => x.glyphIndex);
+    for (let i = 0; i < gs.length; i++) gs[i] = i + 1;
     for (const g of gs) {
         writer.writeUInt8(136);
         writer.writeUInt8(136);
