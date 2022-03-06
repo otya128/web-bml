@@ -258,6 +258,44 @@ function clutToDecls(table: number[][]): CSSDeclaration[] {
     return ret;
 }
 
+function isPLTEMissing(png: Buffer): boolean {
+    let off = 8;
+    // IHDR
+    const type = png[off + 0x11];
+    // palette
+    if (type !== 3) {
+        return false;
+    }
+    off += png.readUInt32BE(off) + 4 * 3;
+    while (true) {
+        let chunkLength = png.readUInt32BE(off);
+        let chunkType = png.toString("ascii", off + 4, off + 8);
+        if (chunkType === "IDAT" || chunkType === "IEND") {
+            return true;
+        }
+        if (chunkType === "PLTE") {
+            return false;
+        }
+        off += chunkLength + 4 * 3;
+    }
+}
+
+async function aribPNGToPNG(png: Buffer, clut: string): Promise<Buffer> {
+    if (!isPLTEMissing(png)) {
+        return png;
+    }
+    const table = readCLUT(await readFileAsync2(`${process.env.BASE_DIR}/${clut}`));
+    const plte = preparePLTE(table);
+    const trns = prepareTRNS(table);
+    const output = Buffer.alloc(png.length + plte.length + trns.length);
+    let off = 0;
+    off += png.copy(output, off, 0, 33);
+    off += plte.copy(output, off);
+    off += trns.copy(output, off);
+    off += png.copy(output, off, 33);
+    return output;
+}
+
 
 router.get('/:component/:module/:filename', async ctx => {
     const component = ctx.params.component as string;
@@ -284,17 +322,8 @@ router.get('/:component/:module/:filename', async ctx => {
     } else {
         if (typeof ctx.query.clut === "string") {
             const clut = ctx.query.clut;
-            const table = readCLUT(await readFileAsync2(`${process.env.BASE_DIR}/${clut}`));
             const png = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-            const plte = preparePLTE(table);
-            const trns = prepareTRNS(table);
-            const output = Buffer.alloc(png.length + plte.length + trns.length);
-            let off = 0;
-            off += png.copy(output, off, 0, 33);
-            off += plte.copy(output, off);
-            off += trns.copy(output, off);
-            off += png.copy(output, off, 33);
-            ctx.body = output;
+            ctx.body = await aribPNGToPNG(png, clut);
             ctx.set("Content-Type", "image/png");
             return;
         }
