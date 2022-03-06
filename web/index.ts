@@ -1,5 +1,5 @@
 export { };
-import { transpileCSS } from "../src/transpile_css";
+import { transpileCSS, convertCSSProperty } from "../src/transpile_css";
 import css from "css";
 import { BinaryTable, BinaryTableConstructor } from "./binary_table";
 import { readPersistentArray, writePersistentArray } from "./nvram";
@@ -389,12 +389,23 @@ if (!window.browser) {
     Object.defineProperty(HTMLElement.prototype, "normalStyle", {
         get: function () {
             return new Proxy({ element: this as HTMLElement }, {
-                get(obj, props) {
-                    return (document.defaultView?.getComputedStyle(obj.element) ?? obj.element.style)[props as any];
+                get(obj, propName) {
+                    const style = (document.defaultView?.getComputedStyle(obj.element) ?? obj.element.style);
+                    if (!(propName in style)) {
+                        console.error("invalid css", obj.element.style, propName);
+                    }
+                    return style[propName as any];
                 },
-                set(obj, props, value) {
+                set(obj, propName, value) {
                     // inline styleを変更?
-                    obj.element.style[props as any] = value;
+                    [propName, value] = convertCSSProperty(propName as string, value);
+                    if (propName === "grayscaleColorIndex") {
+                        return true;
+                    }
+                    if (!(propName in obj.element.style)) {
+                        console.error("invalid css", obj.element.style, propName, value);
+                    }
+                    obj.element.style[propName as any] = value;
                     return true;
                 }
             });

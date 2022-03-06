@@ -15,6 +15,32 @@ export type CSSTranspileOptions = {
     clutReader: (cssValue: string) => css.Declaration[],
 };
 
+export function convertCSSProperty(propName: string, value: any): [propName: string, value: any] {
+    if (propName === "colorIndex") {
+        propName = "color";
+        value = `var(--clut-color-${value})`;
+    } else if (propName === "borderBottomColorIndex") {
+        propName = "borderBottomColor";
+        value = `var(--clut-color-${value})`;
+    } else if (propName === "borderTopColorIndex") {
+        propName = "borderTopColor";
+        value = `var(--clut-color-${value})`;
+    } else if (propName === "borderLeftColorIndex") {
+        propName = "borderLeftColor";
+        value = `var(--clut-color-${value})`;
+    } else if (propName === "borderRightColorIndex") {
+        propName = "borderRightColor";
+        value = `var(--clut-color-${value})`;
+    } else if (propName === "borderColorIndex") {
+        propName = "borderColor";
+        value = `var(--clut-color-${value})`;
+    } else if (propName === "outlineColorIndex") {
+        propName = "outlineColor";
+        value = `var(--clut-color-${value})`;
+    }
+    return [propName, value];
+}
+
 function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | string {
     if (node.type === "stylesheet") {
         const stylesheet = node as css.Stylesheet;
@@ -55,6 +81,24 @@ function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | str
             decl.value = "var(--clut-color-" + decl.value + ")";
         } else if (decl.property == "nav-index") {
             decl.property = "--" + decl.property;
+        } else if (decl.property == "border-bottom-color-index") {
+            decl.property = "border-bottom-color";
+            decl.value = "var(--clut-color-" + decl.value + ")";
+        } else if (decl.property == "border-top-color-index") {
+            decl.property = "border-top-color";
+            decl.value = "var(--clut-color-" + decl.value + ")";
+        } else if (decl.property == "border-left-color-index") {
+            decl.property = "border-left-color";
+            decl.value = "var(--clut-color-" + decl.value + ")";
+        } else if (decl.property == "border-right-color-index") {
+            decl.property = "border-right-color";
+            decl.value = "var(--clut-color-" + decl.value + ")";
+        } else if (decl.property == "border-color-index") {
+            decl.property = "border-color";
+            decl.value = "var(--clut-color-" + decl.value + ")";
+        } else if (decl.property == "outline-color-index") {
+            decl.property = "outline-color";
+            decl.value = "var(--clut-color-" + decl.value + ")";
         }
     }
 }
