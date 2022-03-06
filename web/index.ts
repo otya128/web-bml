@@ -552,7 +552,11 @@ if (!window.browser) {
                 if (v.startsWith("~/")) {
                     v = ".." + v.substring(1);
                 }
-                if ((this.getAttribute("arib-type") ?? this.type).match(/image\/X-arib-png/i)) {
+                const aribType = this.getAttribute("arib-type");
+                if ((aribType ?? this.type).match(/image\/X-arib-png/i)) {
+                    if (!aribType) {
+                        this.setAttribute("arib-type", this.type);
+                    }
                     this.type = "image/png";
                     const clut = document.defaultView?.getComputedStyle(this)?.getPropertyValue("--clut");
                     if (clut && !v.includes("?clut=")) {
@@ -563,6 +567,9 @@ if (!window.browser) {
                     return;
                 }
                 this.setAttribute("data", v);
+                if (!aribType) {
+                    this.outerHTML = this.outerHTML;
+                }
             }
         });
         const observer = new MutationObserver((mutationsList, observer) => {
