@@ -6,6 +6,49 @@ import { TextDecoder } from 'util';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import { transpile } from "./transpile_ecm";
 import { Declaration as CSSDeclaration } from "css";
+import path from "path";
+
+const baseDir = process.env.BASE_DIR;
+if (!baseDir) {
+    console.error("BASE_DIR");
+    process.exit(1);
+}
+
+type Component = {
+    [key: string]: Module
+};
+
+type Module = {
+    [key: string]: File
+};
+
+type File = {
+    [key: string]: {}
+};
+
+const components: {[key: string]: Component} = {};
+
+for (const componentDirent of fs.readdirSync(baseDir, { withFileTypes: true })) {
+    if (!componentDirent.isDirectory() || componentDirent.name.length !== 2) {
+        continue;
+    }
+    const component: Component = {};
+    components[componentDirent.name] = component;
+    for (const moduleDirent of fs.readdirSync(path.join(baseDir, componentDirent.name), { withFileTypes: true })) {
+        if (!moduleDirent.isDirectory() || moduleDirent.name.length !== 4) {
+            continue;
+        }
+        const module: Module = {};
+        component[moduleDirent.name] = module;
+        for (const fileDirent of fs.readdirSync(path.join(baseDir, componentDirent.name, moduleDirent.name), { withFileTypes: true })) {
+            if (!fileDirent.isFile()) {
+                continue;
+            }
+            const file: File = {};
+            module[fileDirent.name] = file;
+        }
+    }
+}
 
 const app = new Koa();
 const router = new Router();
@@ -139,6 +182,15 @@ function readFileAsync(path: string): Promise<string> {
                     ":@": {
                         "@_href": "/default.css",
                         "@_rel": "stylesheet"
+                    }
+                }, {
+                    "script": [
+                        {
+                            "#text": JSON.stringify(components)
+                        }
+                    ], ":@": {
+                        "@_type": "application/json",
+                        "@_id": "bml-server-data",
                     }
                 }, {
                     "script": [],

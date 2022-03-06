@@ -50,6 +50,19 @@ declare global {
 
 
 if (!window.browser) {
+    type Component = {
+        [key: string]: Module
+    };
+
+    type Module = {
+        [key: string]: File
+    };
+
+    type File = {
+        [key: string]: {}
+    };
+
+    const components: { [key: string]: Component } = JSON.parse(document.getElementById("bml-server-data")?.textContent ?? "{}");
     window.dummy = undefined;
     window.browser = {};
     window.__newBT = function __newBT(klass: any, ...args: any[]) {
@@ -124,13 +137,59 @@ if (!window.browser) {
         console.log("unlockAllModulesOnMemory");
         return 1; // NaN => fail
     };
+    function parseURL(url: string): { component: string | null, module: string | null, filename: string | null } {
+        if (url.startsWith("~/")) {
+            url = ".." + url.substring(1);
+        }
+        url = new URL(url, location.href).pathname;
+        const components = url.split("/");
+        // [0] ""
+        // [1] component
+        // [2] module
+        // [3] filename
+        if (components.length > 4) {
+            return { component: null, module: null, filename: null };
+        }
+        return { component: components[1] ?? null, module: components[2] ?? null, filename: components[3] ?? null };
+    }
     window.lockedModules = new Map<string, { isEx: boolean }>();
     window.browser.lockModuleOnMemory = function lockModuleOnMemory(module: string): number {
         console.log("lockModuleOnMemory", module);
-        // if (module.startsWith("/50/")) {
-        //     return -1;
-        // }
+        const { component: componentInURL, module: moduleInURL } = parseURL(module);
+        if (!componentInURL || !moduleInURL) {
+            return NaN;
+        }
+        const c = components[componentInURL];
+        if (!c) {
+            console.error("lockModuleOnMemory: component not found", module);
+            return -1;
+        }
+        const m = c[moduleInURL];
+        if (!m) {
+            console.error("lockModuleOnMemory: module not found", module);
+            return -1;
+        }
         window.lockedModules.set(module, { isEx: false });
+        window.postMessage({ module }, "*");
+        return 1;
+    }
+    window.browser.lockModuleOnMemoryEx = function lockModuleOnMemoryEx(module: string): number {
+        console.log("lockModuleOnMemoryEx", module);
+        const { component: componentInURL, module: moduleInURL } = parseURL(module);
+        if (!componentInURL || !moduleInURL) {
+            return NaN;
+        }
+        const c = components[componentInURL];
+        if (!c) {
+            console.error("lockModuleOnMemoryEx: component not found", module);
+            return -3;
+        }
+        const m = c[moduleInURL];
+        if (!m) {
+            console.error("lockModuleOnMemoryEx: module not found", module);
+            return -3;
+        }
+        window.lockedModules.set(module, { isEx: true });
         window.postMessage({ module }, "*");
         return 1;
     }
@@ -170,15 +229,7 @@ if (!window.browser) {
             }
         }
     });
-    window.browser.lockModuleOnMemoryEx = function lockModuleOnMemoryEx(module: string): number {
-        console.log("lockModuleOnMemoryEx", module);
-        // if (module.startsWith("/50/")) {
-        //     return -1;
-        // }
-        window.lockedModules.set(module, { isEx: true });
-        window.postMessage({ module }, "*");
-        return 1;
-    }
+
     window.browser.lockScreen = function lockScreen() {
         console.log("lockScreen");
     };
@@ -193,6 +244,11 @@ if (!window.browser) {
         location.href = documentName;
         return 0;
     };
+    window.browser.reloadActiveDocument = function reloadActiveDocument(): number {
+        console.log("reloadActiveDocument");
+        location.reload();
+        return NaN;
+    }
     window.browser.readPersistentArray = function (filename: string, structure: string): any[] | null {
         console.log("readPersistentArray", filename, structure);
         return readPersistentArray(filename, structure);
@@ -331,6 +387,7 @@ if (!window.browser) {
                 if (this.getAttribute("type") === "ModuleUpdated") {
                     const module: string = this.getAttribute("module_ref") ?? "";
                     console.log("hack: ModuleUpdated", module);
+                    /*
                     const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
                     for (const beitem of Array.from(moduleLocked)) {
                         if (beitem.getAttribute("subscribe") !== "subscribe") {
@@ -363,6 +420,7 @@ if (!window.browser) {
                             }
                         }
                     }
+                    //*/
                 }
             } else {
                 (this as HTMLElement).removeAttribute("subscribe");
