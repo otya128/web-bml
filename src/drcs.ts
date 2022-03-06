@@ -1,5 +1,4 @@
-import { write } from "fs";
-import { buffer } from "stream/consumers";
+import { jisToUnicodeMap } from "./jis_to_unicode_map";
 
 function readBits(posBits: number, bits: number, buffer: Buffer): number {
     let value = 0;
@@ -260,6 +259,15 @@ function writeCMAP4(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.seek(prev);
 }
 
+function map(ku: number, ten: number): number {
+    const s = jisToUnicodeMap[(ku - 1) * 94 + ten - 1];
+    if (s?.length === 1) {
+        return s.charCodeAt(0);
+    } else {
+        return 0;
+    }
+}
+
 function writeCMAP(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     let cmapOffset = writer.writeUInt16BE(0); // version
     writer.writeUInt16BE(1); // numTables
@@ -281,20 +289,20 @@ function writeCMAP(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(segCount * 2 - searchRange);
     // endCode
     for (let i = 0; i < glyphs.length; i++) {
-        writer.writeUInt16BE(0x41 + i);
+        writer.writeUInt16BE(map(glyphs[i].ku, glyphs[i].ten));
     }
     // endCode
     writer.writeUInt16BE(0xffff);
     writer.writeUInt16BE(0); // reserved
     // startCode
     for (let i = 0; i < glyphs.length; i++) {
-        writer.writeUInt16BE(0x41 + i);
+        writer.writeUInt16BE(map(glyphs[i].ku, glyphs[i].ten));
     }
     // startCode
     writer.writeUInt16BE(0xffff);
     // idDelta
     for (let i = 0; i < segCount - 1; i++) {
-        writer.writeInt16BE(-0x41);
+        writer.writeUInt16BE((-map(glyphs[i].ku, glyphs[i].ten) + i + 1) & 0xffff);
     }
     writer.writeInt16BE(1);
     // idRangeOffsets 
@@ -346,11 +354,11 @@ function writeHHEA(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeInt16BE(0); // reserved
     writer.writeInt16BE(0); // reserved
     writer.writeInt16BE(0); // metricDataFormat
-    writer.writeUInt16BE(glyphs.length); // numberOfHMetrics
+    writer.writeUInt16BE(glyphs.length + 1); // numberOfHMetrics
 }
 
 function writeHMTX(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
-    for (let i = 0; i < glyphs.length; i++) {
+    for (let i = 0; i <= glyphs.length; i++) {
         writer.writeUInt16BE(2550);
         writer.writeInt16BE(0);
     }
@@ -358,7 +366,7 @@ function writeHMTX(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
 
 function writeMAXP(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt32BE(0x00010000); // version
-    writer.writeUInt16BE(glyphs.length); // numGlyphs
+    writer.writeUInt16BE(glyphs.length + 1); // numGlyphs
     writer.writeUInt16BE(0); // maxPoints
     writer.writeUInt16BE(0); // maxContours
     writer.writeUInt16BE(0); // maxCompositePoints
@@ -374,7 +382,7 @@ function writeMAXP(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(0); // maxComponentDepth
 }
 
-function writeNAME(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
+function writeNAME(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     const begin = writer.position;
     writer.writeUInt16BE(0); // version
     writer.writeUInt16BE(1); // count
@@ -394,7 +402,7 @@ function writeNAME(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE("DRCS".charCodeAt(3));
 }
 
-function writeOS2(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
+function writeOS2(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(1); // version
     writer.writeInt16BE(2550); // xAvgCharWidth
     writer.writeUInt16BE(400); // usWeightClass
@@ -448,7 +456,7 @@ function writePOST(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
 function writeEBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(2); // majorVersion
     writer.writeUInt16BE(0); // minorVersion
-    const gs = glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index, glyph }))).filter(x => x.glyphIndex);
+    const gs = glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index + 1, glyph }))).filter(x => x.glyphIndex);
     writer.writeUInt32BE(gs.length);
     const headerSize = 2 * 2 + 4;
     const sizeOfSbitLineMetrics = 12;
@@ -530,7 +538,7 @@ function writeEBDT(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(2); // majorVersion
     writer.writeUInt16BE(0); // minorVersion
     // SmallGlyphMetrics
-    const gs = glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index, glyph }))).filter(x => x.glyphIndex);
+    const gs = glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index + 1, glyph }))).filter(x => x.glyphIndex);
     for (const g of gs) {
         writer.writeUInt8(g.glyph.height);
         writer.writeUInt8(g.glyph.width);
@@ -549,7 +557,7 @@ function writeCBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(3);
     writer.writeUInt16BE(0);
     //const gs = glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index, glyph }))).filter(x => x.glyphIndex);
-    const gs = glyphs.flatMap((x, index) => [{ glyphIndex: index, glyph: x.glyphs[0] }]).filter(x => x.glyphIndex);
+    const gs = glyphs.flatMap((x, index) => [{ glyphIndex: index + 1, glyph: x.glyphs[0] }]).filter(x => x.glyphIndex);
     gs.sort((a, b) => a.glyphIndex - b.glyphIndex);
     writer.writeUInt32BE(1/*gs.length*/);
     const headerSize = 2 * 2 + 4;
@@ -623,9 +631,9 @@ function writeCBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
         writer.writeUInt16BE(1); // imageFormat = Format 1: small metrics, byte-aligned data
         writer.writeUInt32BE(ebdtOffset); // imageDataOffset
         writer.writeUInt32BE(0); // sbitOffsets
-        ebdtOffset-=4;
+        ebdtOffset -= 4;
         for (const g of gs) {
-            ebdtOffset += sizeofSmallGlyphMetrics + 4*0 + 1*g.glyph.width * g.glyph.height;
+            ebdtOffset += sizeofSmallGlyphMetrics + 4 * 0 + 1 * g.glyph.width * g.glyph.height;
             writer.writeUInt32BE(ebdtOffset); // sbitOffsets
         }
         if (writer.position & 3) {
@@ -639,7 +647,7 @@ function writeCBDT(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(0);
     // SmallGlyphMetrics
     const aho = fs.readFileSync("1f92e2.png");
-    const gs = glyphs.flatMap((x, index) => [{ glyphIndex: index, glyph: x.glyphs[0] }]).filter(x => x.glyphIndex);
+    const gs = glyphs.flatMap((x, index) => [{ glyphIndex: index + 1, glyph: x.glyphs[0] }]).filter(x => x.glyphIndex);
     gs.sort((a, b) => a.glyphIndex - b.glyphIndex);
     for (const g of gs) {
         writer.writeUInt8(g.glyph.height);
@@ -667,7 +675,7 @@ function writeGLYF(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeInt16BE(493);
 }
 function writeLOCA(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
-    for (let i = 0; i <= glyphs.length; i++) {
+    for (let i = 0; i <= glyphs.length + 1; i++) {
         writer.writeUInt32BE(0);
     }
 }
@@ -690,7 +698,7 @@ export function loadDRCS(drcs: Buffer): DRCSGlyphs[] {
             off += 1;
             const fontId = b >> 4;
             const mode = b & 15;
-            console.log(`${charCode1} ${charCode2} ${fontId}`);
+            //console.log(`${charCode1} ${charCode2} ${fontId}`);
             // charCode1 - 0x20, charCode2 - 0x20でJISの区点
             // これに0xA0を足すとEUC-JP
             if (mode === 0 || mode === 1) {
@@ -703,11 +711,16 @@ export function loadDRCS(drcs: Buffer): DRCSGlyphs[] {
                 const depthBits = Math.ceil(Math.log2(depth + 2));
                 let posBits = off * 8;
                 const bitmap = new Array(width * height);
+                //console.log(`${depth} ${width} ${height}`);
                 glyphs.glyphs.push({ width, height, depth: depth + 2, bitmap });
                 for (let y = 0; y < height; y++) {
                     for (let x = 0; x < width; x++) {
                         const bits = readBits(posBits, depthBits, drcs);
-                        //process.stdout.write(bits + ",");
+                        if (bits) {
+                            //process.stdout.write("" + bits);
+                        } else {
+                            //process.stdout.write(" ");
+                        }
                         bitmap[x + y * width] = bits;
                         posBits += depthBits;
                     }
