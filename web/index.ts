@@ -386,7 +386,20 @@ if (!window.browser) {
             this._currentFocus = elem;
         }
     });
-    Object.defineProperty(HTMLElement.prototype, "normalStyle", { get: function () { return this.style; } })
+    Object.defineProperty(HTMLElement.prototype, "normalStyle", {
+        get: function () {
+            return new Proxy({ element: this as HTMLElement }, {
+                get(obj, props) {
+                    return (document.defaultView?.getComputedStyle(obj.element) ?? obj.element.style)[props as any];
+                },
+                set(obj, props, value) {
+                    // inline styleを変更?
+                    obj.element.style[props as any] = value;
+                    return true;
+                }
+            });
+        }
+    });
 
     function keyCodeToAribKey(keyCode: string): number {
         // STD-B24 Table 5-2 Table 5-9
