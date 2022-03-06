@@ -33,19 +33,19 @@ for (const componentDirent of fs.readdirSync(baseDir, { withFileTypes: true })) 
         continue;
     }
     const component: Component = {};
-    components[componentDirent.name] = component;
+    components[componentDirent.name.toLowerCase()] = component;
     for (const moduleDirent of fs.readdirSync(path.join(baseDir, componentDirent.name), { withFileTypes: true })) {
         if (!moduleDirent.isDirectory() || moduleDirent.name.length !== 4) {
             continue;
         }
         const module: Module = {};
-        component[moduleDirent.name] = module;
+        component[moduleDirent.name.toLowerCase()] = module;
         for (const fileDirent of fs.readdirSync(path.join(baseDir, componentDirent.name, moduleDirent.name), { withFileTypes: true })) {
             if (!fileDirent.isFile()) {
                 continue;
             }
             const file: File = {};
-            module[fileDirent.name] = file;
+            module[fileDirent.name.toLowerCase()] = file;
         }
     }
 }
@@ -350,9 +350,9 @@ async function aribPNGToPNG(png: Buffer, clut: string): Promise<Buffer> {
 
 
 router.get('/:component/:module/:filename', async ctx => {
-    const component = ctx.params.component as string;
-    const module = ctx.params.module as string;
-    const filename = ctx.params.filename as string;
+    const component = (ctx.params.component as string).toLowerCase();
+    const module = (ctx.params.module as string).toLowerCase();
+    const filename = (ctx.params.filename as string).toLowerCase();
     if (ctx.headers["sec-fetch-dest"] === "script" || filename.endsWith(".ecm")) {
         const b = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
         const file = new TextDecoder("euc-jp").decode(b);

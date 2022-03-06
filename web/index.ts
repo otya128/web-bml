@@ -141,7 +141,7 @@ if (!window.browser) {
         if (url.startsWith("~/")) {
             url = ".." + url.substring(1);
         }
-        url = new URL(url, location.href).pathname;
+        url = new URL(url, location.href).pathname.toLowerCase();
         const components = url.split("/");
         // [0] ""
         // [1] component
