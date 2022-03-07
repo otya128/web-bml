@@ -178,8 +178,11 @@ export function toTTF(glyphs: DRCSGlyphs[]): Buffer {
         { name: "name", writer: writeNAME, headerOffset: -1 },
         { name: "OS/2", writer: writeOS2, headerOffset: -1 },
         { name: "post", writer: writePOST, headerOffset: -1 },
-        //{ name: "EBDT", writer: writeEBDT, headerOffset: -1 },
-        //{ name: "EBLC", writer: writeEBLC, headerOffset: -1 },
+        // EBDTとEBLCは消されてしまうらしい
+        // https://github.com/khaledhosny/ots/blob/main/docs/DesignDoc.md
+        // > We don't support embedded bitmap strikes.
+        // { name: "EBDT", writer: writeEBDT, headerOffset: -1 },
+        // { name: "EBLC", writer: writeEBLC, headerOffset: -1 },
         { name: "CBDT", writer: writeCBDT, headerOffset: -1 },
         { name: "CBLC", writer: writeCBLC, headerOffset: -1 },
         { name: "glyf", writer: writeGLYF, headerOffset: -1 },
@@ -450,107 +453,6 @@ function writePOST(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt32BE(0); // maxMemType42
     writer.writeUInt32BE(0); // minMemType1
     writer.writeUInt32BE(0); // maxMemType1
-}
-
-
-function writeEBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
-    writer.writeUInt16BE(2); // majorVersion
-    writer.writeUInt16BE(0); // minorVersion
-    const gs = glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index + 1, glyph }))).filter(x => x.glyphIndex);
-    writer.writeUInt32BE(gs.length);
-    const headerSize = 2 * 2 + 4;
-    const sizeOfSbitLineMetrics = 12;
-    const sizeofBitmapSize = 4 * 4 + sizeOfSbitLineMetrics * 2 + 2 * 2 + 4;
-    let indexSubTableArrayOffset = ((headerSize + sizeofBitmapSize * gs.length) + 3) & ~3;
-    const sizeOfIndexSubTableArray = 2 + 2 + 4;
-    // BitmapSize
-    for (const g of gs) {
-        writer.writeUInt32BE(indexSubTableArrayOffset); // indexSubTableArrayOffset
-        indexSubTableArrayOffset += sizeOfIndexSubTableArray + 16;
-        writer.writeUInt32BE(sizeOfIndexSubTableArray * 1 + 16); // indexTablesSize
-        writer.writeUInt32BE(1); // numberOfIndexSubTables
-        writer.writeUInt32BE(0); // colorRef
-        // hori
-        {
-            writer.writeInt8(g.glyph.width - 2); // ascender
-            writer.writeInt8(-2); // descender
-            writer.writeUInt8(g.glyph.width); // widthMax
-            writer.writeInt8(1); // caretSlopeNumerator
-            writer.writeInt8(0); // caretSlopeDenominator
-            writer.writeInt8(0); // caretOffset
-            writer.writeInt8(0); // minOriginSB
-            writer.writeInt8(0); // minAdvanceSB
-            writer.writeInt8(g.glyph.width - 2); // maxBeforeBL
-            writer.writeInt8(-2); // minAfterBL
-            writer.writeInt8(0); // pad1
-            writer.writeInt8(0); // pad2
-        }
-        // vert
-        {
-            writer.writeInt8(0); // ascender
-            writer.writeInt8(0); // descender
-            writer.writeUInt8(g.glyph.height); // widthMax
-            writer.writeInt8(0); // caretSlopeNumerator
-            writer.writeInt8(1); // caretSlopeDenominator
-            writer.writeInt8(0); // caretOffset
-            writer.writeInt8(0); // minOriginSB
-            writer.writeInt8(0); // minAdvanceSB
-            writer.writeInt8(-g.glyph.height); // maxBeforeBL
-            writer.writeInt8(0); // minAfterBL
-            writer.writeInt8(0); // pad1
-            writer.writeInt8(0); // pad2
-        }
-        writer.writeUInt16BE(g.glyphIndex); // startGlyphIndex
-        writer.writeUInt16BE(g.glyphIndex); // endGlyphIndex
-        writer.writeInt8(g.glyph.width); // ppemX
-        writer.writeInt8(g.glyph.width); // ppemY
-        writer.writeInt8(8); // bitDepth
-        writer.writeInt8(1); // flags HORIZONTAL_METRICS
-    }
-    // IndexSubTableArray
-    const sizeofIndexSubHeader = 2 + 2 + 4;
-    let additionalOffsetToIndexSubtable = sizeofIndexSubHeader * gs.length;
-    const sizeofSmallGlyphMetrics = 5;
-    let ebdtOffset = 2 + 2; // majorVersion, minorVersion
-    for (const g of gs) {
-        writer.writeUInt16BE(g.glyphIndex); // firstGlyphIndex
-        writer.writeUInt16BE(g.glyphIndex); // lastGlyphIndex
-        writer.writeUInt32BE(2 + 2 + 4); // additionalOffsetToIndexSubtable
-        if (writer.position & 3) {
-            throw new Error("must be DWORD-aligned");
-        }
-        additionalOffsetToIndexSubtable -= sizeofIndexSubHeader;
-        additionalOffsetToIndexSubtable += sizeofSmallGlyphMetrics;
-        // IndexSubHeader
-        writer.writeUInt16BE(1); // indexFormat = IndexSubTable1
-        writer.writeUInt16BE(1); // imageFormat = Format 1: small metrics, byte-aligned data
-        writer.writeUInt32BE(ebdtOffset); // imageDataOffset
-        writer.writeUInt32BE(0); // sbitOffsets
-        writer.writeUInt32BE(sizeofSmallGlyphMetrics + g.glyph.width * g.glyph.height); // sbitOffsets
-        ebdtOffset += sizeofSmallGlyphMetrics + g.glyph.width * g.glyph.height;
-        if (writer.position & 3) {
-            throw new Error("must be DWORD-aligned");
-        }
-    }
-}
-
-function writeEBDT(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
-    writer.writeUInt16BE(2); // majorVersion
-    writer.writeUInt16BE(0); // minorVersion
-    // SmallGlyphMetrics
-    const gs = glyphs.flatMap((x, index) => x.glyphs.map(glyph => ({ glyphIndex: index + 1, glyph }))).filter(x => x.glyphIndex);
-    for (const g of gs) {
-        writer.writeUInt8(g.glyph.height);
-        writer.writeUInt8(g.glyph.width);
-        writer.writeUInt8(0); // bearingX
-        writer.writeUInt8(0); // bearingY
-        writer.writeUInt8(g.glyph.width); // advance
-        for (let y = 0; y < g.glyph.height; y++) {
-            for (let x = 0; x < g.glyph.width; x++) {
-                writer.writeUInt8(Math.floor(g.glyph.bitmap[x + y * g.glyph.width] / (g.glyph.depth - 1) * 255));
-            }
-        }
-    }
 }
 
 type Strike = {
