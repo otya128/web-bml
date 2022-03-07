@@ -11,6 +11,10 @@ export function decodeEUCJP(input: Uint8Array): string {
                 buffer[outOff++] = 0xfffd; // �
                 break;
             }
+            if (input[i] < 0xa1 || input[i] > 0xfe) {
+                buffer[outOff++] = 0xfffd; // �
+                continue;
+            }
             const ten = input[i] - 0xa0;
             const uni = jisToUnicodeMap[(ku - 1) * 94 + (ten - 1)];
             if (uni.length === 1) {
