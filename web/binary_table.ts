@@ -451,9 +451,14 @@ export class BinaryTable implements IBinaryTable {
         if (args.length % 3 !== 0 || args.length < 6) {
             throw new TypeError("argument");
         }
+        // 条件は4つまで
+        if (args.length > (1 + 3 + 4 * 4)) {
+            throw new TypeError("argument");
+        }
         const logic = args[args.length - 3] as boolean;
         const limitCount = args[args.length - 2] as number;
         const resultArray = args[args.length - 1] as any[];
+        resultArray.length = 0;
         for (let i = startRow; i < this.rows.length; i++) {
             let results = new Array(args.length / 3 - 1);
             for (let c = 0; c < args.length - 3; c += 3) {
@@ -543,11 +548,20 @@ export class BinaryTable implements IBinaryTable {
             if (result) {
                 resultArray.push(this.rows[i].map((v, j) => {
                     if (typeof v === "object" && "from" in v && "to" in v) {
+                        let found = false;
                         for (let c = 0; c < args.length - 3; c += 3) {
                             const searchedColumn = args[c] as number;
                             if (searchedColumn === j) {
-                                return results[c / 3];
+                                if (results[c / 3]) {
+                                    return true;
+                                } else {
+                                    // 同じ列に対して複数の検索条件が指定される可能性
+                                    found = true;
+                                }
                             }
+                        }
+                        if (found) {
+                            return false;
                         }
                         return null;
                     }
