@@ -5,6 +5,7 @@ import { BinaryTable, BinaryTableConstructor } from "./binary_table";
 import { readPersistentArray, writePersistentArray } from "./nvram";
 import { overrideString } from "./string"
 import { overrideNumber } from "./number"
+import { overrideDate } from "./date";
 interface BMLEvent {
     type: string;
     target: HTMLElement;
@@ -704,4 +705,5 @@ if (!window.browser) {
     });
     overrideString();
     overrideNumber();
+    overrideDate();
 }
