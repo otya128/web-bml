@@ -15,6 +15,7 @@ export function transpile(code: string): string {
         },
         // あくまでSTD-B24 7.2.1 Base conventionsでFloatを実装しなくても良いと書かれているように見えるけど実際は整数であることが前提?
         // ただしNaNはあるので|0するのはやめてMath.truncを呼び出す
+        // STD B-24 第二編 付属2 5.4.2.2で32ビット単精度整数と規定
         exit(path) {
             if (path.isBinaryExpression()) {
                 if (path.node.operator === "/") {
