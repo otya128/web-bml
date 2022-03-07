@@ -569,10 +569,18 @@ if (!window.browser) {
                 document.currentEvent = {
                     keyCode: k,
                     type: "keydown",
-                    target: event.target,
+                    target: document.currentFocus,
                 } as BMLIntrinsicEvent;
                 (document.currentFocus.onkeydown as () => void)();
                 document.currentEvent = null;
+                if (k == 18 && document.currentFocus && document.currentFocus.onclick) {
+                    document.currentEvent = {
+                        type: "click",
+                        target: document.currentFocus,
+                    } as BMLEvent;
+                    (document.currentFocus.onclick as () => void)();
+                    document.currentEvent = null;
+                }
             }
         });
         const config = { attributes: true, childList: true, subtree: true };
