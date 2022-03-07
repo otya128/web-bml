@@ -307,6 +307,7 @@ if (!window.browser) {
                 "round gothic",
                 "丸ゴシック",
                 "bold round gothic",
+                "太丸ゴシック",
                 "square gothic",
                 "Ｐ丸ゴシック",
                 "太ゴシック",

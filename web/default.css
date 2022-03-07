@@ -88,13 +88,18 @@ body {
 }
 
 @font-face {
+    font-family: "太丸ゴシック";
+    src: url("/KosugiMaru-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+}
+
+@font-face {
     font-family: "round gothic";
     src: url("/KosugiMaru-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
 }
 
 @font-face {
     font-family: "bold round gothic";
-    src: local('MS Gothic');
+    src: url("/KosugiMaru-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
 }
 
 @font-face {
