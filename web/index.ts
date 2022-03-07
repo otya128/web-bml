@@ -469,7 +469,31 @@ if (!window.browser) {
         return new URL(uri, location.href).pathname;
     }
     HTMLElement.prototype.focus = function focus(options?: FocusOptions) {
+        // focus()の中でfocus()は呼べない
+        if (document.currentEvent?.type === "focus") {
+            return;
+        }
+        const prevFocus = document.currentFocus;
+        if (prevFocus === this as BMLElement) {
+            return;
+        }
         document.currentFocus = this as BMLElement;
+        if (prevFocus?.onblur) {
+            document.currentEvent = {
+                type: "blur",
+                target: prevFocus,
+            } as BMLEvent;
+            (prevFocus.onblur as () => void)();
+            document.currentEvent = null;
+        }
+        if (document.currentFocus.onfocus) {
+            document.currentEvent = {
+                type: "focus",
+                target: document.currentFocus,
+            } as BMLEvent;
+            (document.currentFocus.onfocus as () => void)();
+            document.currentEvent = null;
+        }
     };
     Object.defineProperty(Document.prototype, "currentFocus", {
         get: function () { return this._currentFocus; },
