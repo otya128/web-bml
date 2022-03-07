@@ -1,6 +1,6 @@
 import css from 'css';
 
-const colorIndexProperties: { [propName: string]: string } = {
+const colorIndexProperties: { [propName: string]: keyof CSSStyleDeclaration } = {
     colorIndex: "color",
     backgroundColorIndex: "backgroundColor",
     borderBottomColorIndex: "borderBottomColor",
@@ -11,6 +11,16 @@ const colorIndexProperties: { [propName: string]: string } = {
     outlineColorIndex: "outlineColor",
 };
 
+const colorIndexPropertiesToRule: { [propName: string]: string } = {
+    colorIndex: "color-index",
+    backgroundColorIndex: "background-color-index",
+    borderBottomColorIndex: "border-bottom-color-index",
+    borderTopColorIndex: "border-top-color-index",
+    borderLeftColorIndex: "border-left-color-index",
+    borderRightColorIndex: "border-right-color-index",
+    borderColorIndex: "border-color-index",
+    outlineColorIndex: "outline-color-index",
+};
 const colorIndexRules: { [propName: string]: string } = {
     "color-index": "color",
     "background-color-index": "background-color",
@@ -49,16 +59,37 @@ function colorIndexToVar(colorIndex: string | null | undefined): string | null |
     }
 }
 
-export function convertCSSProperty(propName: string, value: any): [propName: string, value: any] {
-    const subPropName = colorIndexProperties[propName];
-    if (subPropName) {
-        propName = subPropName;
-        value = colorIndexToVar(value);
+function varToColorIndex(colorIndexVar: string | null | undefined): string | null | undefined {
+    if (colorIndexVar == null) {
+        return colorIndexVar;
     }
-    return [propName, value];
+    const match = /var\(--clut-color-(?<index>\d+)\)/.exec(colorIndexVar);
+    return match?.groups?.index ?? colorIndexVar;
 }
 
-function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | string {
+export function convertCSSPropertyToGet(propName: string, style: CSSStyleDeclaration): any {
+    const subPropName = colorIndexProperties[propName];
+    if (subPropName) {
+        const propValue = parseInt(style.getPropertyValue("--" + colorIndexPropertiesToRule[propName]));
+        if (Number.isFinite(propValue)) {
+            return propValue.toString();
+        }
+        return varToColorIndex(style[subPropName as any]);
+    }
+    return style[propName as any];
+}
+
+export function convertCSSPropertyToSet(propName: string, value: any, style: CSSStyleDeclaration): boolean {
+    const subPropName = colorIndexProperties[propName];
+    if (subPropName) {
+        style.setProperty("--" + colorIndexPropertiesToRule[propName], value);
+        style[subPropName as any] = colorIndexToVar(value) ?? "";
+        return true;
+    }
+    return false;
+}
+
+function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | string | (css.Comment | css.Declaration)[] {
     if (node.type === "stylesheet") {
         const stylesheet = node as css.Stylesheet;
         if (stylesheet.stylesheet) {
@@ -70,10 +101,16 @@ function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | str
         const rule = node as css.Rule;
         if (rule.declarations) {
             let clut: string | undefined;
-            for (const decl of rule.declarations) {
+            for (let i = 0; i < rule.declarations.length; i++) {
+                const decl = rule.declarations[i];
+                if (!decl)
+                    break;
                 let c = processRule(decl, opts);
-                if (c) {
+                if (typeof c === "string") {
                     clut = c;
+                } else if (c != null) {
+                    rule.declarations.splice(i, 1, ...c);
+                    i += c.length - 1;
                 }
             }
             if (clut) {
@@ -95,8 +132,15 @@ function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | str
         } else if (decl.property) {
             const sub = colorIndexRules[decl.property];
             if (sub) {
+                const origProperty = decl.property;
+                const origValue = decl.value;
                 decl.property = sub;
                 decl.value = colorIndexToVar(decl.value) ?? undefined;
+                return [decl, {
+                    type: "declaration",
+                    property: "--" + origProperty,
+                    value: origValue,
+                }];
             }
         }
     }

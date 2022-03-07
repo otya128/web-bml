@@ -45,8 +45,14 @@ span, a { letter-spacing : inherit !important }
 /* CDATA? */
 /* p, input { white-space : normal !important } */
 /* background-color-index */
-body {background-color : var(--clut-color-0)}
-div, p, span, a, input { background-color : var(--clut-color-8) }
+body {
+    background-color: var(--clut-color-0);
+    --background-color: 0;
+}
+div, p, span, a, input {
+    background-color: var(--clut-color-8);
+    --background-color: 8;
+}
 /* ?? これだとobjectが透過できなくなる */
 /* object { background-color : var(--clut-color-0) !important} */
 /* grayscale-color-index */
