@@ -1,4 +1,5 @@
 import { jisToUnicodeMap } from "./jis_to_unicode_map";
+import CRC32 from "crc-32";
 
 function readBits(posBits: number, bits: number, buffer: Buffer): number {
     let value = 0;
@@ -187,6 +188,7 @@ export function toTTF(glyphs: DRCSGlyphs[]): Buffer {
         { name: "CBLC", writer: writeCBLC, headerOffset: -1 },
         { name: "glyf", writer: writeGLYF, headerOffset: -1 },
         { name: "loca", writer: writeLOCA, headerOffset: -1 },
+        { name: "SVG ", writer: writeSVG, headerOffset: -1 }
     ];
     tables.sort((a, b) => {
         if (a.name < b.name) {
@@ -362,7 +364,9 @@ function writeHHEA(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
 
 function writeHMTX(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     for (let i = 0; i <= glyphs.length; i++) {
-        writer.writeUInt16BE(2550);
+        // SVGグリフで文字間に間が空くので適当に縮める
+        // どのみち拡大すると破綻する
+        writer.writeUInt16BE(2048 - 80);//2550);
         writer.writeInt16BE(0);
     }
 }
@@ -602,7 +606,6 @@ function writeCBDT(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     }
 }
 
-// 本来はいらない
 function writeGLYF(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(0);
     writer.writeInt16BE(408);
@@ -615,6 +618,101 @@ function writeLOCA(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     for (let i = 0; i <= glyphs.length + 1; i++) {
         writer.writeUInt32BE(0);
     }
+}
+
+function encodePNG({ width, height, bitmap, depth }: DRCSGlyph): Buffer {
+    const buffer = Buffer.alloc(33 /* IHDR */ + 12 /* IDAT */ + 2 + height * (5 + width * 2 + 1 /* filter */) + 4 + 12 /* IEND */);
+    let off = 0;
+    // 臼NG
+    off = buffer.writeUInt8(0x89, off);
+    off = buffer.writeUInt8(0x50, off);
+    off = buffer.writeUInt8(0x4e, off);
+    off = buffer.writeUInt8(0x47, off);
+    off = buffer.writeUInt8(0x0d, off);
+    off = buffer.writeUInt8(0x0a, off);
+    off = buffer.writeUInt8(0x1a, off);
+    off = buffer.writeUInt8(0x0a, off);
+
+    off = buffer.writeUInt32BE(13, off);
+    const ihdrOff = off;
+    off += buffer.write("IHDR", off, "ascii");
+    off = buffer.writeUInt32BE(width, off);
+    off = buffer.writeUInt32BE(height, off);
+    // 8-bit grayscale, alpha
+    off = buffer.writeUInt8(8, off);
+    off = buffer.writeUInt8(4, off);
+    // deflate, no filter, interlace
+    off = buffer.writeUInt8(0, off);
+    off = buffer.writeUInt8(0, off);
+    off = buffer.writeUInt8(0, off);
+    off = buffer.writeInt32BE(CRC32.buf(buffer.subarray(ihdrOff, off)), off);
+    off = buffer.writeUInt32BE(2 + height * (5 + width * 2 + 1 /* filter */) + 4, off);
+    const idatOff = off;
+    off += buffer.write("IDAT", off, "ascii");
+    off = buffer.writeUInt8(0x78, off);
+    off = buffer.writeUInt8(0x01, off);
+    let a = 1, b = 0;
+    for (let y = 0; y < height; y++) {
+        off = buffer.writeUInt8(y === height - 1 ? 1 : 0, off);
+        off = buffer.writeUInt16LE(width * 2 + 1, off);
+        off = buffer.writeUInt16LE(~(width * 2 + 1) & 0xffff, off);
+        off = buffer.writeUInt8(0x00, off);
+        b = (b + a) % 65521;
+        for (let x = 0; x < width; x++) {
+            off = buffer.writeUInt8(255, off)
+            a = (a + 255) % 65521;
+            b = (b + a) % 65521;
+            const v = Math.floor(bitmap[x + y * width] / (depth - 1) * 255);
+            off = buffer.writeUInt8(v, off)
+            a = (a + v) % 65521;
+            b = (b + a) % 65521;
+        }
+    }
+    off = buffer.writeInt32BE((b << 16) + a, off);
+    off = buffer.writeInt32BE(CRC32.buf(buffer.subarray(idatOff, off)), off);
+    off = buffer.writeUInt32BE(0, off);
+    off += buffer.write("IEND", off, "ascii");
+    off = buffer.writeInt32BE(CRC32.buf(buffer.subarray(off - 4, off)), off);
+    return buffer;
+}
+
+function writeSVG(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
+    // SVGTableHeader
+    writer.writeUInt16BE(0); // version
+    writer.writeUInt32BE(2 + 4 + 4); // svgDocumentListOffset
+    writer.writeUInt32BE(0); // reserved
+    // SVGDocumentList
+    const offsetSVGDocumentList = writer.position;
+    writer.writeUInt16BE(glyphs.length);
+    for (let glyphId = 1; glyphId <= glyphs.length; glyphId++) {
+        writer.writeUInt16BE(glyphId); // startGlyphID
+        writer.writeUInt16BE(glyphId); // endGlyphID
+        writer.writeUInt32BE(0); // svgDocOffset
+        writer.writeUInt32BE(0); // svgDocLength
+    }
+    let offsets: { glyphId: number, offset: number, size: number }[] = [];
+    for (let glyphId = 1; glyphId <= glyphs.length; glyphId++) {
+        const glyph = glyphs[glyphId - 1].glyphs.slice().sort((a, b) => (b.width * b.height) - (a.width * a.height))[0];
+        const png = encodePNG(glyph);
+        let unitsPerEm = 2048;
+        let svg = `<svg id="glyph${glyphId}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${unitsPerEm / 2}" height="${unitsPerEm / 2}">
+<defs>
+<mask id="mask">
+<image x="0" y="${-unitsPerEm}" width="${unitsPerEm}" height="${unitsPerEm}" xlink:href="data:image/png;base64,${png.toString("base64")}"/>
+</mask>
+</defs>
+<rect x="0" y="${-unitsPerEm}" width="${unitsPerEm}" height="${unitsPerEm}" mask="url(#mask)" />
+</svg>`;
+        offsets.push({ glyphId, offset: writer.writeASCII(svg), size: svg.length });
+    }
+    const prev = writer.seek(offsetSVGDocumentList + 2);
+    for (const g of offsets) {
+        writer.writeUInt16BE(g.glyphId); // startGlyphID
+        writer.writeUInt16BE(g.glyphId); // endGlyphID
+        writer.writeUInt32BE(g.offset - offsetSVGDocumentList); // svgDocOffset
+        writer.writeUInt32BE(g.size); // svgDocLength
+    }
+    writer.seek(prev);
 }
 
 export function loadDRCS(drcs: Buffer): DRCSGlyphs[] {
