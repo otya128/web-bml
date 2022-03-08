@@ -416,10 +416,23 @@ async function proc(ctx: Koa.ParameterizedContext<any, Router.IRouterParamContex
             const drcs = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
             ctx.body = toTTF(loadDRCS(drcs));
         } else {
-            ctx.body = fs.createReadStream(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
+            const s = fs.createReadStream(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
+            s.on("error", () => {
+                // chrome対策でダミー画像を用意する (text/html返すとiframeになる上に画像が表示できなくなる)
+                ctx.set("Content-Type", "image/png");
+                const dummyPng = [
+                    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x18, 0x57, 0x63, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01, 0x5C, 0xCD, 0xFF, 0x69, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+                ];
+                ctx.set("Content-Length", dummyPng.length.toString());
+                ctx.res.write(Buffer.from(dummyPng));
+                ctx.res.end();
+            });
+            ctx.body = s;
         }
         if (filename.endsWith(".png")) {
             ctx.set("Content-Type", "image/png");
+        } else if (filename.endsWith(".jpg")) {
+            ctx.set("Content-Type", "image/jpeg");
         }
     }
 }
