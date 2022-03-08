@@ -175,14 +175,14 @@ body {
     --clut-color-126: rgba(255, 170, 255, 0.5);
     --clut-color-127: rgba(255, 255, 85, 0.5);
     background-color: var(--clut-color-0);
-    --background-color: 0;
+    --background-color--index: 0;
 }
 div, p, span, a, input {
     background-color: var(--clut-color-8);
-    --background-color: 8;
+    --background-color--index: 8;
 }
 /* ?? これだとobjectが透過できなくなる */
-/* object { background-color : var(--clut-color-0) !important} */
+/* object { background-color : var(--clut-color-0) !important, --background-color: 0 !important;} */
 /* grayscale-color-index */
 p, input { --grayscale-color-index : 30 15 }
 
