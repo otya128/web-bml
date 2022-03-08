@@ -294,6 +294,11 @@ if (!window.browser) {
                 if (additionalinfo === "3.0") {
                     return 0;
                 }
+            } else if (functionname === "APIGroup") {
+                if (additionalinfo === "Ctrl.Basic2") {
+                    // detectComponent
+                    return 1;
+                }
             }
         } else if (sProvider === "nvram") {
             if (functionname === "NumberOfBSBroadcasters") {
@@ -351,6 +356,17 @@ if (!window.browser) {
             l.push([module, isEx ? 2 : 1, 1]);
         }
         return l;
+    }
+    window.browser.detectComponent = function detectComponent(component_ref: string) {
+        const { component, module, filename } = parseURL(component_ref);
+        if (!component) {
+            return NaN;
+        }
+        if (component in components) {
+            return 1;
+        } else {
+            return 0;
+        }
     }
     window.browser.getProgramID = function getProgramID(type: number): string | null {
 
