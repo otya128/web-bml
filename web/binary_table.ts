@@ -1,5 +1,4 @@
-
-import encoding from "encoding-japanese";
+import { decodeEUCJP } from "../src/euc_jp";
 import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
 export interface BinaryTableConstructor {
     new(table_ref: string, structure: string): IBinaryTable;// | null;
@@ -12,6 +11,22 @@ export interface IBinaryTable {
     toString(row: number, column: number): string | null;
     toArray(startRow: number, numRow: number): any[] | null;
     search(startRow: number, ...args: any[]): number;
+}
+
+// String.prototype.charCodeAtはeucJPCharCodeAtとなっているためそれを使って変換する
+function encodeEUCJP(input: string): Uint8Array {
+    const buf = new Uint8Array(input.length * 2);
+    let off = 0;
+    for (let i = 0; i < input.length; i++) {
+        const c = input.charCodeAt(i);
+        if (c >= 0x100) {
+            buf[off++] = c >> 8;
+            buf[off++] = c & 0xff;
+        } else {
+            buf[off++] = c;
+        }
+    }
+    return buf.subarray(0, off);
 }
 
 enum BinaryTableUnit {
@@ -165,7 +180,7 @@ export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[])
                 } else {
                     throw new Error("string must be byte or variable");
                 }
-                fieldData = encoding.convert(buffer.slice(posBits >> 3, (posBits >> 3) + lengthByte), { type: "string", to: "UNICODE", from: "EUCJP" });
+                fieldData = decodeEUCJP(buffer.slice(posBits >> 3, (posBits >> 3) + lengthByte));
                 posBits += lengthByte * 8;
                 break;
             case BinaryTableType.Pad:
@@ -252,7 +267,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint
                     sizeBits += field.length * 8;
                 } else if (field.unit === BinaryTableUnit.Variable) {
                     sizeBits += field.length * 8;
-                    let encoded = new Uint8Array(encoding.convert(data[i], { to: "EUCJP", type: "arraybuffer" }));
+                    let encoded = new Uint8Array(encodeEUCJP(data[i]));
                     sizeBits += encoded.length * 8;
                 } else {
                     throw new Error("string must be byte or variable");
@@ -331,7 +346,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint
                 if ((posBits & 7) !== 0) {
                     throw new Error("string must be byte aligned");
                 }
-                let encoded = new Uint8Array(encoding.convert(data[i], { to: "EUCJP", type: "arraybuffer" }));
+                let encoded = encodeEUCJP(data[i]);
                 if (field.unit === BinaryTableUnit.Byte) {
                     if (encoded.length != field.length) {
                         throw new Error("MISMATCH should be padded?");

@@ -17,13 +17,15 @@ export function decodeEUCJP(input: Uint8Array): string {
             }
             const ten = input[i] - 0xa0;
             const uni = jisToUnicodeMap[(ku - 1) * 94 + (ten - 1)];
-            if (uni.length === 1) {
-                buffer[outOff++] = uni.charCodeAt(0);
-            } else if (uni.length === 0) {
-                buffer[outOff++] = 0xfffd; // �
+            if (typeof uni === "number") {
+                if (uni >= 0) {
+                    buffer[outOff++] = uni;
+                } else {
+                    buffer[outOff++] = 0xfffd; // �
+                }
             } else {
-                for (let j = 0; j < uni.length; j++) {
-                    buffer[outOff++] = uni.charCodeAt(j);
+                for (const u of uni) {
+                    buffer[outOff++] = u;
                 }
             }
         } else if (input[i] < 0x80) {

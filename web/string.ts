@@ -28,7 +28,10 @@ function eucJPFromCharCode(...codes: number[]): string {
         if (code1 >= 0xa1 && code1 <= 0xfe) {
             if (code2 >= 0xa1 && code2 <= 0xfe) {
                 const j = jisToUnicodeMap[(code1 - 0xa1) * 94 + code2 - 0xa1];
-                return j.split("").map(c => originalCharCodeAt.call(c, 0));
+                if (typeof j === "number") {
+                    return [j];
+                }
+                return j;
             }
         }
         return [code];

@@ -266,8 +266,8 @@ function writeCMAP4(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
 
 function map(ku: number, ten: number): number {
     const s = jisToUnicodeMap[(ku - 1) * 94 + ten - 1];
-    if (s?.length === 1) {
-        return s.charCodeAt(0);
+    if (typeof s === "number") {
+        return s;
     } else {
         return 0;
     }
