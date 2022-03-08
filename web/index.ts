@@ -827,7 +827,16 @@ if (!window.browser) {
 
         Object.defineProperty(HTMLObjectElement.prototype, "data", {
             get: function getObjectData(this: HTMLObjectElement) {
-                return this.getAttribute("data");
+                const data = this.getAttribute("data");
+                if (data == null) {
+                    return data;
+                }
+                const clutIndex = data.indexOf("?clut");
+                if (clutIndex != -1) {
+                    return data.substring(0, clutIndex);
+                } else {
+                    return data;
+                }
             },
             set: function setObjectData(this: HTMLObjectElement, v: string) {
                 const aribType = this.getAttribute("arib-type");
