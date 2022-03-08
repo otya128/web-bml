@@ -585,71 +585,119 @@ if (!window.browser) {
         }
     });
 
-    function keyCodeToAribKey(keyCode: string): number {
+    enum AribKeyCode {
+        Up = 1,
+        Down = 2,
+        Left = 3,
+        Right = 4,
+        Digit0 = 5,
+        Digit1 = 6,
+        Digit2 = 7,
+        Digit3 = 8,
+        Digit4 = 9,
+        Digit5 = 10,
+        Digit6 = 11,
+        Digit7 = 12,
+        Digit8 = 13,
+        Digit9 = 14,
+        Enter = 18,
+        Back = 19, // X
+        DataButton = 20,
+        BlueButton = 21, // B
+        RedButton = 22, // R
+        GreenButton = 23, // G
+        YellowButton = 24, // Y
+        DataButton1 = 25, // E
+        DataButton2 = 26, // F
+    }
+
+    function keyCodeToAribKey(keyCode: string): AribKeyCode | -1 {
         // STD B-24 第二分冊(2/2) 第二編 A2 Table 5-9
         switch (keyCode) {
             case "ArrowUp":
-                return 1;
+                return AribKeyCode.Up;
             case "ArrowDown":
-                return 2;
+                return AribKeyCode.Down;
             case "ArrowLeft":
-                return 3;
+                return AribKeyCode.Left;
             case "ArrowRight":
-                return 4;
+                return AribKeyCode.Right;
             case "Digit0":
-                return 5;
+                return AribKeyCode.Digit0;
             case "Digit1":
-                return 6;
+                return AribKeyCode.Digit1;
             case "Digit2":
-                return 7;
+                return AribKeyCode.Digit2;
             case "Digit3":
-                return 8;
+                return AribKeyCode.Digit3;
             case "Digit4":
-                return 9;
+                return AribKeyCode.Digit4;
             case "Digit5":
-                return 10;
+                return AribKeyCode.Digit5;
             case "Digit6":
-                return 11;
+                return AribKeyCode.Digit6;
             case "Digit7":
-                return 12;
+                return AribKeyCode.Digit7;
             case "Digit8":
-                return 13;
+                return AribKeyCode.Digit8;
             case "Digit9":
-                return 14;
+                return AribKeyCode.Digit9;
             case "Enter":
             case "Space":
-                return 18;
+                return AribKeyCode.Enter;
             case "Backspace":
             case "KeyX":
-                return 19;
+                return AribKeyCode.Back;
             case "KeyD":
-                return 20;
+                return AribKeyCode.DataButton;
             case "KeyB":
-                return 21;
+                return AribKeyCode.BlueButton;
             case "KeyR":
-                return 22;
+                return AribKeyCode.RedButton;
             case "KeyG":
-                return 23;
+                return AribKeyCode.GreenButton;
             case "KeyY":
-                return 24;
+                return AribKeyCode.YellowButton;
             case "KeyE":
-                return 25;
+                return AribKeyCode.DataButton1;
             case "KeyF":
-                return 26;
+                return AribKeyCode.DataButton2;
             default:
                 return -1;
         }
     }
-    window.addEventListener('load', (event) => {
+
+    function findNavIndex(navIndex: number): HTMLElement | undefined {
+        return Array.from(document.querySelectorAll("*")).find(elem => {
+            return parseInt(window.getComputedStyle(elem).getPropertyValue("--nav-index")) == navIndex;
+        }) as (HTMLElement | undefined);
+    }
+
+    window.addEventListener('load', (_event) => {
         window.addEventListener("keydown", (event) => {
             const k = keyCodeToAribKey(event.code);
-            if (k === 20) {
+            if (k === AribKeyCode.DataButton) {
                 // データボタンの場合DataButtonPressedのみが発生する
                 fireDataButtonPressed();
                 return;
             }
             if (!document.currentFocus) {
                 return;
+            }
+            let nextFocus = "";
+            if (k == AribKeyCode.Left) {
+                // 明記されていなさそうだけどおそらく先にnav-indexによるフォーカス移動があるだろう
+                nextFocus = window.getComputedStyle(document.currentFocus).getPropertyValue("--nav-left");
+            } else if (k == AribKeyCode.Right) {
+                nextFocus = window.getComputedStyle(document.currentFocus).getPropertyValue("--nav-right");
+            } else if (k == AribKeyCode.Up) {
+                nextFocus = window.getComputedStyle(document.currentFocus).getPropertyValue("--nav-up");
+            } else if (k == AribKeyCode.Down) {
+                nextFocus = window.getComputedStyle(document.currentFocus).getPropertyValue("--nav-down");
+            }
+            const nextFocusIndex = parseInt(nextFocus);
+            if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
+                findNavIndex(nextFocusIndex)?.focus();
             }
             if (document.currentFocus.onkeydown) {
                 if (k == -1) {
@@ -792,14 +840,8 @@ if (!window.browser) {
                 obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
             obj.outerHTML = obj.outerHTML;
         });
-        document.body.querySelectorAll("*").forEach(elem => {
-            if (!(elem instanceof HTMLElement)) {
-                return;
-            }
-            if (elem.style.getPropertyValue("--nav-index") === "0") {
-                document.currentFocus = elem;
-            }
-        });
+        
+        findNavIndex(0)?.focus();
     });
     overrideString();
     overrideNumber();
