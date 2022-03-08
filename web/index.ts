@@ -720,13 +720,22 @@ if (!window.browser) {
                 }
             }
         });
+
+        function reloadObjectElement(obj: HTMLObjectElement) {
+            // chromeではこうでもしないとtypeの変更が反映されない
+            // バグかも
+            const dummy = document.createElement("dummy");
+            obj.appendChild(dummy);
+            dummy.remove();
+        }
+        
         const config = { attributes: true, childList: true, subtree: true };
 
         Object.defineProperty(HTMLObjectElement.prototype, "data", {
-            get: function getObjectData() {
+            get: function getObjectData(this: HTMLObjectElement) {
                 return this.getAttribute("data");
             },
-            set: function setObjectData(v: string) {
+            set: function setObjectData(this: HTMLObjectElement, v: string) {
                 if (v.startsWith("~/")) {
                     v = ".." + v.substring(1);
                 }
@@ -746,7 +755,7 @@ if (!window.browser) {
                 }
                 this.setAttribute("data", v);
                 if (!aribType) {
-                    this.outerHTML = this.outerHTML;
+                    reloadObjectElement(this);
                 }
             }
         });
@@ -770,7 +779,7 @@ if (!window.browser) {
                             obj.type = "image/png";
                             if (!obj.data.includes("?clut="))
                                 obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
-                            obj.outerHTML = obj.outerHTML;
+                                reloadObjectElement(obj);
                         }
                     });
                 }
@@ -786,7 +795,7 @@ if (!window.browser) {
                         }
                         if (!obj.data.includes("?clut="))
                             obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
-                        obj.outerHTML = obj.outerHTML;
+                            reloadObjectElement(obj);
                     }
                 }
             }
@@ -838,7 +847,7 @@ if (!window.browser) {
             obj.type = "image/png";
             if (!obj.data.includes("?clut="))
                 obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
-            obj.outerHTML = obj.outerHTML;
+            reloadObjectElement(obj);
         });
         
         findNavIndex(0)?.focus();
