@@ -534,10 +534,14 @@ if (!window.browser) {
         if (document.currentEvent?.type === "focus") {
             return;
         }
+        setTimeout(() => {
         const prevFocus = document.currentFocus;
         if (prevFocus === this as BMLElement) {
             return;
         }
+            if (window.getComputedStyle(this).visibility === "hidden") {
+                return;
+            }
         document.currentFocus = this as BMLElement;
         if (prevFocus?.onblur) {
             document.currentEvent = {
@@ -555,6 +559,7 @@ if (!window.browser) {
             (document.currentFocus.onfocus as () => void)();
             document.currentEvent = null;
         }
+        }, 0);
     };
     Object.defineProperty(Document.prototype, "currentFocus", {
         get: function () { return this._currentFocus; },
@@ -722,7 +727,7 @@ if (!window.browser) {
         }) as (HTMLElement | undefined);
     }
 
-    window.addEventListener('load', (_event) => {
+    function init() {
         window.addEventListener("keydown", (event) => {
             const k = keyCodeToAribKey(event.key);
             if (k === AribKeyCode.DataButton) {
@@ -916,8 +921,9 @@ if (!window.browser) {
         });
         
         findNavIndex(0)?.focus();
-    });
+    }
     overrideString();
     overrideNumber();
     overrideDate();
+    init();
 }

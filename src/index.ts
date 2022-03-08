@@ -179,6 +179,12 @@ function readFileAsync(path: string): Promise<string> {
                     } */
                 });
                 const bodyChildren = findXmlNode(htmlChildren, "body")[0]["body"];
+                bodyChildren.push({
+                    "script": [],
+                    ":@": {
+                        "@_src": "/arib.js"
+                    }
+                });
                 for (const s of scripts) {
                     const __cdata = s["script"][0] && s["script"][0]["__cdata"];
                     if (__cdata) {
@@ -201,11 +207,6 @@ function readFileAsync(path: string): Promise<string> {
                     ], ":@": {
                         "@_type": "application/json",
                         "@_id": "bml-server-data",
-                    }
-                }, {
-                    "script": [],
-                    ":@": {
-                        "@_src": "/arib.js"
                     }
                 });
                 //console.log(JSON.stringify(parsed, null, 4));
