@@ -87,9 +87,13 @@ if (!window.browser) {
             return null;
         }
     }
-    window.browser.setCurrentDateMode = function setCurrentDateMode(mode: number) {
+    window.browser.setCurrentDateMode = function setCurrentDateMode(mode: number): number {
         console.log("setCurrentDateMode", mode);
+        return 1; // 成功
     };
+    window.browser.getProgramRelativeTime = function getProgramRelativeTime(): number {
+        return 10; // 秒
+    }
     window.browser.subDate = function subDate(target: Date, base: Date, unit: number) {
         const sub = target.getDate() - base.getDate();
         if (unit == 1) {
@@ -240,6 +244,17 @@ if (!window.browser) {
     };
     window.browser.getBrowserSupport = function getBrowserSupport(sProvider: string, functionname: string, additionalinfo?: string): number {
         console.log("getBrowserSupport", sProvider, functionname, additionalinfo);
+        if (sProvider === "ARIB") {
+            if (functionname === "BMLversion") {
+                if (additionalinfo === "3.0") {
+                    return 0;
+                }
+            }
+        }
+        return 0;
+    };
+    window.browser.getBrowserStatus = function getBrowserStatus(sProvider: string, functionname: string, additionalinfo: string): number {
+        console.log("getBrowserStatus", sProvider, functionname, additionalinfo);
         return 0;
     };
     window.browser.launchDocument = function launchDocument(documentName: string, transitionStyle: string): number {
@@ -341,6 +356,10 @@ if (!window.browser) {
     window.browser.isIPConnected = function isIPConnected(): number {
         console.log("isIPConnected");
         return 0;
+    }
+    window.browser.getConnectionType = function getConnectionType(): number {
+        console.log("getConnectionType");
+        return NaN;
     }
     window.browser.Ureg = new Array(64);
     window.browser.Ureg.fill("");
