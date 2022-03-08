@@ -208,7 +208,7 @@ body {
 /* STD-B24 A1-13.7.7 */
 @font-face {
     font-family: "ゴシック";
-    src: local('MS Gothic');
+    src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
 }
 
 @font-face {
@@ -238,7 +238,7 @@ body {
 
 @font-face {
     font-family: "square gothic";
-    src: local('MS Gothic');
+    src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
 }
 
 @font-face {
@@ -248,12 +248,12 @@ body {
 
 @font-face {
     font-family: "太ゴシック";
-    src: local('MS Gothic');
+    src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
 }
 
 @font-face {
     font-family: "角ゴシック";
-    src: local('MS Gothic');
+    src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
 }
 
 @font-face {

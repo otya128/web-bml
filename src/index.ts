@@ -436,8 +436,13 @@ router.get("/rounded-mplus-1m-arib.ttf", async ctx => {
     ctx.body = fs.createReadStream("dist/rounded-mplus-1m-arib.ttf");
 });
 
+// モトヤマルベリ
 router.get("/KosugiMaru-Regular.ttf", async ctx => {
     ctx.body = fs.createReadStream("dist/KosugiMaru-Regular.ttf");
+});
+// モトヤシーダ
+router.get("/Kosugi-Regular.ttf", async ctx => {
+    ctx.body = fs.createReadStream("dist/Kosugi-Regular.ttf");
 });
 router.get('/api/sleep', async ctx => {
     let ms = Number(ctx.query.ms ?? "0");
@@ -448,6 +453,7 @@ router.get('/api/sleep', async ctx => {
     });
     ctx.body = "OK";
 });
+console.log("OK");
 app
     .use(router.routes())
     .use(router.allowedMethods());
