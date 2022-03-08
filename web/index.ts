@@ -600,6 +600,9 @@ if (!window.browser) {
         Digit7 = 12,
         Digit8 = 13,
         Digit9 = 14,
+        Digit10 = 15,
+        Digit11 = 16,
+        Digit12 = 17,
         Enter = 18,
         Back = 19, // X
         DataButton = 20,
@@ -609,7 +612,38 @@ if (!window.browser) {
         YellowButton = 24, // Y
         DataButton1 = 25, // E
         DataButton2 = 26, // F
+        Bookmark = 100,
     }
+
+    type KeyGroup = "basic" | "data-button" | "numeric-tuning" | "other-tuning";
+
+    // TR-B14 第二分冊 5.3.1 表5-5参照
+    const keyCodeToKeyGroup = new Map<AribKeyCode, KeyGroup>([
+        [AribKeyCode.Up, "basic"],
+        [AribKeyCode.Down, "basic"],
+        [AribKeyCode.Left, "basic"],
+        [AribKeyCode.Right, "basic"],
+        [AribKeyCode.Enter, "basic"],
+        [AribKeyCode.Back, "basic"],
+        [AribKeyCode.BlueButton, "data-button"],
+        [AribKeyCode.RedButton, "data-button"],
+        [AribKeyCode.GreenButton, "data-button"],
+        [AribKeyCode.YellowButton, "data-button"],
+        [AribKeyCode.Bookmark, "data-button"],
+        [AribKeyCode.Digit0, "numeric-tuning"],
+        [AribKeyCode.Digit1, "numeric-tuning"],
+        [AribKeyCode.Digit2, "numeric-tuning"],
+        [AribKeyCode.Digit3, "numeric-tuning"],
+        [AribKeyCode.Digit4, "numeric-tuning"],
+        [AribKeyCode.Digit5, "numeric-tuning"],
+        [AribKeyCode.Digit6, "numeric-tuning"],
+        [AribKeyCode.Digit7, "numeric-tuning"],
+        [AribKeyCode.Digit8, "numeric-tuning"],
+        [AribKeyCode.Digit9, "numeric-tuning"],
+        [AribKeyCode.Digit10, "numeric-tuning"],
+        [AribKeyCode.Digit11, "numeric-tuning"],
+        [AribKeyCode.Digit12, "numeric-tuning"],
+    ]);
 
     function keyCodeToAribKey(keyCode: string): AribKeyCode | -1 {
         // STD B-24 第二分冊(2/2) 第二編 A2 Table 5-9
@@ -689,28 +723,44 @@ if (!window.browser) {
                 fireDataButtonPressed();
                 return;
             }
+            if (k == -1) {
+                return;
+            }
             if (!document.currentFocus) {
                 return;
             }
+            const computedStyle = window.getComputedStyle(document.currentFocus);
             let nextFocus = "";
+            const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
+            if (usedKeyList.length && usedKeyList[0] === "none") {
+                return;
+            }
+            const keyGroup = keyCodeToKeyGroup.get(k);
+            if (keyGroup == null) {
+                return;
+            }
+            if (usedKeyList.length === 0) {
+                if (keyGroup !== "basic" && keyGroup !== "data-button") {
+                    return;
+                }
+            } else if (!usedKeyList.some(x => x === keyGroup)) {
+                return;
+            }
             if (k == AribKeyCode.Left) {
                 // 明記されていなさそうだけどおそらく先にnav-indexによるフォーカス移動があるだろう
-                nextFocus = window.getComputedStyle(document.currentFocus).getPropertyValue("--nav-left");
+                nextFocus = computedStyle.getPropertyValue("--nav-left");
             } else if (k == AribKeyCode.Right) {
-                nextFocus = window.getComputedStyle(document.currentFocus).getPropertyValue("--nav-right");
+                nextFocus = computedStyle.getPropertyValue("--nav-right");
             } else if (k == AribKeyCode.Up) {
-                nextFocus = window.getComputedStyle(document.currentFocus).getPropertyValue("--nav-up");
+                nextFocus = computedStyle.getPropertyValue("--nav-up");
             } else if (k == AribKeyCode.Down) {
-                nextFocus = window.getComputedStyle(document.currentFocus).getPropertyValue("--nav-down");
+                nextFocus = computedStyle.getPropertyValue("--nav-down");
             }
             const nextFocusIndex = parseInt(nextFocus);
             if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
                 findNavIndex(nextFocusIndex)?.focus();
             }
             if (document.currentFocus.onkeydown) {
-                if (k == -1) {
-                    return;
-                }
                 document.currentEvent = {
                     keyCode: k,
                     type: "keydown",
