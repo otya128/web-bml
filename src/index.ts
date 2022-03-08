@@ -221,9 +221,14 @@ function readCLUT(clut: Buffer): number[][] {
     const prevLength = table.length;
     table.length = 256;
     table = table.fill([0, 0, 0, 255], prevLength, 256);
+    // STD-B24 第二分冊(2/2) A3 5.1.7 表5-8参照
+    // clut_typeは0(YCbCr)のみ運用される
     const clutType = clut[0] & 0x80;
+    // depthは8ビット(1)のみが運用される
     const depth = (clut[0] & 0x60) >> 5;
+    // region_flagは0のみが運用される
     const regionFlag = clut[0] & 0x10;
+    // start_end_flagは1のみが運用される
     const startEndFlag = clut[0] & 0x8;
     let index = 1;
     if (regionFlag) {
@@ -231,6 +236,7 @@ function readCLUT(clut: Buffer): number[][] {
         index += 2;
         index += 2;
         index += 2;
+        // 運用されない
         console.error("region is not implemented");
     }
     let startIndex: number;
@@ -241,7 +247,9 @@ function readCLUT(clut: Buffer): number[][] {
             endIndex = clut[index] & 15;
             index++;
         } else if (depth == 1) {
+            // start_indexは128のみが運用される
             startIndex = clut[index++];
+            // end_ndexは223のみが運用される
             endIndex = clut[index++];
         } else if (depth == 2) {
             startIndex = clut[index++];
@@ -267,10 +275,12 @@ function readCLUT(clut: Buffer): number[][] {
                 G = clut[index++];
                 B = clut[index++];
             }
+            // Aは0以外が運用される
             const A = clut[index++];
             table[i] = [R, G, B, A];
         }
     } else {
+        // 運用されない
         throw new Error("not implemented");
     }
     return table;
