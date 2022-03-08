@@ -178,6 +178,8 @@ BS: 不可, CS: 読み書き, 地上: 不可
 
 TR-B15 第四分冊 11.5.7.1参照
 
+事業者ごとに64バイト*46
+
 broadcaster_idは常に省略
 
 `nvram://[<broadcaster_id>;]local_web/<block number>`
