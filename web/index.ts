@@ -584,6 +584,9 @@ if (!window.browser) {
                     if (propName === "grayscaleColorIndex") {
                         return true;
                     }
+                    if (propName === "visibility" && document.currentFocus === obj.element && value === "hidden") {
+                        obj.element.blur();
+                    }
                     if (converted) {
                         return true;
                     }
