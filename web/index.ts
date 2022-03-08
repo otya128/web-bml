@@ -236,6 +236,39 @@ if (!window.browser) {
         }
     });
 
+    function fireDataButtonPressed() {
+        console.log("DataButtonPressed");
+        const moduleLocked = document.querySelectorAll("beitem[type=\"DataButtonPressed\"]");
+        for (const beitem of Array.from(moduleLocked)) {
+            if (beitem.getAttribute("subscribe") !== "subscribe") {
+                continue;
+            }
+            const onoccur = beitem.getAttribute("onoccur");
+            if (onoccur) {
+                document.currentEvent = {
+                    type: "DataButtonPressed",
+                    target: beitem as HTMLElement,
+                    status: 0,
+                    privateData: "",
+                    esRef: "",
+                    messageId: "0",
+                    messageVersion: "0",
+                    messageGroupId: "0",
+                    moduleRef: "",
+                    languageTag: 0,//?
+                    registerId: 0,
+                    serviceId: "0",
+                    eventId: "0",
+                    peripheralRef: "",
+                    object: null,
+                    segmentId: null,
+                } as BMLBeventEvent;
+                new Function(onoccur)();//eval.call(window, onoccur);
+                document.currentEvent = null;
+            }
+        }
+    }
+
     window.browser.lockScreen = function lockScreen() {
         console.log("lockScreen");
     };
@@ -551,7 +584,7 @@ if (!window.browser) {
     });
 
     function keyCodeToAribKey(keyCode: string): number {
-        // STD-B24 Table 5-2 Table 5-9
+        // STD B-24 第二分冊(2/2) 第二編 A2 Table 5-9
         switch (keyCode) {
             case "ArrowUp":
                 return 1;
@@ -587,6 +620,8 @@ if (!window.browser) {
             case "Backspace":
             case "KeyX":
                 return 19;
+            case "KeyD":
+                return 20;
             case "KeyB":
                 return 21;
             case "KeyR":
@@ -605,11 +640,16 @@ if (!window.browser) {
     }
     window.addEventListener('load', (event) => {
         window.addEventListener("keydown", (event) => {
+            const k = keyCodeToAribKey(event.code);
+            if (k === 20) {
+                // データボタンの場合DataButtonPressedのみが発生する
+                fireDataButtonPressed();
+                return;
+            }
             if (!document.currentFocus) {
                 return;
             }
             if (document.currentFocus.onkeydown) {
-                const k = keyCodeToAribKey(event.code);
                 if (k == -1) {
                     return;
                 }
