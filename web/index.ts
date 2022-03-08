@@ -35,12 +35,17 @@ interface BMLBeventEvent extends BMLEvent {
 }
 
 type BMLElement = HTMLElement;
+type LockedModule = {
+    module: string,
+    isEx: boolean
+};
+
 declare global {
     interface Window {
         browser: any;
         dummy: any;
         BinaryTable: BinaryTableConstructor;
-        lockedModules: Map<string, { isEx: boolean }>;
+        lockedModules: Map<string, LockedModule>;
         newBinaryTable: any;
         __newBT: any;
     }
@@ -139,7 +144,7 @@ if (!window.browser) {
         return 1; // NaN => fail
     };
     window.browser.unlockAllModulesOnMemory = function unlockAllModulesOnMemory(): number {
-        window.lockedModules = new Map<string, { isEx: boolean }>();
+        window.lockedModules = new Map<string, LockedModule>();
         console.log("unlockAllModulesOnMemory");
         return 1; // NaN => fail
     };
@@ -158,7 +163,7 @@ if (!window.browser) {
         }
         return { component: components[1] ?? null, module: components[2] ?? null, filename: components[3] ?? null };
     }
-    window.lockedModules = new Map<string, { isEx: boolean }>();
+    window.lockedModules = new Map<string, LockedModule>();
     window.browser.lockModuleOnMemory = function lockModuleOnMemory(module: string): number {
         console.log("lockModuleOnMemory", module);
         const { component: componentInURL, module: moduleInURL } = parseURL(module);
@@ -175,7 +180,8 @@ if (!window.browser) {
             console.error("lockModuleOnMemory: module not found", module);
             return -1;
         }
-        window.lockedModules.set(module, { isEx: false });
+        window.lockedModules.set(module.toLowerCase(), { module, isEx: false });
+        // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
         window.postMessage({ module }, "*");
         return 1;
     }
@@ -195,7 +201,8 @@ if (!window.browser) {
             console.error("lockModuleOnMemoryEx: module not found", module);
             return -3;
         }
-        window.lockedModules.set(module, { isEx: true });
+        window.lockedModules.set(module.toLowerCase(), { module,isEx: true });
+        // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
         window.postMessage({ module }, "*");
         return 1;
     }
@@ -208,7 +215,7 @@ if (!window.browser) {
                 continue;
             }
             const moduleRef = beitem.getAttribute("module_ref");
-            if (moduleRef === module) {
+            if (moduleRef?.toLowerCase() === module.toLowerCase()) {
                 const onoccur = beitem.getAttribute("onoccur");
                 if (onoccur) {
                     document.currentEvent = {
@@ -335,7 +342,7 @@ if (!window.browser) {
     window.browser.getLockedModuleInfo = function getLockedModuleInfo(): LockedModuleInfo[] | null {
         console.log("getLockedModuleInfo");
         const l: LockedModuleInfo[] = [];
-        for (const [module, { isEx }] of window.lockedModules) {
+        for (const [_, { module, isEx }] of window.lockedModules) {
             l.push([module, isEx ? 2 : 1, 1]);
         }
         return l;
