@@ -447,7 +447,7 @@ export class BinaryTable implements IBinaryTable {
                 [length, posBits] = readBits(posBits, 8 * lengthByte, buffer);
             }
             let [columns, read] = readBinaryFields(buffer.slice(posBits >> 3), fields);
-            posBits += read;
+            posBits += lengthByte ? length * 8 : read;
             rows.push(columns);
         }
         this.rows = rows;
