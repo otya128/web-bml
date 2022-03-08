@@ -264,22 +264,33 @@ function findNvramArea(url: string, broadcasterInfo: BroadcasterInfo): [Broadcas
 }
 
 function readNVRAM(uri: string): Uint8Array | null {
-    const result = findNvramArea(uri, broadcasterInfo);
-    if (!result) {
-        console.error("readNVRAM: findNvramArea failed", uri);
-        return null;
+    let strg: string | null;
+    let isFixed: boolean;
+    let size: number;
+    if (uri === "nvram://receiverinfo/zipcode") {
+        strg = localStorage.getItem("NVRAM_" + uri);
+        isFixed = true;
+        size = 7;
+    } else {
+        const result = findNvramArea(uri, broadcasterInfo);
+        if (!result) {
+            console.error("readNVRAM: findNvramArea failed", uri);
+            return null;
+        }
+        const [_id, area] = result;
+        strg = localStorage.getItem("NVRAM_" + uri);
+        isFixed = area.isFixed;
+        size = area.size;
     }
-    const [_id, area] = result;
-    const strg = localStorage.getItem("NVRAM_" + uri);
     if (!strg) {
-        return new Uint8Array(area.isFixed ? area.size : 0);
+        return new Uint8Array(isFixed ? size : 0);
     }
     const a = Uint8Array.from(window.atob(strg), c => c.charCodeAt(0));
-    if (area.isFixed) {
-        if (a.length > area.size) {
-            return a.subarray(0, area.size);
-        } else if (a.length < area.size) {
-            const fixed = new Uint8Array(area.size);
+    if (isFixed) {
+        if (a.length > size) {
+            return a.subarray(0, size);
+        } else if (a.length < size) {
+            const fixed = new Uint8Array(size);
             fixed.set(a);
             return fixed;
         }
@@ -288,13 +299,15 @@ function readNVRAM(uri: string): Uint8Array | null {
 }
 
 function writeNVRAM(uri: string, data: Uint8Array): boolean {
-    // 書き込めない気がする
+    // 書き込めない (TR-B14 第二分冊 5.2.7 表5-2参照)
     if (uri === "nvram://receiverinfo/prefecture") {
         return false;
     } else if (uri === "nvram://receiverinfo/regioncode") {
         return false;
+    // 書き込める (TR-B14 第二分冊 5.2.7 表5-2参照)
     } else if (uri === "nvram://receiverinfo/zipcode") {
-        return false;
+        localStorage.setItem("NVRAM_" + uri, window.btoa(String.fromCharCode(...data).substring(0, 7)));
+        return true;
     }
     const result = findNvramArea(uri, broadcasterInfo);
     if (!result) {
@@ -314,12 +327,12 @@ function writeNVRAM(uri: string, data: Uint8Array): boolean {
 
 export function readPersistentArray(filename: string, structure: string): any[] | null {
     // TR-B14 5.2.7
+    // FIXME: 郵便番号から算出すべきかも
+    // ただし都道府県は郵便番号から一意に定まらないし多くの受像機だと別に設定できるようになってそう
     if (filename === "nvram://receiverinfo/prefecture") {
         return [255];
     } else if (filename === "nvram://receiverinfo/regioncode") {
         return [0];
-    } else if (filename === "nvram://receiverinfo/zipcode") {
-        return [""];
     }
     const fields = parseBinaryStructure(structure);
     if (!fields) {
