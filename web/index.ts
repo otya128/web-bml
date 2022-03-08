@@ -952,6 +952,18 @@ if (!window.browser) {
         
         findNavIndex(0)?.focus();
     }
+    // historyは存在しない
+    // とりあえずsetter用意
+    const _originalHistory = window.history;
+    (window as any)["_history"] = window.history;
+    Object.defineProperty(window, "history", {
+        get(this: any) {
+            return this["_history"];
+        },
+        set(this: any, v) {
+            this["_history"] = v;
+        }
+    });
     overrideString();
     overrideNumber();
     overrideDate();
