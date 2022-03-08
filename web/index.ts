@@ -622,45 +622,53 @@ if (!window.browser) {
                 return AribKeyCode.Left;
             case "ArrowRight":
                 return AribKeyCode.Right;
-            case "Digit0":
+            case "0":
                 return AribKeyCode.Digit0;
-            case "Digit1":
+            case "1":
                 return AribKeyCode.Digit1;
-            case "Digit2":
+            case "2":
                 return AribKeyCode.Digit2;
-            case "Digit3":
+            case "3":
                 return AribKeyCode.Digit3;
-            case "Digit4":
+            case "4":
                 return AribKeyCode.Digit4;
-            case "Digit5":
+            case "5":
                 return AribKeyCode.Digit5;
-            case "Digit6":
+            case "6":
                 return AribKeyCode.Digit6;
-            case "Digit7":
+            case "7":
                 return AribKeyCode.Digit7;
-            case "Digit8":
+            case "8":
                 return AribKeyCode.Digit8;
-            case "Digit9":
+            case "9":
                 return AribKeyCode.Digit9;
             case "Enter":
             case "Space":
                 return AribKeyCode.Enter;
             case "Backspace":
-            case "KeyX":
+            case "X":
+            case "x":
                 return AribKeyCode.Back;
-            case "KeyD":
+            case "D":
+            case "d":
                 return AribKeyCode.DataButton;
-            case "KeyB":
+            case "B":
+            case "b":
                 return AribKeyCode.BlueButton;
-            case "KeyR":
+            case "R":
+            case "r":
                 return AribKeyCode.RedButton;
-            case "KeyG":
+            case "G":
+            case "g":
                 return AribKeyCode.GreenButton;
-            case "KeyY":
+            case "Y":
+            case "y":
                 return AribKeyCode.YellowButton;
-            case "KeyE":
+            case "E":
+            case "e":
                 return AribKeyCode.DataButton1;
-            case "KeyF":
+            case "F":
+            case "f":
                 return AribKeyCode.DataButton2;
             default:
                 return -1;
@@ -675,7 +683,7 @@ if (!window.browser) {
 
     window.addEventListener('load', (_event) => {
         window.addEventListener("keydown", (event) => {
-            const k = keyCodeToAribKey(event.code);
+            const k = keyCodeToAribKey(event.key);
             if (k === AribKeyCode.DataButton) {
                 // データボタンの場合DataButtonPressedのみが発生する
                 fireDataButtonPressed();
