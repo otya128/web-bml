@@ -369,8 +369,14 @@ async function aribPNGToPNG(png: Buffer, clut: string): Promise<Buffer> {
     return output;
 }
 
-
-router.get('/:component/:module/:filename', async ctx => {
+router.get('/:component/:module/:filename', proc);
+router.get('/:component/:moduleUnused/~/:module/:filename', async ctx => {
+    const component = (ctx.params.component as string).toLowerCase();
+    const module = (ctx.params.module as string).toLowerCase();
+    const filename = (ctx.params.filename as string).toLowerCase();
+    ctx.redirect(`/${component}/${module}/${filename}`);
+});
+async function proc(ctx: Koa.ParameterizedContext<any, Router.IRouterParamContext<any, {}>, any>) {
     const component = (ctx.params.component as string).toLowerCase();
     const module = (ctx.params.module as string).toLowerCase();
     const filename = (ctx.params.filename as string).toLowerCase();
@@ -416,7 +422,7 @@ router.get('/:component/:module/:filename', async ctx => {
             ctx.set("Content-Type", "image/png");
         }
     }
-});
+}
 
 router.get('/arib.js', async ctx => {
     ctx.body = fs.createReadStream("dist/arib.js");

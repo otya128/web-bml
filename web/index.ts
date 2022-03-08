@@ -814,9 +814,6 @@ if (!window.browser) {
                 return this.getAttribute("data");
             },
             set: function setObjectData(this: HTMLObjectElement, v: string) {
-                if (v.startsWith("~/")) {
-                    v = ".." + v.substring(1);
-                }
                 const aribType = this.getAttribute("arib-type");
                 if ((aribType ?? this.type).match(/image\/X-arib-png/i)) {
                     if (!aribType) {
