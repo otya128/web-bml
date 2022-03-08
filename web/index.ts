@@ -468,14 +468,40 @@ if (!window.browser) {
         window.clearInterval(timerID);
         return 1;
     }
-    Object.defineProperty(HTMLElement.prototype, "moduleRef", {
-        get: function () {
-            return (this as HTMLElement).getAttribute("module_ref");
-        },
-        set: function (v: string) {
-            (this as HTMLElement).setAttribute("module_ref", v);
-        },
+    function defineAttributeProperty(propertyName: string, attrName: string, nodeName: string, readable: boolean, writable: boolean, defaultValue?: string) {
+        Object.defineProperty(HTMLElement.prototype, propertyName, {
+            get: readable ? function (this: HTMLElement): string | undefined | null {
+                if (this.nodeName !== nodeName) {
+                    return undefined;
+                }
+                const v = this.getAttribute(attrName);
+                if (defaultValue != null) {
+                    if (v == null || v == "") {
+                        return defaultValue;
+                    }
+                }
+                return v;
+            } : undefined,
+            set: writable ? function (this: HTMLElement, value: any): void {
+                if (this.nodeName !== nodeName) {
+                    (this as any)[propertyName] = value;
+                    return;
+                }
+                this.setAttribute(attrName, value);
+            } : undefined,
     });
+    }
+
+    defineAttributeProperty("type", "type", "beitem", true, false);
+    defineAttributeProperty("esRef", "es_ref", "beitem", true, true);
+    defineAttributeProperty("moduleRef", "module_ref", "beitem", true, true);
+    defineAttributeProperty("messageGroupId", "message_group_id", "beitem", true, false, "0");
+    defineAttributeProperty("messageId", "message_id", "beitem", true, true);
+    defineAttributeProperty("languageTag", "language_tag", "beitem", true, true);
+    // registerId, serviceId, eventIdは運用しない
+    defineAttributeProperty("timeMode", "time_mode", "beitem", true, false);
+    defineAttributeProperty("timeValue", "time_value", "beitem", true, true);
+    defineAttributeProperty("objectId", "object_id", "beitem", true, true);
     Object.defineProperty(HTMLElement.prototype, "subscribe", {
         get: function () {
             return (this as HTMLElement).getAttribute("subscribe")?.match(/^subscribe$/i) != null;
@@ -483,44 +509,6 @@ if (!window.browser) {
         set: function (v: boolean) {
             if (v) {
                 (this as HTMLElement).setAttribute("subscribe", "subscribe");
-                if (this.getAttribute("type") === "ModuleUpdated") {
-                    const module: string = this.getAttribute("module_ref") ?? "";
-                    console.log("hack: ModuleUpdated", module);
-                    /*
-                    const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
-                    for (const beitem of Array.from(moduleLocked)) {
-                        if (beitem.getAttribute("subscribe") !== "subscribe") {
-                            continue;
-                        }
-                        const moduleRef = beitem.getAttribute("module_ref");
-                        if (moduleRef === module) {
-                            const onoccur = beitem.getAttribute("onoccur");
-                            if (onoccur) {
-                                document.currentEvent = {
-                                    type: "ModuleUpdated",
-                                    target: beitem as HTMLElement,
-                                    status: 0,
-                                    privateData: "",
-                                    esRef: "",
-                                    messageId: "0",
-                                    messageVersion: "0",
-                                    messageGroupId: "0",
-                                    moduleRef: module,
-                                    languageTag: 0,//?
-                                    registerId: 0,
-                                    serviceId: "0",
-                                    eventId: "0",
-                                    peripheralRef: "",
-                                    object: null,
-                                    segmentId: null,
-                                } as BMLBeventEvent;
-                                new Function(onoccur)();//eval.call(window, onoccur);
-                                document.currentEvent = null;
-                            }
-                        }
-                    }
-                    //*/
-                }
             } else {
                 (this as HTMLElement).removeAttribute("subscribe");
             }
