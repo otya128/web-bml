@@ -283,6 +283,20 @@ if (!window.browser) {
                     return 0;
                 }
             }
+        } else if (sProvider === "nvram") {
+            if (functionname === "NumberOfBSBroadcasters") {
+                if (additionalinfo === "23") {
+                    return 1;
+                }
+            } else if (functionname === "BSspecifiedExtension") {
+                if (additionalinfo === "48") {
+                    return 1;
+                }
+            } else if (functionname === "NumberOfCSBroadcasters") {
+                if (additionalinfo === "23") {
+                    return 1;
+                }
+            }
         }
         return 0;
     };
