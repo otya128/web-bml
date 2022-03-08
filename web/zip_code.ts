@@ -36,7 +36,7 @@ function decodeZipList(buffer: Uint8Array, length: number): ZipRange[] {
                         if (d === 0xf) {
                             continue;
                         }
-                        result.push({ from: (digits * 10 + d) * 10000, to: (digits * 10 + d) * 10000 });
+                        result.push({ from: (digits * 10 + d) * 10000, to: (digits * 10 + d + 1) * 10000 - 1});
                     }
                     break;
                 // 3digit range
@@ -60,10 +60,10 @@ function decodeZipList(buffer: Uint8Array, length: number): ZipRange[] {
                     if (a === 0xf || b === 0xf || c === 0xf) {
                         throw new Error("a === 0xf || b === 0xf || c === 0xf 5digit list");
                     }
-                    result.push({ from: (digits * 1000 + a * 100 + b * 10 + c) * 100, to: (digits * 1000 + a * 100 + b * 10 + c) * 100 });
+                    result.push({ from: (digits * 1000 + a * 100 + b * 10 + c) * 100, to: (digits * 1000 + a * 100 + b * 10 + c + 1) * 100 - 1 });
                     if (d === 0xf || e === 0xf) {
                     } else if (d !== 0xf && e !== 0xf) {
-                        result.push({ from: (digits * 1000 + a * 100 + d * 10 + e) * 100, to: (digits * 1000 + a * 100 + d * 10 + e) * 100 });
+                        result.push({ from: (digits * 1000 + a * 100 + d * 10 + e) * 100, to: (digits * 1000 + a * 100 + d * 10 + e + 1) * 100 - 1});
                     } else {
                         throw new Error("not allowed d, e 5digit range");
                     }
@@ -110,8 +110,8 @@ function decodeZipList(buffer: Uint8Array, length: number): ZipRange[] {
             off++;
             let to = buffer[off] & 0x7f;
             result.push({ from: from * 100000, to: (to + 1) * 100000 - 1 });
+            off++;
             if (buffer[off] & 0x80) {
-                off++;
                 let from2 = buffer[off] & 0x7f;
                 off++;
                 let to2 = buffer[off] & 0x7f;
