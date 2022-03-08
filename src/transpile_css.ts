@@ -39,6 +39,7 @@ const bmlCssPropertyToBmlJsProperty: Map<string, string> = new Map(Object.entrie
     "nav-right": "navRight",
     "nav-down": "navDown",
     "nav-left": "navLeft",
+    "used-key-list": "usedKeyList",
 }));
 
 const bmlJsPropertyToBmlCssProperty: Map<string, string> = new Map(Array.from(bmlCssPropertyToBmlJsProperty).map(([k, v]) => [v, k]));
