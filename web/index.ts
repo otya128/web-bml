@@ -182,7 +182,7 @@ if (!window.browser) {
         }
         window.lockedModules.set(module.toLowerCase(), { module, isEx: false });
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
-        window.postMessage({ module }, "*");
+        window.postMessage({ type: "ModuleLocked", module }, "*");
         return 1;
     }
     window.browser.lockModuleOnMemoryEx = function lockModuleOnMemoryEx(module: string): number {
@@ -201,12 +201,17 @@ if (!window.browser) {
             console.error("lockModuleOnMemoryEx: module not found", module);
             return -3;
         }
-        window.lockedModules.set(module.toLowerCase(), { module,isEx: true });
+        window.lockedModules.set(module.toLowerCase(), { module, isEx: true });
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
-        window.postMessage({ module }, "*");
+        window.postMessage({ type: "ModuleLocked", module }, "*");
         return 1;
     }
     window.addEventListener("message", (e) => {
+        if (e.data.type === "ModuleLocked") {
+            eventQueueOnModuleLocked(e);
+        }
+    });
+    function eventQueueOnModuleLocked(e: MessageEvent<any>) {
         const module: string = e.data.module as string;
         console.log("ModuleLocked", module);
         const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleLocked\"]");
@@ -241,7 +246,7 @@ if (!window.browser) {
                 }
             }
         }
-    });
+    }
 
     function fireDataButtonPressed() {
         console.log("DataButtonPressed");
