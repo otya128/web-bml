@@ -180,7 +180,14 @@ export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[])
                 } else {
                     throw new Error("string must be byte or variable");
                 }
-                fieldData = decodeEUCJP(buffer.slice(posBits >> 3, (posBits >> 3) + lengthByte));
+                const decoded = decodeEUCJP(buffer.slice(posBits >> 3, (posBits >> 3) + lengthByte));
+                // なにも設定されていなければ空文字列(TR-B14, TR-B15) => null文字以降切り捨てとする
+                const nullIndex = decoded.indexOf("\u0000");
+                if (nullIndex !== -1) {
+                    fieldData = decoded.substring(0, nullIndex);
+                } else {
+                    fieldData = decoded;
+                }
                 posBits += lengthByte * 8;
                 break;
             case BinaryTableType.Pad:
@@ -346,18 +353,31 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint
                 if ((posBits & 7) !== 0) {
                     throw new Error("string must be byte aligned");
                 }
-                let encoded = encodeEUCJP(data[i]);
+                const encoded = encodeEUCJP(data[i]);
                 if (field.unit === BinaryTableUnit.Byte) {
-                    if (encoded.length != field.length) {
-                        throw new Error("MISMATCH should be padded?");
+                    if (encoded.length === field.length) {
+                        buffer.set(encoded, posBits >> 3);
+                    } else if (encoded.length > field.length) {
+                        // 切り捨てる (TR-B14 第三分冊 8.1.15.6参照)
+                        // EUC-JP的に不完全な文字列だと死にそう
+                        buffer.set(encoded.subarray(0, field.length), posBits >> 3);
+                    } else {
+                        // スペースを付加 (TR-B14 第三分冊 8.1.15.6参照)
+                        buffer.set(encoded, posBits >> 3);
+                        posBits += encoded.length * 8;
+                        for (let i = encoded.length; i < field.length; i++) {
+                            buffer[posBits >> 3] = 0x20;
+                            posBits += 8;
+                        }
                     }
+                    posBits += field.length * 8;
                 } else if (field.unit === BinaryTableUnit.Variable) {
                     posBits = writeBits(posBits, field.length * 8, buffer, encoded.length);
+                    buffer.set(encoded, posBits >> 3);
+                    posBits += encoded.length * 8;
                 } else {
                     throw new Error("string must be byte or variable");
                 }
-                buffer.set(encoded, posBits >> 3);
-                posBits += encoded.length * 8;
                 break;
             case BinaryTableType.Pad:
                 if (field.unit === BinaryTableUnit.Byte) {
