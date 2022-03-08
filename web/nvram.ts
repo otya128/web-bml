@@ -298,31 +298,31 @@ function readNVRAM(uri: string): Uint8Array | null {
     return a;
 }
 
-function writeNVRAM(uri: string, data: Uint8Array): boolean {
+function writeNVRAM(uri: string, data: Uint8Array): number {
     // 書き込めない (TR-B14 第二分冊 5.2.7 表5-2参照)
     if (uri === "nvram://receiverinfo/prefecture") {
-        return false;
+        return NaN;
     } else if (uri === "nvram://receiverinfo/regioncode") {
-        return false;
+        return NaN;
     // 書き込める (TR-B14 第二分冊 5.2.7 表5-2参照)
     } else if (uri === "nvram://receiverinfo/zipcode") {
         localStorage.setItem("NVRAM_" + uri, window.btoa(String.fromCharCode(...data).substring(0, 7)));
-        return true;
+        return NaN;
     }
     const result = findNvramArea(uri, broadcasterInfo);
     if (!result) {
         console.error("writeNVRAM: findNvramArea failed", uri);
-        return false;
+        return NaN;
     }
     const [_id, area] = result;
     if (area.isFixed) {
         if (data.length > area.size) {
             console.error("writeNVRAM: too large data", uri, data.length, area);
-            return false;
+            return NaN;
         }
     }
     localStorage.setItem("NVRAM_" + uri, window.btoa(String.fromCharCode(...data)));
-    return true;
+    return data.length;
 }
 
 export function readPersistentArray(filename: string, structure: string): any[] | null {
@@ -352,9 +352,5 @@ export function writePersistentArray(filename: string, structure: string, data: 
         return NaN;
     }
     let bin = writeBinaryFields(data, fields);
-    const a = writeNVRAM(filename, bin);
-    if (!a) {
-        return NaN;
-    }
-    return 0;
+    return writeNVRAM(filename, bin);
 };
