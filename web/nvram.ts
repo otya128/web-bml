@@ -351,6 +351,10 @@ export function writePersistentArray(filename: string, structure: string, data: 
     if (!fields) {
         return NaN;
     }
+    if (fields.length > data.length) {
+        console.error("writePersistentArray: fields.length > data.length");
+        return NaN;
+    }
     let bin = writeBinaryFields(data, fields);
     return writeNVRAM(filename, bin);
 };
