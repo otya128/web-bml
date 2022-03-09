@@ -582,7 +582,7 @@ export class BinaryTable implements IBinaryTable {
             }
             if (result) {
                 resultArray.push(this.rows[i].map((v, j) => {
-                    if (typeof v === "object" && "from" in v && "to" in v) {
+                    if (this.fields[j].type === BinaryTableType.ZipCode) {
                         let found = false;
                         for (let c = 0; c < args.length - 3; c += 3) {
                             const searchedColumn = args[c] as number;
