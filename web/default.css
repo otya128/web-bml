@@ -205,10 +205,6 @@ body {
     font-family: "丸ゴシック";
 }
 
-body[invisible="invisible"] {
-    visibility: hidden !important;
-}
-
 /* STD-B24 第二分冊(2/2) 第二編 付属2 4.4.8 */
 @font-face {
     font-family: "丸ゴシック";
