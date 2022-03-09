@@ -143,6 +143,8 @@ function readFileAsync(path: string): Promise<string> {
                     attributeNamePrefix: "@_",
                     preserveOrder: true,
                     cdataPropName: "__cdata",
+                    trimValues: false,
+                    parseTagValue: false,
                 };
                 const parser = new XMLParser(opts);
                 let parsed = parser.parse(data);
@@ -159,6 +161,30 @@ function readFileAsync(path: string): Promise<string> {
                 const headChildren: any[] = findXmlNode(htmlChildren, "head")[0]["head"];
                 const scripts: any[] = [];
                 visitXmlNodes(bmlRoot, (node) => {
+                    const children = getXmlChildren(node);
+                    const nodeName = getXmlNodeName(node);
+                    for (let i = 0; i < children.length; i++) {
+                        const c = children[i];
+                        const prev = i > 0 ? getXmlNodeName(children[i - 1]) : "";
+                        const next = i + 1 < children.length ? getXmlNodeName(children[i + 1]) : "";
+                        // STD-B24 第二分冊(2/2) 第二編 付属2 5.3.2参照
+                        if ("#text" in c) {
+                            if ((prev === "span" || prev === "a") && nodeName === "p") {
+                                c["#text"] = c["#text"].replace(/^([ \t\n\r] +)/g, " ");
+                                if ((next === "span" || next === "a" || next === "br") && nodeName === "p") {
+                                    c["#text"] = c["#text"].replace(/([ \t\n\r] +)$/g, " ");
+                                    c["#text"] = c["#text"].replace(/(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
+                                }
+                            } else if ((next === "span" || next === "a" || next === "br") && nodeName === "p") {
+                                c["#text"] = c["#text"].replace(/([ \t\n\r] +)$/g, " ");
+                                c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
+                            } else {
+                                // 制御符号は0x20, 0x0d, 0x0a, 0x09のみ
+                                // 2バイト文字と2バイト文字との間の制御符号は削除する
+                                c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|([ \t\n\r] +)$|(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
+                            }
+                        }
+                    }
                     if (getXmlNodeName(node) == "script") {
                         scripts.push({ ...node });
                         renameXmlNode(node, "arib-script");
@@ -186,10 +212,10 @@ function readFileAsync(path: string): Promise<string> {
                     }
                 });
                 for (const s of scripts) {
-                    const __cdata = s["script"][0] && s["script"][0]["__cdata"];
-                    if (__cdata) {
-                        const code = __cdata[0]["#text"];
-                        __cdata[0]["#text"] = transpile(code);
+                    const __cdata = findXmlNode(s["script"], "__cdata");
+                    for (const c of __cdata) {
+                        const code = c["__cdata"][0]["#text"];
+                        c["__cdata"][0]["#text"] = transpile(code);
                     }
                     bodyChildren.push(s);
                 }
