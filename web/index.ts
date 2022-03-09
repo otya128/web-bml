@@ -554,25 +554,27 @@ if (!window.browser) {
     // 同期割り込み事象キュー
     type SyncFocusEvent = {
         type: "focus";
-        currentElement: HTMLElement;
-        prevElement?: HTMLElement | null;
+        target: HTMLElement;
     };
 
     type SyncBlurEvent = {
         type: "blur";
-        currentElement: HTMLElement;
-        prevElement?: HTMLElement | null;
+        target: HTMLElement;
     };
 
     type SyncClickEvent = {
         type: "click";
-        currentElement: HTMLElement;
+        target: HTMLElement;
     };
 
     type SyncEvent = SyncFocusEvent | SyncBlurEvent | SyncClickEvent;
 
     let syncEventQueue: SyncEvent[] = [];
     let syncEventQueueLocked = false;
+
+    function queueSyncEvent(event: SyncEvent) {
+        syncEventQueue.push(event);
+    }
 
     function requestDispatchQueue() {
         if (!syncEventQueueLocked) {
@@ -597,7 +599,11 @@ if (!window.browser) {
             return;
         }
                 if (event.type === "focus") {
-                    dispatchFocus(event.currentElement, event.prevElement);
+                    dispatchFocus(event);
+                } else if (event.type === "blur") {
+                    dispatchBlur(event);
+                } else if (event.type === "click") {
+                    dispatchClick(event);
         }
             }
         } finally {
@@ -605,23 +611,40 @@ if (!window.browser) {
         }
     }
 
-    function dispatchFocus(focusElement: HTMLElement, prevFocusElement: HTMLElement | null | undefined) {
-        if (prevFocusElement?.onblur) {
+    function dispatchFocus(event: SyncFocusEvent) {
+        document.currentEvent = {
+            type: "focus",
+            target: event.target,
+        } as BMLEvent;
+        const handler = event.target.getAttribute("onfocus");
+        if (handler) {
+            new Function(handler)();
+        }
+        document.currentEvent = null;
+    }
+
+    function dispatchBlur(event: SyncBlurEvent) {
             document.currentEvent = {
                 type: "blur",
-                target: prevFocusElement,
+            target: event.target,
             } as BMLEvent;
-            (prevFocusElement.onblur as () => void)();
+        const handler = event.target.getAttribute("onblur");
+        if (handler) {
+            new Function(handler)();
+        }
             document.currentEvent = null;
         }
-        if (focusElement.onfocus) {
+
+    function dispatchClick(event: SyncClickEvent) {
             document.currentEvent = {
-                type: "focus",
-                target: document.currentFocus,
+            type: "click",
+            target: event.target,
             } as BMLEvent;
-            (focusElement.onfocus as () => void)();
-            document.currentEvent = null;
+        const handler = event.target.getAttribute("onclick");
+        if (handler) {
+            new Function(handler)();
         }
+            document.currentEvent = null;
     }
 
     HTMLElement.prototype.focus = function focus(options?: FocusOptions) {
@@ -637,7 +660,10 @@ if (!window.browser) {
             return;
         }
         document.currentFocus = this as BMLElement;
-        syncEventQueue.push({ type: "focus", currentElement: this, prevElement: prevFocus });
+        queueSyncEvent({ type: "focus", target: this });
+        if (prevFocus != null) {
+            queueSyncEvent({ type: "blur", target: prevFocus });
+        }
         requestDispatchQueue();
     };
 
@@ -855,21 +881,18 @@ if (!window.browser) {
             if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
                 findNavIndex(nextFocusIndex)?.focus();
             }
-            if (document.currentFocus.onkeydown) {
+            const onkeydown = document.currentFocus.getAttribute("onkeydown");
+            if (onkeydown) {
                 document.currentEvent = {
                     keyCode: k,
                     type: "keydown",
                     target: document.currentFocus,
                 } as BMLIntrinsicEvent;
-                (document.currentFocus.onkeydown as () => void)();
+                new Function(onkeydown)();
                 document.currentEvent = null;
-                if (k == 18 && document.currentFocus && document.currentFocus.onclick) {
-                    document.currentEvent = {
-                        type: "click",
-                        target: document.currentFocus,
-                    } as BMLEvent;
-                    (document.currentFocus.onclick as () => void)();
-                    document.currentEvent = null;
+                if (k == AribKeyCode.Enter && document.currentFocus) {
+                    queueSyncEvent({ type: "click", target: document.currentFocus });
+                    requestDispatchQueue();
                 }
             }
         });
