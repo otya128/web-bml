@@ -550,38 +550,97 @@ if (!window.browser) {
         const uri = uriMatch.groups["uri"].replace(/\\/g, "");
         return new URL(uri, location.href).pathname;
     }
+
+    // 同期割り込み事象キュー
+    type SyncFocusEvent = {
+        type: "focus";
+        currentElement: HTMLElement;
+        prevElement?: HTMLElement | null;
+    };
+
+    type SyncBlurEvent = {
+        type: "blur";
+        currentElement: HTMLElement;
+        prevElement?: HTMLElement | null;
+    };
+
+    type SyncClickEvent = {
+        type: "click";
+        currentElement: HTMLElement;
+    };
+
+    type SyncEvent = SyncFocusEvent | SyncBlurEvent | SyncClickEvent;
+
+    let syncEventQueue: SyncEvent[] = [];
+    let syncEventQueueLocked = false;
+
+    function requestDispatchQueue() {
+        if (!syncEventQueueLocked) {
+            dispatchEventQueue();
+        }
+    }
+
+    function lockSyncEventQueue() {
+        syncEventQueueLocked = true;
+    }
+
+    function unlockSyncEventQueue() {
+        syncEventQueueLocked = false;
+    }
+
+    function dispatchEventQueue() {
+        try {
+            lockSyncEventQueue();
+            while (true) {
+                const event = syncEventQueue.shift();
+                if (event == null) {
+            return;
+        }
+                if (event.type === "focus") {
+                    dispatchFocus(event.currentElement, event.prevElement);
+        }
+            }
+        } finally {
+            unlockSyncEventQueue();
+        }
+    }
+
+    function dispatchFocus(focusElement: HTMLElement, prevFocusElement: HTMLElement | null | undefined) {
+        if (prevFocusElement?.onblur) {
+            document.currentEvent = {
+                type: "blur",
+                target: prevFocusElement,
+            } as BMLEvent;
+            (prevFocusElement.onblur as () => void)();
+            document.currentEvent = null;
+        }
+        if (focusElement.onfocus) {
+            document.currentEvent = {
+                type: "focus",
+                target: document.currentFocus,
+            } as BMLEvent;
+            (focusElement.onfocus as () => void)();
+            document.currentEvent = null;
+        }
+    }
+
     HTMLElement.prototype.focus = function focus(options?: FocusOptions) {
         // focus()の中でfocus()は呼べない
         if (document.currentEvent?.type === "focus") {
             return;
         }
-        setTimeout(() => {
         const prevFocus = document.currentFocus;
         if (prevFocus === this as BMLElement) {
             return;
         }
-            if (window.getComputedStyle(this).visibility === "hidden") {
-                return;
-            }
+        if (window.getComputedStyle(this).visibility === "hidden") {
+            return;
+        }
         document.currentFocus = this as BMLElement;
-        if (prevFocus?.onblur) {
-            document.currentEvent = {
-                type: "blur",
-                target: prevFocus,
-            } as BMLEvent;
-            (prevFocus.onblur as () => void)();
-            document.currentEvent = null;
-        }
-        if (document.currentFocus.onfocus) {
-            document.currentEvent = {
-                type: "focus",
-                target: document.currentFocus,
-            } as BMLEvent;
-            (document.currentFocus.onfocus as () => void)();
-            document.currentEvent = null;
-        }
-        }, 0);
+        syncEventQueue.push({ type: "focus", currentElement: this, prevElement: prevFocus });
+        requestDispatchQueue();
     };
+
     Object.defineProperty(Document.prototype, "currentFocus", {
         get: function () { return this._currentFocus; },
         set: function (elem: BMLElement) {
@@ -949,9 +1008,17 @@ if (!window.browser) {
                 obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
             reloadObjectElement(obj);
         });
-        
+        // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
+        // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
+        lockSyncEventQueue();
         findNavIndex(0)?.focus();
     }
+    
+    window.addEventListener("load", (_) => {
+        unlockSyncEventQueue();
+        requestDispatchQueue();
+    });
+
     // historyは存在しない
     // とりあえずsetter用意
     const _originalHistory = window.history;
