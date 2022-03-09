@@ -439,8 +439,9 @@ async function proc(ctx: Koa.ParameterizedContext<any, Router.IRouterParamContex
         } else if (typeof ctx.query.base64 === "string") {
             ctx.body = (await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`)).toString('base64');
         } else if (typeof ctx.query.ttf === "string") {
+            const filterId = parseInt(ctx.query.ttf);
             const drcs = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-            ctx.body = toTTF(loadDRCS(drcs));
+            ctx.body = toTTF(loadDRCS(drcs, Number.isFinite(filterId) ? filterId : undefined));
         } else {
             const s = fs.createReadStream(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
             s.on("error", () => {

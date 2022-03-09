@@ -391,23 +391,14 @@ if (!window.browser) {
             const style = document.createElement("style");
             style.id = id;
             let tc = "";
-            for (const font of [
-                "ゴシック",
-                "Ｐゴシック",
-                "round gothic",
-                "丸ゴシック",
-                "bold round gothic",
-                "太丸ゴシック",
-                "square gothic",
-                "Ｐ丸ゴシック",
-                "太ゴシック",
-                "角ゴシック",
-                "明朝",
-                "Ｐ明朝"
+            for (const [id, fontFamily] of [
+                [1, "丸ゴシック"],
+                [2, "角ゴシック"],
+                [3, "太丸ゴシック"],
             ]) {
                 tc += `@font-face {
-    font-family: "${font}";
-    src: url("/${component}/${module}/${filename}?ttf");
+    font-family: "${fontFamily}";
+    src: url("/${component}/${module}/${filename}?ttf=${id}");
     unicode-range: U+EC00-FE00;
 }
 `;

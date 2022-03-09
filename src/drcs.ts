@@ -722,7 +722,7 @@ enum FontId {
     BoldRoundGothic = 3, // 太丸ゴシック
 }
 
-export function loadDRCS(drcs: Buffer): DRCSGlyphs[] {
+export function loadDRCS(drcs: Buffer, filterId?: number): DRCSGlyphs[] {
     let off = 0;
     const nCode = drcs.readUInt8(off);
     off += 1;
@@ -761,7 +761,9 @@ export function loadDRCS(drcs: Buffer): DRCSGlyphs[] {
                 const depthBits = Math.ceil(Math.log2(depth + 2));
                 let posBits = off * 8;
                 const bitmap = new Array(width * height);
+                if (filterId == null || (fontId as number) === filterId) {
                 glyphs.glyphs.push({ width, height, depth: depth + 2, bitmap });
+                }
                 for (let y = 0; y < height; y++) {
                     for (let x = 0; x < width; x++) {
                         const bits = readBits(posBits, depthBits, drcs);
