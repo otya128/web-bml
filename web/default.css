@@ -36,7 +36,7 @@ p, div, input, object { overflow : hidden !important }
 /* background-repeat */
 body { background-repeat : repeat !important }
 /* text */
-p, input { font-family : "round gothic"; font-size : 24px }
+p, input { font-family : "丸ゴシック"; font-size : 24px }
 span, a { font-family : inherit; font-size : inherit }
 p, input { text-align : left }
 /* letter-spacing */
@@ -202,20 +202,14 @@ body {
 }
 
 body {
-    font-family: "round gothic";
+    font-family: "丸ゴシック";
 }
 
-/* STD-B24 A1-13.7.7 */
-@font-face {
-    font-family: "ゴシック";
-    src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+body[invisible="invisible"] {
+    visibility: hidden !important;
 }
 
-@font-face {
-    font-family: "Ｐゴシック";
-    src: local('MS PGothic');
-}
-
+/* STD-B24 第二分冊(2/2) 第二編 付属2 4.4.8 */
 @font-face {
     font-family: "丸ゴシック";
     src: url("/KosugiMaru-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
@@ -226,6 +220,23 @@ body {
     src: url("/KosugiMaru-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
 }
 
+@font-face {
+    font-family: "角ゴシック";
+    src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+}
+
+@font-face {
+    font-family: "太ゴシック";
+    src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+}
+
+@font-face {
+    font-family: "ゴシック";
+    src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+}
+
+/* 英語版の規格だと翻訳されちゃってる */
+/*
 @font-face {
     font-family: "round gothic";
     src: url("/KosugiMaru-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
@@ -240,28 +251,27 @@ body {
     font-family: "square gothic";
     src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
 }
+*/
 
+/* 印刷用 */
+/*
 @font-face {
-    font-family: "Ｐ丸ゴシック";
-    src: local('MS PGothic');
-}
-
-@font-face {
-    font-family: "太ゴシック";
-    src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
-}
-
-@font-face {
-    font-family: "角ゴシック";
-    src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
-}
-
-@font-face {
-     font-family: "明朝";
-     src: local('MS Mincho');
+    font-family: "明朝";
+    src: local('MS Mincho');
 }
 
 @font-face {
     font-family: "Ｐ明朝";
     src: local('MS PMincho');
 }
+
+@font-face {
+    font-family: "Ｐゴシック";
+    src: local('MS PGothic');
+}
+
+@font-face {
+    font-family: "Ｐ丸ゴシック";
+    src: local('MS PGothic');
+}
+*/
