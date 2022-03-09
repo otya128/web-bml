@@ -715,6 +715,13 @@ function writeSVG(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.seek(prev);
 }
 
+// 以下のフォントサイズのみが運用される (STD-B24 第二分冊 第二編 付属3 4.1.2参照)
+enum FontId {
+    RoundGothic = 1, // 丸ゴシック
+    SquareGothic = 2, // 角ゴシック
+    BoldRoundGothic = 3, // 太丸ゴシック
+}
+
 export function loadDRCS(drcs: Buffer): DRCSGlyphs[] {
     let off = 0;
     const nCode = drcs.readUInt8(off);
@@ -732,14 +739,21 @@ export function loadDRCS(drcs: Buffer): DRCSGlyphs[] {
         for (let j = 0; j < nFont; j++) {
             const b = drcs.readUInt8(off);
             off += 1;
-            const fontId = b >> 4;
+            const fontId = (b >> 4) as FontId;
             const mode = b & 15;
             //console.log(`${charCode1} ${charCode2} ${fontId}`);
             // charCode1 - 0x20, charCode2 - 0x20でJISの区点
             // これに0xA0を足すとEUC-JP
+            // modeは1のみが運用される
             if (mode === 0 || mode === 1) {
+                // depthは2のみが運用される(4階調)
                 const depth = drcs.readUInt8(off);
                 off += 1;
+                // 以下のフォントサイズのみが運用される (STD-B24 第二分冊 第二編 付属3 4.6.10 表4-10参照)
+                // 丸ゴシック(1) 16px, 20px, 24px, 30px, 36px
+                // 太丸ゴシック(3) 30px
+                // 角ゴシック(2) 20px, 24px
+                // DRCSは全角のみが運用される
                 const width = drcs.readUInt8(off);
                 off += 1;
                 const height = drcs.readUInt8(off);
@@ -747,24 +761,18 @@ export function loadDRCS(drcs: Buffer): DRCSGlyphs[] {
                 const depthBits = Math.ceil(Math.log2(depth + 2));
                 let posBits = off * 8;
                 const bitmap = new Array(width * height);
-                //console.log(`${depth} ${width} ${height}`);
                 glyphs.glyphs.push({ width, height, depth: depth + 2, bitmap });
                 for (let y = 0; y < height; y++) {
                     for (let x = 0; x < width; x++) {
                         const bits = readBits(posBits, depthBits, drcs);
-                        if (bits) {
-                            //process.stdout.write("" + bits);
-                        } else {
-                            //process.stdout.write(" ");
-                        }
                         bitmap[x + y * width] = bits;
                         posBits += depthBits;
                     }
-                    //process.stdout.write("\n");
                 }
                 off = (posBits + 7) >> 3;
             } else {
-                throw new Error("region is not implemented");
+                // ジオメトリックは運用されない
+                throw new Error("geometric is not operated");
             }
         }
     }
