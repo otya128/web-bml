@@ -116,6 +116,7 @@ export function bmlToXHTML(data: Uint8Array): string {
             if (!node[":@"]["@_rel"]) {
                 node[":@"]["@_rel"] = "stylesheet";
             }
+            renameXmlNode(node, "arib-link");
         }
         /*
         // keyイベントは独自なのでエミュレートした方がよさそう

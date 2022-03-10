@@ -57,6 +57,7 @@ export type CSSTranspileOptions = {
     inline: boolean,
     href: string,
     clutReader: (cssValue: string) => css.Declaration[],
+    convertUrl?: (url: string) => string,
 };
 
 function colorIndexToVar(colorIndex: string | null | undefined): string | null | undefined {
@@ -152,6 +153,15 @@ function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | str
             return decl.value;
         } else if (decl.property && bmlCssPropertyToBmlJsProperty.has(decl.property)) {
             decl.property = "--" + decl.property;
+        } else if (opts.convertUrl && decl.property === "background-image" && decl.value) {
+            const origProperty = decl.property;
+            const origValue = decl.value;
+            decl.value = "url(" + opts.convertUrl(parseCSSValue(opts.href, origValue) ?? origValue) + ")";
+            return [decl, {
+                type: "declaration",
+                property: "--" + origProperty,
+                value: origValue,
+            }];
         } else if (decl.property) {
             const sub = colorIndexRules.get(decl.property);
             if (sub) {

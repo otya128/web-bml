@@ -1106,11 +1106,29 @@ if (!window.browser) {
             return clutToDecls(clut);
         }
 
+        function convertCSSUrl(url: string): string {
+            const res = fetchLockedResource(url);
+            if (!res) {
+                return url;
+            }
+            return URL.createObjectURL(new Blob([res.data]));
+        }
+
         //observer.observe(document.body, config);
-        document.querySelectorAll("arib-style").forEach(style => {
-            if (style.textContent) {
+        document.querySelectorAll("arib-style, arib-link").forEach(style => {
+            if (style.nodeName === "arib-link") {
+                const href = style.getAttribute("href");
+                if (href != null) {
+                    const newStyle = document.createElement("style");
+                    const res = fetchLockedResource(href);
+                    if (res != null) {
+                        newStyle.textContent = transpileCSS(decodeEUCJP(res.data), { inline: false, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl });
+                        style.parentElement?.appendChild(newStyle);
+                    }
+                }
+            } else if (style.textContent) {
                 const newStyle = document.createElement("style");
-                newStyle.textContent = transpileCSS(style.textContent, { inline: false, href: "http://localhost" + activeDocument, clutReader: getCLUT });
+                newStyle.textContent = transpileCSS(style.textContent, { inline: false, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl });
                 style.parentElement?.appendChild(newStyle);
             }
         });
@@ -1120,7 +1138,7 @@ if (!window.browser) {
             if (!styleAttribute) {
                 return;
             }
-            style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + activeDocument, clutReader: getCLUT }));
+            style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl }));
         });
         document.querySelectorAll("object").forEach(obj => {
             obj.data = obj.data;
