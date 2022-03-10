@@ -16,6 +16,9 @@ import { readCLUT } from "../src/clut";
 import { defaultCLUT } from "../src/default_clut";
 import { Buffer } from "buffer";
 import * as drcs from "../src/drcs";
+// @ts-ignore
+import defaultCss from "./default.css";
+
 interface BMLEvent {
     type: string;
     target: HTMLElement;
@@ -93,33 +96,46 @@ if (!window.browser) {
         }
         currentDateMode = 0;
         document.documentElement.innerHTML = bmlToXHTML(file.data);
-        document.querySelectorAll("script").forEach(x => {
-            const s = document.createElement("script");
-            x.remove();
-            const src = x.getAttribute("src");
-            if (src) {
-                const res = fetchLockedResource(src);
-                if (res !== null) {
-                    // 非同期になってしまうのでこれは無し
-                    //const url = URL.createObjectURL(new Blob([res.data], {
-                    //    type: "text/javascript;encoding=euc-jp"
-                    //}));
-                    s.setAttribute("arib-src", src);
-                    s.textContent = "// " + src + "\n" + transpile(decodeEUCJP(res.data));
-                }
-            } else {
-                s.textContent = "// " + activeDocument + "\n" + x.textContent;
-            }
-            document.body.appendChild(s);
-        });
+        if (defaultCss != null) {
+            const defaultStylesheet = document.createElement("style");
+            defaultStylesheet.textContent = defaultCss;
+            document.head.prepend(defaultStylesheet);
+        }
         init();
-        document.querySelectorAll("[onload]").forEach(elem => {
-            const onload = elem.getAttribute("onload");
-            if (onload != null) {
-                new Function(onload)();
-            }
-        });
-        unlockSyncEventQueue();
+        // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
+        // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
+        lockSyncEventQueue();
+        try {
+            findNavIndex(0)?.focus();
+            document.querySelectorAll("script").forEach(x => {
+                const s = document.createElement("script");
+                x.remove();
+                const src = x.getAttribute("src");
+                if (src) {
+                    const res = fetchLockedResource(src);
+                    if (res !== null) {
+                        // 非同期になってしまうのでこれは無し
+                        //const url = URL.createObjectURL(new Blob([res.data], {
+                        //    type: "text/javascript;encoding=euc-jp"
+                        //}));
+                        s.setAttribute("arib-src", src);
+                        s.textContent = "// " + src + "\n" + transpile(decodeEUCJP(res.data));
+                    }
+                } else {
+                    s.textContent = "// " + activeDocument + "\n" + x.textContent;
+                }
+                document.body.appendChild(s);
+            });
+            document.querySelectorAll("[onload]").forEach(elem => {
+                const onload = elem.getAttribute("onload");
+                if (onload != null) {
+                    new Function(onload)();
+                }
+            });
+        }
+        finally {
+            unlockSyncEventQueue();
+        }
         requestDispatchQueue();
         throw new LongJump(`long jump`);
     }
@@ -1086,52 +1102,6 @@ if (!window.browser) {
         }
     });
     function init() {
-
-
-        const config = { attributes: true, childList: true, subtree: true };
-
-        const observer = new MutationObserver((mutationsList, observer) => {
-            for (const mutation of mutationsList) {
-                if (mutation.type === "childList") {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeName === "object") {
-                            const obj = node as HTMLObjectElement;
-                            if (!obj.type.match(/image\/X-arib-png/i)) {
-                                return;
-                            }
-                            const clut = document.defaultView?.getComputedStyle(obj)?.getPropertyValue("--clut");
-                            if (!clut) {
-                                return;
-                            }
-                            if (!obj.data) {
-                                return;
-                            }
-                            obj.setAttribute("arib-type", obj.type);
-                            obj.type = "image/png";
-                            if (!obj.data.includes("?clut="))
-                                obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
-                            reloadObjectElement(obj);
-                        }
-                    });
-                }
-                if (mutation.type === "attributes" && 0) {
-                    if (mutation.attributeName === "data" && mutation.target.nodeName === "object") {
-                        const obj = mutation.target as HTMLObjectElement;
-                        if (!(obj.getAttribute("arib-type") ?? obj.type).match(/image\/X-arib-png/i)) {
-                            continue;
-                        }
-                        const clut = document.defaultView?.getComputedStyle(obj)?.getPropertyValue("--clut");
-                        if (!clut) {
-                            continue;
-                        }
-                        if (!obj.data.includes("?clut="))
-                            obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
-                        reloadObjectElement(obj);
-                    }
-                }
-            }
-        });
-
         function clutToDecls(table: number[][]): css.Declaration[] {
             const ret = [];
             let i = 0;
@@ -1194,16 +1164,7 @@ if (!window.browser) {
             obj.data = obj.data;
             reloadObjectElement(obj);
         });
-        // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
-        // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
-        lockSyncEventQueue();
-        findNavIndex(0)?.focus();
     }
-
-    window.addEventListener("load", (_) => {
-        unlockSyncEventQueue();
-        requestDispatchQueue();
-    });
 
     // historyは存在しない
     // とりあえずsetter用意
@@ -1220,6 +1181,5 @@ if (!window.browser) {
     overrideString();
     overrideNumber();
     overrideDate();
-    init();
     const windowKeys = new Set<string>(Object.keys(window));
 }

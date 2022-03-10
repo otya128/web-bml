@@ -13,6 +13,10 @@ module.exports = {
                 test: /\.ts$/,
                 use: 'ts-loader',
             },
+            {
+                test: /default\.css$/,
+                type: 'asset/source',
+            }
         ],
     },
     resolve: {

@@ -140,13 +140,6 @@ export function bmlToXHTML(data: Uint8Array): string {
         }
         bodyChildren.push(s);
     }
-    headChildren.splice(0, 0, {
-        "link": [],
-        ":@": {
-            "@_href": "/default.css",
-            "@_rel": "stylesheet"
-        }
-    });
     //console.log(JSON.stringify(parsed, null, 4));
     return builder.build(htmlChildren);
 }
