@@ -1,4 +1,5 @@
 import CRC32 from "crc-32";
+import { Buffer } from "buffer";
 
 function preparePLTE(clut: number[][]): Buffer {
     const plte = Buffer.alloc(4 /* PLTE */ + 4 /* size */ + clut.length * 3 + 4 /* CRC32 */);

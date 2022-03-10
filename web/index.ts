@@ -11,6 +11,10 @@ import { bmlToXHTML } from "../src/bml_to_xhtml";
 import { transpile } from "../src/transpile_ecm";
 import * as resource from "./resource";
 import { activeDocument, CachedFile, fetchLockedResource, lockCachedModule, parseURL, parseURLEx } from "./resource";
+import { aribPNGToPNG } from "../src/arib_png";
+import { readCLUT } from "../src/clut";
+import { defaultCLUT } from "../src/default_clut";
+import { Buffer } from "buffer";
 interface BMLEvent {
     type: string;
     target: HTMLElement;
@@ -415,7 +419,7 @@ if (!window.browser) {
         }
     }
     window.browser.getProgramID = function getProgramID(type: number): string | null {
-        
+
         return null;
     }
     window.browser.sleep = function sleep(interval: number): number | null {
@@ -949,6 +953,7 @@ if (!window.browser) {
         },
         set: function setObjectData(this: HTMLObjectElement, v: string) {
             const aribType = this.getAttribute("arib-type");
+            const type = this.getAttribute("type");
             this.setAttribute("arib-data", v);
             if (v == "") {
                 this.setAttribute("data", v);
@@ -965,15 +970,17 @@ if (!window.browser) {
                     this.setAttribute("arib-type", this.type);
                 }
                 this.type = "image/png";
-                const clut = document.defaultView?.getComputedStyle(this)?.getPropertyValue("--clut");
-                if (clut && !v.includes("?clut=")) {
-                    v = v + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
-                }
+                const clutCss = document.defaultView?.getComputedStyle(this)?.getPropertyValue("--clut");
+                const clutUrl = clutCss == null ? null : parseCSSValue(clutCss);
+                const fetchedClut = clutUrl == null ? null : fetchLockedResource(clutUrl)?.data;
+                const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
+                const png = aribPNGToPNG(Buffer.from(fetched.data), clut);
+                const blob = new Blob([png], { type: type ?? "" });
+                this.setAttribute("data", URL.createObjectURL(blob));
+            } else {
+                const blob = new Blob([fetched.data], { type: type ?? "" });
+                this.setAttribute("data", URL.createObjectURL(blob));
             }
-            if (this.getAttribute("data") === v) {
-                return;
-            }
-            this.setAttribute("data", v);
             if (!aribType) {
                 reloadObjectElement(this);
             }
@@ -1058,20 +1065,7 @@ if (!window.browser) {
             style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: location.href, clutReader: getCLUT }));
         });
         document.querySelectorAll("object").forEach(obj => {
-            if (!obj.type.match(/image\/X-arib-png/i)) {
-                return;
-            }
-            const clut = document.defaultView?.getComputedStyle(obj)?.getPropertyValue("--clut");
-            if (!clut) {
-                return;
-            }
-            if (!obj.data) {
-                return;
-            }
-            obj.setAttribute("arib-type", obj.type);
-            obj.type = "image/png";
-            if (!obj.data.includes("?clut="))
-                obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
+            obj.data = obj.data;
             reloadObjectElement(obj);
         });
         // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
