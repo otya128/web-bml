@@ -443,14 +443,15 @@ tsStream.on("dsmcc", (pid: any, data: any) => {
             modules.set(moduleId, moduleInfo);
             console.log(`   moduleId: ${moduleId.toString(16).padStart(4, "0")} moduleVersion: ${moduleVersion}`)
             for (const info of module.moduleInfo) {
-                const descriptor: Buffer = info.descriptor;
                 // Type記述子, ダウンロード推定時間記述子, Compression Type記述子のみ運用される(TR-B14 第三分冊 4.2.4 表4-4参照)
                 if (info.descriptor_tag === 0x01) { // Type記述子 STD-B24 第三分冊 第三編 6.2.3.1
-                    const contentType = descriptor.toString("ascii");
+                    const contentType = info.text_char.toString("ascii");
                     moduleInfo.contentType = contentType;
                 } else if (info.descriptor_tag === 0x07) { // ダウンロード推定時間記述子 STD-B24 第三分冊 第三編 6.2.3.6
+                    const descriptor: Buffer = info.descriptor;
                     const est_download_time = descriptor.readUInt32BE(0);
                 } else if (info.descriptor_tag === 0xC2) { // Compression Type記述子 STD-B24 第三分冊 第三編 6.2.3.9
+                    const descriptor: Buffer = info.descriptor;
                     const compression_type = descriptor.readInt8(0); // 0: zlib
                     const original_size = descriptor.readUInt32BE(1);
                     moduleInfo.originalSize = original_size;
