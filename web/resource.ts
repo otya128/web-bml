@@ -7,7 +7,14 @@ let entryPointModuleId = 0x0000;
 function documentLoaded() {
     return location.href === "/";
 }
-export const activeDocument = "/40/0000/startup.bml";
+export let activeDocument = "/40/0000/startup.bml";
+export function setActiveDocument(componentId: number, moduleId: number, filename: string | null) {
+    if (filename != null) { // ?
+        activeDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}/${filename}`;
+    } else {
+        activeDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
+    }
+}
 const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/ws");
 const cachedComponents = new Map<number, CachedComponent>();
 export type CachedComponent = {
@@ -124,10 +131,12 @@ export function fetchLockedResource(url: string): CachedFile | null {
     }
     const cachedComponent = lockedComponents.get(componentId);
     if (cachedComponent == null) {
+        console.error("component not found failed to fetch ", url);
         return null;
     }
     const cachedModule = cachedComponent.modules.get(moduleId);
     if (cachedModule == null) {
+        console.error("module not found ", url);
         return null;
     }
     if (filename == null) {

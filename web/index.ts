@@ -369,6 +369,7 @@ if (!window.browser) {
             return NaN;
         }
         const ad = activeDocument;
+        resource.setActiveDocument(componentId, moduleId, filename);
         loadDocument(res);
         console.log("return ", ad, documentName);
         // location.href = documentName;
@@ -951,7 +952,12 @@ if (!window.browser) {
             }
             return aribData;
         },
-        set: function setObjectData(this: HTMLObjectElement, v: string) {
+        set: function setObjectData(this: HTMLObjectElement, v: string | null) {
+            if (v == null) {
+                this.removeAttribute("data");
+                this.removeAttribute("arib-data");
+                return;
+            }
             const aribType = this.getAttribute("arib-type");
             const type = this.getAttribute("type");
             this.setAttribute("arib-data", v);
