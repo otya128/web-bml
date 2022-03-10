@@ -13,6 +13,22 @@ import stream from "stream";
 import { TsStream, TsUtil } from "@chinachu/aribts";
 import zlib from "zlib";
 import { EntityParser, MediaType, parseMediaType, entityHeaderToString } from './entity_parser';
+import websocket, { WebSocketContext } from "koa-easy-ws";
+import * as wsApi from "./ws_api";
+import { WebSocket } from "ws";
+import CRC32 from "crc-32";
+import { transpileCSS } from './transpile_css';
+import { ComponentPMT, AdditionalAribBXMLInfo } from './ws_api';
+import { defaultCLUT } from './default_clut';
+
+const ws = websocket();
+
+type ModuleLockRequest = {
+    componentId: number,
+    moduleId: number,
+};
+
+const moduleLockRequests: ModuleLockRequest[] = [];
 
 let size = process.argv[2] === "-" ? 0 : fs.statSync(process.argv[2]).size;
 let bytesRead = 0;
@@ -74,24 +90,190 @@ tsStream.on("tot", (pid: any, data: any) => {
     tsUtil.addTot(pid, data);
 });
 
-const pidToComponent = new Map<number, number>();
+let pidToComponent = new Map<number, ComponentPMT>();
+let componentToPid = new Map<number, ComponentPMT>();
+
+function broadcast(msg: wsApi.ResponseMessage) {
+    for (const client of ws.server.clients) {
+        client.send(JSON.stringify(msg));
+    }
+}
+
+function unicast(client: WebSocket, msg: wsApi.ResponseMessage) {
+    client.send(JSON.stringify(msg));
+}
+
+function decodeAdditionalAribBXMLInfo(additional_data_component_info: Buffer): AdditionalAribBXMLInfo {
+    let off = 0;
+    // 地上波についてはTR-B14 第二分冊 2.1.4 表2-3を参照
+    // BSについてはTR-B15 第一分冊 5.1.5 表5-4を参照
+    // BS, CSについてはTR-B15 第四分冊 5.1.5 表5-4を参照
+    // 00: データカルーセル伝送方式およびイベントメッセージ伝送方式 これのみが運用される
+    // 01: データカルーセル伝送方式(蓄積専用データサービス)
+    const transmission_format = ((additional_data_component_info[off] & 0b11000000) >> 6) & 0b11;
+    // component_tag=0x40のとき必ず1となる
+    // startup.xmlが最初に起動される (STD-B24 第二分冊 (1/2) 第二編 9.2.2参照)
+    const entry_point_flag = ((additional_data_component_info[off] & 0b00100000) >> 5) & 0b1;
+    const bxmlInfo: AdditionalAribBXMLInfo = {
+        transmissionFormat: transmission_format,
+        entryPointFlag: !!entry_point_flag,
+    };
+    // STD-B24 第二分冊 (1/2) 第二編 9.3参照
+    if (entry_point_flag) {
+        // 運用
+        const auto_start_flag = ((additional_data_component_info[off] & 0b00010000) >> 4) & 0b1;
+        // 以下が運用される
+        // 0011: 960x540 (16:9)
+        // 0100: 640x480 (16:9)
+        // 0101: 640x480 (4:3)
+
+        // 以下は仕様のみ
+        // 0000: 混在
+        // 0001: 1920x1080 (16:9)
+        // 0010: 1280x720 (16:9)
+        // 0110: 320x240 (4:3)
+        // 1111: 指定しない (Cプロファイルでのみ運用)
+        const document_resolution = ((additional_data_component_info[off] & 0b00001111) >> 0) & 0b1111;
+        off++;
+        // 0のみが運用される
+        const use_xml = ((additional_data_component_info[off] & 0b10000000) >> 7) & 0b1;
+        // 地上波, CSでは0のみが運用される
+        // BSでは1(bml_major_version=1, bml_minor_version=0)が指定されることもある
+        const default_version_flag = ((additional_data_component_info[off] & 0b01000000) >> 6) & 0b1;
+        // 地上波では1のみ運用, BS/CSの場合1の場合単独視聴可能, 0の場合単独視聴不可
+        const independent_flag = ((additional_data_component_info[off] & 0b00100000) >> 5) & 0b1;
+        // 運用される
+        const style_for_tv_flag = ((additional_data_component_info[off] & 0b00010000) >> 4) & 0b1;
+        // reserved
+        off++;
+        bxmlInfo.entryPointInfo = {
+            autoStartFlag: !!auto_start_flag,
+            documentResolution: document_resolution,
+            useXML: !!use_xml,
+            defaultVersionFlag: !!default_version_flag,
+            independentFlag: !!independent_flag,
+            styleForTVFlag: !!style_for_tv_flag,
+            bmlMajorVersion: 1,
+            bmlMinorVersion: 1,
+        };
+        // BSではbml_major_versionは1
+        // CSではbml_major_versionは2
+        // 地上波ではbml_major_versionは3
+        if (default_version_flag === 0) {
+            let bml_major_version = additional_data_component_info[off] << 16;
+            off++;
+            bml_major_version |= additional_data_component_info[off];
+            bxmlInfo.entryPointInfo.bmlMajorVersion = bml_major_version;
+            off++;
+            let bml_minor_version = additional_data_component_info[off] << 16;
+            off++;
+            bml_minor_version |= additional_data_component_info[off];
+            bxmlInfo.entryPointInfo.bmlMinorVersion = bml_minor_version;
+            off++;
+            // 運用されない
+            if (use_xml == 1) {
+                let bxml_major_version = additional_data_component_info[off] << 16;
+                off++;
+                bxml_major_version |= additional_data_component_info[off];
+                bxmlInfo.entryPointInfo.bxmlMajorVersion = bxml_major_version;
+                off++;
+                let bxml_minor_version = additional_data_component_info[off] << 16;
+                off++;
+                bxml_minor_version |= additional_data_component_info[off];
+                bxmlInfo.entryPointInfo.bxmlMinorVersion = bxml_minor_version;
+                off++;
+            }
+        }
+    } else {
+        // reserved
+        off++;
+    }
+    if (transmission_format === 0) {
+        // additional_arib_carousel_info (STD-B24 第三分冊 第三編 C.1)
+        // 常に0xF
+        const data_event_id = ((additional_data_component_info[off] & 0b11110000) >> 4) & 0b1111;
+        // 常に1
+        const event_section_flag = ((additional_data_component_info[off] & 0b00001000) >> 3) & 0b1;
+        //reserved
+        off++;
+        // 地上波ならば常に1, BS/CSなら1/0
+        const ondemand_retrieval_flag = ((additional_data_component_info[off] & 0b10000000) >> 7) & 0b1;
+        // 地上波ならば常に0, BS/CSなら/-
+        const file_storable_flag = ((additional_data_component_info[off] & 0b01000000) >> 6) & 0b1;
+        // 運用
+        const start_priority = ((additional_data_component_info[off] & 0b00100000) >> 5) & 0b1;
+        bxmlInfo.additionalAribCarouselInfo = {
+            dataEventId: data_event_id,
+            eventSectionFlag: !!event_section_flag,
+            ondemandRetrievalFlag: !!ondemand_retrieval_flag,
+            fileStorableFlag: !!file_storable_flag,
+            startPriority: start_priority,
+        };
+        // reserved
+        off++;
+    } else if (transmission_format == 1) {
+        // reserved
+        off++;
+    }
+    return bxmlInfo;
+}
 
 tsStream.on("pmt", (pid: any, data: any) => {
+    const ptc = new Map<number, ComponentPMT>();
+    const ctp = new Map<number, ComponentPMT>();
     for (const stream of data.streams) {
         // 0x0d: データカルーセル
         if (stream.stream_type != 0x0d) {
             continue;
         }
         const pid = stream.elementary_PID;
+        let bxmlInfo: AdditionalAribBXMLInfo | undefined;
+        let componentId: number | undefined;
         for (const esInfo of stream.ES_info) {
             if (esInfo.descriptor_tag == 0x52) { // Stream identifier descriptor ストリーム識別記述子
                 // PID => component_tagの対応
                 const component_tag = esInfo.component_tag;
-                pidToComponent.set(pid, component_tag);
+                componentId = component_tag;
             } else if (esInfo.descriptor_tag == 0xfd) { // Data component descriptor データ符号化方式記述子
-
+                let additional_data_component_info: Buffer = esInfo.additional_data_component_info;
+                let data_component_id: number = esInfo.data_component_id;
+                // FIXME!!!!!!!!
+                // aribtsの実装がおかしくてdata_component_idを8ビットとして読んでる
+                if (esInfo.additional_data_component_info.length + 1 === esInfo.descriptor_length) {
+                    data_component_id <<= 8;
+                    data_component_id |= additional_data_component_info[0];
+                    additional_data_component_info = additional_data_component_info.subarray(1);
+                }
+                if (data_component_id == 0x0C || // 地上波
+                    data_component_id == 0x07 || // BS
+                    data_component_id == 0x0B // CS
+                ) {
+                    bxmlInfo = decodeAdditionalAribBXMLInfo(additional_data_component_info);
+                }
             }
         }
+        if (componentId == null || bxmlInfo == null) {
+            console.error("invalid stream in PMT");
+            continue;
+        }
+        const componentPMT: ComponentPMT = {
+            componentId,
+            pid,
+            bxmlInfo,
+            }
+        ptc.set(pid, componentPMT);
+        ctp.set(componentPMT.componentId, componentPMT);
+        }
+    pidToComponent = ptc;
+    if (componentToPid.size !== ctp.size || [...componentToPid.keys()].some((x) => !ctp.has(x))) {
+        // PMTが変更された
+        console.log("PMT changed");
+        componentToPid = ctp;
+        const msg: wsApi.PMTMessage = {
+            type: "pmt",
+            components: [...componentToPid.values()]
+        };
+        broadcast(msg);
     }
 });
 
@@ -138,10 +320,11 @@ type CachedComponent = {
 const cachedComponents = new Map<number, CachedComponent>();
 
 tsStream.on("dsmcc", (pid: any, data: any) => {
-    const componentId = pidToComponent.get(pid);
-    if (componentId == null) {
+    const c = pidToComponent.get(pid);
+    if (c == null) {
         return;
     }
+    const { componentId } = c;
     if (data.table_id === 0x3b) {
         // DII
         // console.log(pid, data);
@@ -205,7 +388,16 @@ tsStream.on("dsmcc", (pid: any, data: any) => {
                 }
             }
         }
+        broadcast({
+            type: "moduleListUpdated",
+            componentId,
+            modules: data.message.modules.map((x: any) => x.moduleId),
+        });
         downloadComponents.set(componentId, componentInfo);
+        //for (const req of moduleLockRequests.filter(x => x.componentId === componentId)) {
+        //    if (req.)
+
+        //}
     } else if (data.table_id === 0x3c) {
         const componentInfo = downloadComponents.get(componentId);
         if (componentInfo == null) {
@@ -286,6 +478,16 @@ tsStream.on("dsmcc", (pid: any, data: any) => {
                         });
                     }
                     cachedModule.files = files;
+                    broadcast({
+                        type: "moduleDownloaded",
+                        componentId,
+                        moduleId,
+                        files: [...files.values()].map(x => ({
+                            contentType: x.contentType,
+                            contentLocation: x.contentLocation,
+                            dataBase64: x.data.toString("base64"),
+                        }))
+                    });
                 }
             }
             cachedComponent.modules.set(moduleInfo.moduleId, cachedModule);
@@ -339,7 +541,7 @@ for (const componentDirent of fs.readdirSync(baseDir, { withFileTypes: true })) 
 }
 
 const app = new Koa();
-const router = new Router();
+const router = new Router<any, WebSocketContext>();
 
 function findXmlNode(xml: any[], nodeName: string): any {
     const result = [];
@@ -520,6 +722,15 @@ function readFileAsync(path: string): Promise<string> {
                         "@_type": "application/json",
                         "@_id": "bml-server-data",
                     }
+                }, {
+                    "script": [
+                        {
+                            "#text": JSON.stringify(componentToPid.keys())
+                        }
+                    ], ":@": {
+                        "@_type": "application/json",
+                        "@_id": "pmt-data",
+                    }
                 });
                 //console.log(JSON.stringify(parsed, null, 4));
                 resolve(builder.build(parsed));
@@ -528,7 +739,6 @@ function readFileAsync(path: string): Promise<string> {
     });
 }
 
-import { defaultCLUT } from './default_clut';
 function readCLUT(clut: Buffer): number[][] {
     let table = defaultCLUT.slice();
     const prevLength = table.length;
@@ -599,8 +809,6 @@ function readCLUT(clut: Buffer): number[][] {
     return table;
 }
 
-import CRC32 from "crc-32";
-import { transpileCSS } from './transpile_css';
 
 function preparePLTE(clut: number[][]): Buffer {
     const plte = Buffer.alloc(4 /* PLTE */ + 4 /* size */ + clut.length * 3 + 4 /* CRC32 */);
@@ -692,6 +900,18 @@ async function proc(ctx: Koa.ParameterizedContext<any, Router.IRouterParamContex
     const component = (ctx.params.component as string).toLowerCase();
     const module = (ctx.params.module as string).toLowerCase();
     const filename = (ctx.params.filename as string).toLowerCase();
+    const componentId = parseInt(component, 16);
+    const moduleId = parseInt(module, 16);
+    if (Number.isNaN(componentId)) {
+        ctx.body = "invalid componentId";
+        ctx.status = 400;
+        return;
+    }
+    if (Number.isNaN(moduleId)) {
+        ctx.body = "invalid moduleId";
+        ctx.status = 400;
+        return;
+    }
     if (ctx.headers["sec-fetch-dest"] === "script" || filename.endsWith(".ecm")) {
         const b = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
         const file = new TextDecoder("euc-jp").decode(b);
@@ -786,6 +1006,74 @@ router.get('/api/sleep', async ctx => {
     });
     ctx.body = "OK";
 });
+
+router.get("/", async ctx => {
+    ctx.body = fs.createReadStream("web/index.html");
+    ctx.set("Content-Type", "text/html");
+});
+app.use(ws);
+
+router.get('/api/ws', async (ctx) => {
+    if (!ctx.ws) {
+        return;
+    }
+    const ws = await ctx.ws();
+    ws.on("message", (message) => {
+        const request = JSON.parse(message.toString("utf-8")) as wsApi.RequestMessage;
+        if (request.type === "moduleLockRequest") {
+            const cachedModule = cachedComponents.get(request.componentId)?.modules?.get(request.moduleId);
+            if (cachedModule == null) {
+                if (!componentToPid.has(request.componentId)) {
+                    ws.send(JSON.stringify({
+                        type: "moduleLockResponse",
+                        moduleId: request.moduleId,
+                        componentId: request.componentId,
+                        isEx: request.isEx,
+                        status: 1,
+                        files: []
+                    } as wsApi.ModuleLockResponseMessage));
+                } else {
+                    moduleLockRequests.push({ componentId: request.componentId, moduleId: request.moduleId });
+                }
+            } else {
+                ws.send(JSON.stringify({
+                    type: "moduleLockResponse",
+                    moduleId: request.moduleId,
+                    componentId: request.componentId,
+                    isEx: request.isEx,
+                    status: 0,
+                    files: !cachedModule.files ? [] : [...cachedModule.files.values()].map(x => ({
+                        contentLocation: x.contentLocation,
+                        contentType: x.contentType,
+                        data: x.data.toString("base64")
+                    }))
+                } as wsApi.ModuleLockResponseMessage));
+            }
+        }
+    });
+    unicast(ws, {
+        type: "pmt",
+        components: [...componentToPid.values()]
+    });
+    for (const [componentId, component] of cachedComponents) {
+        for (const module of component.modules.values()) {
+            if (module.files == null) {
+                continue;
+            }
+            unicast(ws, {
+                type: "moduleDownloaded",
+                componentId,
+                moduleId: module.downloadModuleInfo.moduleId,
+                files: [...module.files.values()].map(x => ({
+                    contentType: x.contentType,
+                    contentLocation: x.contentLocation,
+                    dataBase64: x.data.toString("base64"),
+                }))
+            });
+        }
+    }
+});
+
 console.log("OK");
 app
     .use(router.routes())

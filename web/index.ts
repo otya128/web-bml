@@ -6,6 +6,7 @@ import { readPersistentArray, writePersistentArray } from "./nvram";
 import { overrideString } from "./string"
 import { overrideNumber } from "./number"
 import { overrideDate } from "./date";
+import { ResponseMessage } from "../src/ws_api";
 interface BMLEvent {
     type: string;
     target: HTMLElement;
@@ -69,6 +70,17 @@ if (!window.browser) {
         [key: string]: {}
     };
 
+    const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/ws");
+    ws.addEventListener("message", (ev) => {
+        const msg = JSON.parse(ev.data) as ResponseMessage;
+        if (msg.type === "moduleLockResponse") {
+
+        } else if (msg.type === "pmt") {
+            
+        } else if (msg.type === "moduleListUpdated") {
+
+        }
+    });
     const components: { [key: string]: Component } = JSON.parse(document.getElementById("bml-server-data")?.textContent ?? "{}");
     window.dummy = undefined;
     window.browser = {};

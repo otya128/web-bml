@@ -1928,6 +1928,14 @@ koa-convert@^2.0.0:
     co "^4.6.0"
     koa-compose "^4.1.0"
 
+koa-easy-ws@^1.3.1:
+  version "1.3.1"
+  resolved "https://registry.yarnpkg.com/koa-easy-ws/-/koa-easy-ws-1.3.1.tgz#bf6ffeb712fb8923edffb23d06635c5040641da9"
+  integrity sha512-LH6gIF3tR9K9K/gWUNDwvzNhuYYjSqAa07QmwOQlb0aNSMyHYFQn06luqseTUcxSCgCyE1HHEgzYhj0RFTJ3ag==
+  dependencies:
+    debug "^4.1.1"
+    ws "^7.5.4"
+
 koa-is-json@1:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/koa-is-json/-/koa-is-json-1.0.0.tgz#273c07edcdcb8df6a2c1ab7d59ee76491451ec14"
@@ -3090,6 +3098,11 @@ wrappy@1:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/wrappy/-/wrappy-1.0.2.tgz#b5243d8f3ec1aa35f1364605bc0d1036e30ab69f"
   integrity sha1-tSQ9jz7BqjXxNkYFvA0QNuMKtp8=
+
+ws@^7.5.4:
+  version "7.5.7"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-7.5.7.tgz#9e0ac77ee50af70d58326ecff7e85eb3fa375e67"
+  integrity sha512-KMvVuFzpKBuiIXW3E4u3mySRO2/mCHSyZDJQM5NQ9Q9KHWHWh0NHgfbRMLLrceUK5qAL4ytALJbpRMjixFZh8A==
 
 ws@^8.4.2:
   version "8.5.0"
