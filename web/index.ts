@@ -212,15 +212,19 @@ if (!window.browser) {
             console.error("lockModuleOnMemory: component does not exist in PMT", module);
             return -1;
         }
+        if (!resource.moduleExistsInDownloadInfo(componentId, moduleId)) {
+            console.error("lockModuleOnMemory: component does not exist in DII", module);
+            return -1;
+        }
         const cachedModule = lockCachedModule(componentId, moduleId);
         if (!cachedModule) {
             console.error("lockModuleOnMemory: module not cached", module);
-            return -1;
+            resource.requestLockModule(module, componentId, moduleId, false);
+            return 1;
         }
-        window.lockedModules.set(module.toLowerCase(), { module, isEx: false });
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
         setTimeout(() => {
-            eventQueueOnModuleLocked(module, false);
+            eventQueueOnModuleLocked(module, false, 0);
         }, 0);
         return 1;
     }
@@ -234,20 +238,33 @@ if (!window.browser) {
             console.error("lockModuleOnMemoryEx: component does not exist in PMT", module);
             return -3;
         }
+        if (!resource.moduleExistsInDownloadInfo(componentId, moduleId)) {
+            console.error("lockModuleOnMemoryEx: component does not exist in DII", module);
+            setTimeout(() => {
+                eventQueueOnModuleLocked(module, true, -2);
+            }, 0);
+            return 0;
+        }
         const cachedModule = lockCachedModule(componentId, moduleId);
         if (!cachedModule) {
             console.error("lockModuleOnMemoryEx: module not cached", module);
+            resource.requestLockModule(module, componentId, moduleId, true);
             // OnModuleLockedのstatusで返ってくる
             return 0;
         }
-        window.lockedModules.set(module.toLowerCase(), { module, isEx: true });
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
         setTimeout(() => {
-            eventQueueOnModuleLocked(module, true);
+            eventQueueOnModuleLocked(module, true, 0);
         }, 0);
         return 1;
     }
-    function eventQueueOnModuleLocked(module: string, _isEx: boolean) {
+    resource.registerOnModuleLockedHandler((module: string, isEx: boolean, status: number) => {
+        setTimeout(() => {
+            eventQueueOnModuleLocked(module, isEx, status);
+        }, 0);
+    });
+    function eventQueueOnModuleLocked(module: string, isEx: boolean, status: number) {
+        window.lockedModules.set(module.toLowerCase(), { module, isEx });
         console.log("ModuleLocked", module);
         const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleLocked\"]");
         for (const beitem of Array.from(moduleLocked)) {
@@ -261,7 +278,7 @@ if (!window.browser) {
                     document.currentEvent = {
                         type: "ModuleLocked",
                         target: beitem as HTMLElement,
-                        status: 0,
+                        status,
                         privateData: "",
                         esRef: "",
                         messageId: "0",

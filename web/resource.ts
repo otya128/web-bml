@@ -35,6 +35,14 @@ export type CachedFile = {
     blobUrl: Map<any, string>,
 };
 
+
+type DownloadComponentInfo = {
+    componentId: number,
+    modules: Set<number>,
+};
+
+const downloadComponents = new Map<number, DownloadComponentInfo>();
+
 export function getCachedFileBlobUrl(file: CachedFile, key?: any): string {
     let b = file.blobUrl.get(key);
     if (b != null) {
@@ -77,6 +85,30 @@ export function lockCachedModule(componentId: number, moduleId: number): boolean
     return true;
 }
 
+export function moduleExistsInDownloadInfo(componentId: number, moduleId: number): boolean {
+    return downloadComponents.get(componentId)?.modules?.has(moduleId) ?? false;
+}
+
+type LockModuleRequest = {
+    moduleRef: string,
+    componentId: number,
+    moduleId: number,
+    isEx: boolean,
+};
+
+const lockModuleRequests: Map<string, LockModuleRequest> = new Map();
+
+// うーん
+let onModuleLockedHandler: ((module: string, isEx: boolean, status: number) => void) | null = null;
+export function registerOnModuleLockedHandler(func: typeof onModuleLockedHandler) {
+    onModuleLockedHandler = func;
+}
+
+export function requestLockModule(moduleRef: string, componentId: number, moduleId: number, isEx: boolean) {
+    // FIXME: リクエスト分イベント発火させるべきかも
+    lockModuleRequests.set(`${componentId}/${moduleId}`, { moduleRef, componentId, moduleId, isEx });
+}
+
 export let currentProgramInfo: ProgramInfoMessage | null = null;
 ws.addEventListener("message", (ev) => {
     const msg = JSON.parse(ev.data) as ResponseMessage;
@@ -97,6 +129,15 @@ ws.addEventListener("message", (ev) => {
         cachedComponent.modules.set(msg.moduleId, cachedModule);
         cachedComponents.set(msg.componentId, cachedComponent);
         // OnModuleUpdated
+        const k = `${msg.componentId}/${msg.moduleId}`;
+        const req = lockModuleRequests.get(k);
+        if (req != null) {
+            lockModuleRequests.delete(k);
+            lockCachedModule(msg.componentId, msg.moduleId);
+            if (onModuleLockedHandler) {
+                onModuleLockedHandler(req.moduleRef, req.isEx, 0);
+            }
+        }
         if (entryPointModuleId === msg.moduleId && entryPointComponentId === msg.componentId) {
             lockCachedModule(entryPointComponentId, entryPointModuleId);
             try {
@@ -109,6 +150,11 @@ ws.addEventListener("message", (ev) => {
                 }
             }
         }
+    } else if (msg.type === "moduleListUpdated") {
+        downloadComponents.set(msg.componentId, {
+            componentId: msg.componentId,
+            modules: new Set(msg.modules)
+        });
     } else if (msg.type === "pmt") {
         pmtComponents = new Map(msg.components.map(x => [x.componentId, x]));
         if (!documentLoaded()) {

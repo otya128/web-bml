@@ -342,7 +342,7 @@ tsStream.on("eit", (pid, data) => {
     tsUtil.addEit(pid, data);
 
     let ids: any;
-    if (ids === null) {
+    if (ids == null) {
         if (tsUtil.hasOriginalNetworkId() && tsUtil.hasTransportStreamId() && tsUtil.hasServiceIds()) {
             ids = {
                 onid: tsUtil.getOriginalNetworkId(),
@@ -998,6 +998,13 @@ router.get('/api/ws', async (ctx) => {
         unicast(ws, {
             type: "currentTime",
             timeUnixMillis: currentTime,
+        });
+    }
+    for (const downloadComponent of downloadComponents.values()) {
+        unicast(ws, {
+            type: "moduleListUpdated",
+            componentId: downloadComponent.componentId,
+            modules: [...downloadComponent.modules.keys()],
         });
     }
     for (const [componentId, component] of cachedComponents) {
