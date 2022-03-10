@@ -94,12 +94,12 @@ if (!window.browser) {
                     //}));
                     s.setAttribute("arib-src", src);
                     s.textContent = "// " + src + "\n" + transpile(decodeEUCJP(res.data));
-        }
+                }
             } else {
                 s.textContent = "// " + activeDocument + "\n" + x.textContent;
             }
             document.body.appendChild(s);
-    });
+        });
         init();
         document.querySelectorAll("[onload]").forEach(elem => {
             const onload = elem.getAttribute("onload");
@@ -415,7 +415,7 @@ if (!window.browser) {
         }
     }
     window.browser.getProgramID = function getProgramID(type: number): string | null {
-
+        
         return null;
     }
     window.browser.sleep = function sleep(interval: number): number | null {
@@ -554,7 +554,7 @@ if (!window.browser) {
                 }
                 this.setAttribute(attrName, value);
             } : undefined,
-    });
+        });
     }
 
     defineAttributeProperty("type", "type", "beitem", true, false);
@@ -633,15 +633,15 @@ if (!window.browser) {
             while (true) {
                 const event = syncEventQueue.shift();
                 if (event == null) {
-            return;
-        }
+                    return;
+                }
                 if (event.type === "focus") {
                     dispatchFocus(event);
                 } else if (event.type === "blur") {
                     dispatchBlur(event);
                 } else if (event.type === "click") {
                     dispatchClick(event);
-        }
+                }
             }
         } finally {
             unlockSyncEventQueue();
@@ -661,27 +661,27 @@ if (!window.browser) {
     }
 
     function dispatchBlur(event: SyncBlurEvent) {
-            document.currentEvent = {
-                type: "blur",
+        document.currentEvent = {
+            type: "blur",
             target: event.target,
-            } as BMLEvent;
+        } as BMLEvent;
         const handler = event.target.getAttribute("onblur");
         if (handler) {
             new Function(handler)();
         }
-            document.currentEvent = null;
-        }
+        document.currentEvent = null;
+    }
 
     function dispatchClick(event: SyncClickEvent) {
-            document.currentEvent = {
+        document.currentEvent = {
             type: "click",
             target: event.target,
-            } as BMLEvent;
+        } as BMLEvent;
         const handler = event.target.getAttribute("onclick");
         if (handler) {
             new Function(handler)();
         }
-            document.currentEvent = null;
+        document.currentEvent = null;
     }
 
     HTMLElement.prototype.focus = function focus(options?: FocusOptions) {
@@ -873,82 +873,82 @@ if (!window.browser) {
         }) as (HTMLElement | undefined);
     }
 
-        window.addEventListener("keydown", (event) => {
-            const k = keyCodeToAribKey(event.key);
-            if (k === AribKeyCode.DataButton) {
-                // データボタンの場合DataButtonPressedのみが発生する
-                fireDataButtonPressed();
-                return;
-            }
-            if (k == -1) {
-                return;
-            }
-            if (!document.currentFocus) {
-                return;
-            }
-            const computedStyle = window.getComputedStyle(document.currentFocus);
-            let nextFocus = "";
-            const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
-            if (usedKeyList.length && usedKeyList[0] === "none") {
-                return;
-            }
-            const keyGroup = keyCodeToKeyGroup.get(k);
-            if (keyGroup == null) {
-                return;
-            }
-            if (usedKeyList.length === 0) {
-                if (keyGroup !== "basic" && keyGroup !== "data-button") {
-                    return;
-                }
-            } else if (!usedKeyList.some(x => x === keyGroup)) {
-                return;
-            }
-            if (k == AribKeyCode.Left) {
-                // 明記されていなさそうだけどおそらく先にnav-indexによるフォーカス移動があるだろう
-                nextFocus = computedStyle.getPropertyValue("--nav-left");
-            } else if (k == AribKeyCode.Right) {
-                nextFocus = computedStyle.getPropertyValue("--nav-right");
-            } else if (k == AribKeyCode.Up) {
-                nextFocus = computedStyle.getPropertyValue("--nav-up");
-            } else if (k == AribKeyCode.Down) {
-                nextFocus = computedStyle.getPropertyValue("--nav-down");
-            }
-            const nextFocusIndex = parseInt(nextFocus);
-            if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
-                findNavIndex(nextFocusIndex)?.focus();
-            }
-            const onkeydown = document.currentFocus.getAttribute("onkeydown");
-            if (onkeydown) {
-                document.currentEvent = {
-                    keyCode: k,
-                    type: "keydown",
-                    target: document.currentFocus,
-                } as BMLIntrinsicEvent;
-                new Function(onkeydown)();
-                document.currentEvent = null;
-                if (k == AribKeyCode.Enter && document.currentFocus) {
-                    queueSyncEvent({ type: "click", target: document.currentFocus });
-                    requestDispatchQueue();
-                }
-            }
-        });
-        function reloadObjectElement(obj: HTMLObjectElement) {
-            // chromeではこうでもしないとtypeの変更が反映されない
-            // バグかも
-            const dummy = document.createElement("dummy");
-            obj.appendChild(dummy);
-            dummy.remove();
+    window.addEventListener("keydown", (event) => {
+        const k = keyCodeToAribKey(event.key);
+        if (k === AribKeyCode.DataButton) {
+            // データボタンの場合DataButtonPressedのみが発生する
+            fireDataButtonPressed();
+            return;
         }
-        Object.defineProperty(HTMLObjectElement.prototype, "data", {
-            get: function getObjectData(this: HTMLObjectElement) {
+        if (k == -1) {
+            return;
+        }
+        if (!document.currentFocus) {
+            return;
+        }
+        const computedStyle = window.getComputedStyle(document.currentFocus);
+        let nextFocus = "";
+        const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
+        if (usedKeyList.length && usedKeyList[0] === "none") {
+            return;
+        }
+        const keyGroup = keyCodeToKeyGroup.get(k);
+        if (keyGroup == null) {
+            return;
+        }
+        if (usedKeyList.length === 0) {
+            if (keyGroup !== "basic" && keyGroup !== "data-button") {
+                return;
+            }
+        } else if (!usedKeyList.some(x => x === keyGroup)) {
+            return;
+        }
+        if (k == AribKeyCode.Left) {
+            // 明記されていなさそうだけどおそらく先にnav-indexによるフォーカス移動があるだろう
+            nextFocus = computedStyle.getPropertyValue("--nav-left");
+        } else if (k == AribKeyCode.Right) {
+            nextFocus = computedStyle.getPropertyValue("--nav-right");
+        } else if (k == AribKeyCode.Up) {
+            nextFocus = computedStyle.getPropertyValue("--nav-up");
+        } else if (k == AribKeyCode.Down) {
+            nextFocus = computedStyle.getPropertyValue("--nav-down");
+        }
+        const nextFocusIndex = parseInt(nextFocus);
+        if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
+            findNavIndex(nextFocusIndex)?.focus();
+        }
+        const onkeydown = document.currentFocus.getAttribute("onkeydown");
+        if (onkeydown) {
+            document.currentEvent = {
+                keyCode: k,
+                type: "keydown",
+                target: document.currentFocus,
+            } as BMLIntrinsicEvent;
+            new Function(onkeydown)();
+            document.currentEvent = null;
+            if (k == AribKeyCode.Enter && document.currentFocus) {
+                queueSyncEvent({ type: "click", target: document.currentFocus });
+                requestDispatchQueue();
+            }
+        }
+    });
+    function reloadObjectElement(obj: HTMLObjectElement) {
+        // chromeではこうでもしないとtypeの変更が反映されない
+        // バグかも
+        const dummy = document.createElement("dummy");
+        obj.appendChild(dummy);
+        dummy.remove();
+    }
+    Object.defineProperty(HTMLObjectElement.prototype, "data", {
+        get: function getObjectData(this: HTMLObjectElement) {
             const aribData = this.getAttribute("arib-data");
             if (aribData == null || aribData == "") {
                 return this.getAttribute("data");
-                }
+            }
             return aribData;
-            },
-            set: function setObjectData(this: HTMLObjectElement, v: string) {
-                const aribType = this.getAttribute("arib-type");
+        },
+        set: function setObjectData(this: HTMLObjectElement, v: string) {
+            const aribType = this.getAttribute("arib-type");
             this.setAttribute("arib-data", v);
             if (v == "") {
                 this.setAttribute("data", v);
@@ -959,26 +959,26 @@ if (!window.browser) {
                 this.setAttribute("data", v);
                 return;
             }
-            
-                if ((aribType ?? this.type).match(/image\/X-arib-png/i)) {
-                    if (!aribType) {
-                        this.setAttribute("arib-type", this.type);
-                    }
-                    this.type = "image/png";
-                    const clut = document.defaultView?.getComputedStyle(this)?.getPropertyValue("--clut");
-                    if (clut && !v.includes("?clut=")) {
-                        v = v + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
-                    }
-                }
-                if (this.getAttribute("data") === v) {
-                    return;
-                }
-                this.setAttribute("data", v);
+
+            if ((aribType ?? this.type).match(/image\/X-arib-png/i)) {
                 if (!aribType) {
-                    reloadObjectElement(this);
+                    this.setAttribute("arib-type", this.type);
+                }
+                this.type = "image/png";
+                const clut = document.defaultView?.getComputedStyle(this)?.getPropertyValue("--clut");
+                if (clut && !v.includes("?clut=")) {
+                    v = v + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
                 }
             }
-        });
+            if (this.getAttribute("data") === v) {
+                return;
+            }
+            this.setAttribute("data", v);
+            if (!aribType) {
+                reloadObjectElement(this);
+            }
+        }
+    });
     function init() {
 
 
@@ -1004,7 +1004,7 @@ if (!window.browser) {
                             obj.type = "image/png";
                             if (!obj.data.includes("?clut="))
                                 obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
-                                reloadObjectElement(obj);
+                            reloadObjectElement(obj);
                         }
                     });
                 }
@@ -1020,7 +1020,7 @@ if (!window.browser) {
                         }
                         if (!obj.data.includes("?clut="))
                             obj.data = obj.data + "?clut=" + window.encodeURIComponent(parseCSSValue(clut) ?? "");
-                            reloadObjectElement(obj);
+                        reloadObjectElement(obj);
                     }
                 }
             }
@@ -1079,7 +1079,7 @@ if (!window.browser) {
         lockSyncEventQueue();
         findNavIndex(0)?.focus();
     }
-    
+
     window.addEventListener("load", (_) => {
         unlockSyncEventQueue();
         requestDispatchQueue();

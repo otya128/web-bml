@@ -260,10 +260,10 @@ tsStream.on("pmt", (pid: any, data: any) => {
             componentId,
             pid,
             bxmlInfo,
-            }
+        }
         ptc.set(pid, componentPMT);
         ctp.set(componentPMT.componentId, componentPMT);
-        }
+    }
     pidToComponent = ptc;
     if (componentToPid.size !== ctp.size || [...componentToPid.keys()].some((x) => !ctp.has(x))) {
         // PMTが変更された
