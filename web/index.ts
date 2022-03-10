@@ -9,7 +9,8 @@ import { overrideDate } from "./date";
 import { decodeEUCJP } from "../src/euc_jp";
 import { bmlToXHTML } from "../src/bml_to_xhtml";
 import { transpile } from "../src/transpile_ecm";
-import { activeDocument, CachedFile, fetchLockedResource, lockCachedModule, parseURL } from "./resource";
+import * as resource from "./resource";
+import { activeDocument, CachedFile, fetchLockedResource, lockCachedModule, parseURL, parseURLEx } from "./resource";
 interface BMLEvent {
     type: string;
     target: HTMLElement;
@@ -72,11 +73,11 @@ if (!window.browser) {
     type File = {
         [key: string]: {}
     };
-
+    class LongJump extends Error { }
     function loadDocument(file: CachedFile) {
         // タイマー全部消す(連番前提)
-        var maxId = window.setInterval(() => {}, 0);
-        for(let i = 0; i < maxId; i += 1) { 
+        var maxId = window.setInterval(() => { }, 0);
+        for (let i = 0; i < maxId; i += 1) {
             clearInterval(i);
         }
         document.documentElement.innerHTML = bmlToXHTML(file.data);
@@ -108,6 +109,7 @@ if (!window.browser) {
         });
         unlockSyncEventQueue();
         requestDispatchQueue();
+        // throw new LongJump(`long jump`);
     }
     const components: { [key: string]: Component } = JSON.parse(document.getElementById("bml-server-data")?.textContent ?? "{}");
     window.dummy = undefined;
@@ -191,18 +193,17 @@ if (!window.browser) {
     window.lockedModules = new Map<string, LockedModule>();
     window.browser.lockModuleOnMemory = function lockModuleOnMemory(module: string): number {
         console.log("lockModuleOnMemory", module);
-        const { component: componentInURL, module: moduleInURL } = parseURL(module);
-        if (!componentInURL || !moduleInURL) {
+        const { componentId, moduleId } = parseURLEx(module);
+        if (componentId == null || moduleId == null) {
             return NaN;
         }
-        const c = components[componentInURL];
-        if (!c) {
-            console.error("lockModuleOnMemory: component not found", module);
+        if (!resource.getPMTComponent(componentId)) {
+            console.error("lockModuleOnMemory: component does not exist in PMT", module);
             return -1;
         }
-        const m = c[moduleInURL];
-        if (!m) {
-            console.error("lockModuleOnMemory: module not found", module);
+        const cachedModule = lockCachedModule(componentId, moduleId);
+        if (!cachedModule) {
+            console.error("lockModuleOnMemory: module not cached", module);
             return -1;
         }
         window.lockedModules.set(module.toLowerCase(), { module, isEx: false });
@@ -212,19 +213,19 @@ if (!window.browser) {
     }
     window.browser.lockModuleOnMemoryEx = function lockModuleOnMemoryEx(module: string): number {
         console.log("lockModuleOnMemoryEx", module);
-        const { component: componentInURL, module: moduleInURL } = parseURL(module);
-        if (!componentInURL || !moduleInURL) {
+        const { componentId, moduleId } = parseURLEx(module);
+        if (componentId == null || moduleId == null) {
             return NaN;
         }
-        const c = components[componentInURL];
-        if (!c) {
-            console.error("lockModuleOnMemoryEx: component not found", module);
+        if (!resource.getPMTComponent(componentId)) {
+            console.error("lockModuleOnMemoryEx: component does not exist in PMT", module);
             return -3;
         }
-        const m = c[moduleInURL];
-        if (!m) {
-            console.error("lockModuleOnMemoryEx: module not found", module);
-            return -3;
+        const cachedModule = lockCachedModule(componentId, moduleId);
+        if (!cachedModule) {
+            console.error("lockModuleOnMemoryEx: module not cached", module);
+            // OnModuleLockedのstatusで返ってくる
+            return 0;
         }
         window.lockedModules.set(module.toLowerCase(), { module, isEx: true });
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
@@ -347,7 +348,7 @@ if (!window.browser) {
         return 0;
     };
     window.browser.launchDocument = function launchDocument(documentName: string, transitionStyle: string): number {
-        console.log("launchDocument", documentName, transitionStyle);
+        console.log("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
         const { component, module, filename } = parseURL(documentName);
         const componentId = Number.parseInt(component ?? "", 16);
         const moduleId = Number.parseInt(module ?? "", 16);
@@ -363,7 +364,9 @@ if (!window.browser) {
             console.error("NOT FOUND");
             return NaN;
         }
+        const ad = activeDocument;
         loadDocument(res);
+        console.log("return ", ad, documentName);
         // location.href = documentName;
         return 0;
     };
@@ -400,11 +403,12 @@ if (!window.browser) {
         return l;
     }
     window.browser.detectComponent = function detectComponent(component_ref: string) {
-        const { component, module, filename } = parseURL(component_ref);
+        const { component } = parseURL(component_ref);
         if (!component) {
             return NaN;
         }
-        if (component in components) {
+        const componentId = Number.parseInt(component);
+        if (resource.getPMTComponent(componentId)) {
             return 1;
         } else {
             return 0;
@@ -869,7 +873,6 @@ if (!window.browser) {
         }) as (HTMLElement | undefined);
     }
 
-    function init() {
         window.addEventListener("keydown", (event) => {
             const k = keyCodeToAribKey(event.key);
             if (k === AribKeyCode.DataButton) {
@@ -929,7 +932,6 @@ if (!window.browser) {
                 }
             }
         });
-
         function reloadObjectElement(obj: HTMLObjectElement) {
             // chromeではこうでもしないとtypeの変更が反映されない
             // バグかも
@@ -937,24 +939,27 @@ if (!window.browser) {
             obj.appendChild(dummy);
             dummy.remove();
         }
-        
-        const config = { attributes: true, childList: true, subtree: true };
-
         Object.defineProperty(HTMLObjectElement.prototype, "data", {
             get: function getObjectData(this: HTMLObjectElement) {
-                const data = this.getAttribute("data");
-                if (data == null) {
-                    return data;
+            const aribData = this.getAttribute("arib-data");
+            if (aribData == null || aribData == "") {
+                return this.getAttribute("data");
                 }
-                const clutIndex = data.indexOf("?clut");
-                if (clutIndex != -1) {
-                    return data.substring(0, clutIndex);
-                } else {
-                    return data;
-                }
+            return aribData;
             },
             set: function setObjectData(this: HTMLObjectElement, v: string) {
                 const aribType = this.getAttribute("arib-type");
+            this.setAttribute("arib-data", v);
+            if (v == "") {
+                this.setAttribute("data", v);
+                return;
+            }
+            const fetched = fetchLockedResource(v);
+            if (!fetched) {
+                this.setAttribute("data", v);
+                return;
+            }
+            
                 if ((aribType ?? this.type).match(/image\/X-arib-png/i)) {
                     if (!aribType) {
                         this.setAttribute("arib-type", this.type);
@@ -974,6 +979,11 @@ if (!window.browser) {
                 }
             }
         });
+    function init() {
+
+
+        const config = { attributes: true, childList: true, subtree: true };
+
         const observer = new MutationObserver((mutationsList, observer) => {
             for (const mutation of mutationsList) {
                 if (mutation.type === "childList") {
