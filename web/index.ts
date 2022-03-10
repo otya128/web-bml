@@ -74,11 +74,15 @@ if (!window.browser) {
     };
 
     function loadDocument(file: CachedFile) {
+        // タイマー全部消す(連番前提)
+        var maxId = window.setInterval(() => {}, 0);
+        for(let i = 0; i < maxId; i += 1) { 
+            clearInterval(i);
+        }
         document.documentElement.innerHTML = bmlToXHTML(file.data);
         document.querySelectorAll("script").forEach(x => {
             const s = document.createElement("script");
             x.remove();
-            s.textContent = x.textContent;
             const src = x.getAttribute("src");
             if (src) {
                 const res = fetchLockedResource(src);
@@ -88,8 +92,10 @@ if (!window.browser) {
                     //    type: "text/javascript;encoding=euc-jp"
                     //}));
                     s.setAttribute("arib-src", src);
-                    s.textContent = transpile(decodeEUCJP(res.data));
+                    s.textContent = "// " + src + "\n" + transpile(decodeEUCJP(res.data));
         }
+            } else {
+                s.textContent = "// " + activeDocument + "\n" + x.textContent;
             }
             document.body.appendChild(s);
     });
@@ -341,6 +347,7 @@ if (!window.browser) {
         return 0;
     };
     window.browser.launchDocument = function launchDocument(documentName: string, transitionStyle: string): number {
+        console.log("launchDocument", documentName, transitionStyle);
         const { component, module, filename } = parseURL(documentName);
         const componentId = Number.parseInt(component ?? "", 16);
         const moduleId = Number.parseInt(module ?? "", 16);
