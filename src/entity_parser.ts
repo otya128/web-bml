@@ -454,7 +454,7 @@ export function parseMediaType(tokens: FieldValue[]): MediaType | null {
     }
     function parseMediaTypeParameter(): MediaTypeParameter | null {
         const attribute = tokens[offset];
-        if (attribute == null) {
+        if (attribute?.type !== "token") {
             return null;
         }
         offset++;
@@ -471,6 +471,9 @@ export function parseMediaType(tokens: FieldValue[]): MediaType | null {
     }
     while (tokens[offset]?.value === ";" && tokens[offset]?.type === "tspecials") {
         offset++;
+        if (tokens[offset]?.type == "lws") {
+            offset++;
+        }
         const parameter = parseMediaTypeParameter();
         if (parameter == null) {
             return null;
