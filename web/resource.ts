@@ -139,15 +139,22 @@ export function fetchLockedResource(url: string): CachedFile | null {
     if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
         return null;
     }
-    const cachedComponent = lockedComponents.get(componentId);
+    let cachedComponent = lockedComponents.get(componentId);
     if (cachedComponent == null) {
-        console.error("component not found failed to fetch ", url);
-        return null;
+        cachedComponent = cachedComponents.get(componentId);
+        if (cachedComponent == null) {
+            console.error("component not found failed to fetch ", url);
+            return null;
+        }
     }
-    const cachedModule = cachedComponent.modules.get(moduleId);
+    let cachedModule = cachedComponent.modules.get(moduleId);
     if (cachedModule == null) {
-        console.error("module not found ", url);
-        return null;
+        cachedComponent = cachedComponents.get(componentId);
+        cachedModule = cachedComponent?.modules?.get(moduleId);
+        if (cachedModule == null) {
+            console.error("module not found ", url);
+            return null;
+        }
     }
     if (filename == null) {
         return null;
