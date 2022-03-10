@@ -10,7 +10,7 @@ import { decodeEUCJP } from "../src/euc_jp";
 import { bmlToXHTML } from "../src/bml_to_xhtml";
 import { transpile } from "../src/transpile_ecm";
 import * as resource from "./resource";
-import { activeDocument, CachedFile, fetchLockedResource, lockCachedModule, parseURL, parseURLEx } from "./resource";
+import { activeDocument, CachedFile, fetchLockedResource, lockCachedModule, parseURL, parseURLEx, LongJump } from "./resource";
 import { aribPNGToPNG } from "../src/arib_png";
 import { readCLUT } from "../src/clut";
 import { defaultCLUT } from "../src/default_clut";
@@ -78,12 +78,18 @@ if (!window.browser) {
     type File = {
         [key: string]: {}
     };
-    class LongJump extends Error { }
     function loadDocument(file: CachedFile) {
         // タイマー全部消す(連番前提)
         var maxId = window.setInterval(() => { }, 0);
         for (let i = 0; i < maxId; i += 1) {
             clearInterval(i);
+        }
+        document.currentFocus = null;
+        for (const k of Object.keys(window)) {
+            if (!windowKeys.has(k)) {
+                (window as any)[k] = undefined;
+                // delete (window as any)[k];
+            }
         }
         document.documentElement.innerHTML = bmlToXHTML(file.data);
         document.querySelectorAll("script").forEach(x => {
@@ -114,7 +120,7 @@ if (!window.browser) {
         });
         unlockSyncEventQueue();
         requestDispatchQueue();
-        // throw new LongJump(`long jump`);
+        throw new LongJump(`long jump`);
     }
     const components: { [key: string]: Component } = JSON.parse(document.getElementById("bml-server-data")?.textContent ?? "{}");
     window.dummy = undefined;
@@ -213,7 +219,9 @@ if (!window.browser) {
         }
         window.lockedModules.set(module.toLowerCase(), { module, isEx: false });
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
-        window.postMessage({ type: "ModuleLocked", module }, "*");
+        setTimeout(() => {
+            eventQueueOnModuleLocked(module, false, amod);
+        }, 0);
         return 1;
     }
     window.browser.lockModuleOnMemoryEx = function lockModuleOnMemoryEx(module: string): number {
@@ -234,16 +242,12 @@ if (!window.browser) {
         }
         window.lockedModules.set(module.toLowerCase(), { module, isEx: true });
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
-        window.postMessage({ type: "ModuleLocked", module }, "*");
+        setTimeout(() => {
+            eventQueueOnModuleLocked(module, true);
+        }, 0);
         return 1;
     }
-    window.addEventListener("message", (e) => {
-        if (e.data.type === "ModuleLocked") {
-            eventQueueOnModuleLocked(e);
-        }
-    });
-    function eventQueueOnModuleLocked(e: MessageEvent<any>) {
-        const module: string = e.data.module as string;
+    function eventQueueOnModuleLocked(module: string, _isEx: boolean) {
         console.log("ModuleLocked", module);
         const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleLocked\"]");
         for (const beitem of Array.from(moduleLocked)) {
@@ -893,7 +897,15 @@ if (!window.browser) {
         const k = keyCodeToAribKey(event.key);
         if (k === AribKeyCode.DataButton) {
             // データボタンの場合DataButtonPressedのみが発生する
-            fireDataButtonPressed();
+            try {
+                fireDataButtonPressed();
+            } catch (e) {
+                if (e instanceof LongJump) {
+                    console.log("long jump");
+                } else {
+                    throw e;
+                }
+            }
             return;
         }
         if (k == -1) {
@@ -940,7 +952,15 @@ if (!window.browser) {
                 type: "keydown",
                 target: document.currentFocus,
             } as BMLIntrinsicEvent;
-            new Function(onkeydown)();
+            try {
+                new Function(onkeydown)();
+            } catch (e) {
+                if (e instanceof LongJump) {
+                    console.log("long jump");
+                } else {
+                    throw e;
+                }
+            }
             document.currentEvent = null;
             if (k == AribKeyCode.Enter && document.currentFocus) {
                 queueSyncEvent({ type: "click", target: document.currentFocus });
@@ -1121,4 +1141,5 @@ if (!window.browser) {
     overrideNumber();
     overrideDate();
     init();
+    const windowKeys = new Set<string>(Object.keys(window));
 }

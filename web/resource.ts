@@ -1,5 +1,7 @@
 import { ComponentPMT, MediaType, ResponseMessage } from "../src/ws_api";
 
+export class LongJump extends Error { }
+
 // 運用的には固定
 let entryPointComponentId = 0x40;
 let entryPointModuleId = 0x0000;
@@ -81,7 +83,15 @@ ws.addEventListener("message", (ev) => {
         // OnModuleUpdated
         if (entryPointModuleId === msg.moduleId && entryPointComponentId === msg.componentId) {
             lockCachedModule(entryPointComponentId, entryPointModuleId);
-            window.browser.launchDocument(`/${entryPointComponentId.toString(16).padStart(2, "0")}/${entryPointModuleId.toString(16).padStart(4, "0")}/startup.bml`);
+            try {
+                window.browser.launchDocument(`/${entryPointComponentId.toString(16).padStart(2, "0")}/${entryPointModuleId.toString(16).padStart(4, "0")}/startup.bml`);
+            } catch (e) {
+                if (e instanceof LongJump) {
+                    console.log("long jump");
+                } else {
+                    throw e;
+                }
+            }
         }
     } else if (msg.type === "pmt") {
         pmtComponents = new Map(msg.components.map(x => [x.componentId, x]));
