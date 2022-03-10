@@ -943,19 +943,31 @@ if (!window.browser) {
         } else if (!usedKeyList.some(x => x === keyGroup)) {
             return;
         }
-        if (k == AribKeyCode.Left) {
-            // 明記されていなさそうだけどおそらく先にnav-indexによるフォーカス移動があるだろう
-            nextFocus = computedStyle.getPropertyValue("--nav-left");
-        } else if (k == AribKeyCode.Right) {
-            nextFocus = computedStyle.getPropertyValue("--nav-right");
-        } else if (k == AribKeyCode.Up) {
-            nextFocus = computedStyle.getPropertyValue("--nav-up");
-        } else if (k == AribKeyCode.Down) {
-            nextFocus = computedStyle.getPropertyValue("--nav-down");
-        }
-        const nextFocusIndex = parseInt(nextFocus);
-        if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
-            findNavIndex(nextFocusIndex)?.focus();
+        let nextFocusStyle = computedStyle;
+        while (true) {
+            if (k == AribKeyCode.Left) {
+                // 明記されていなさそうだけどおそらく先にnav-indexによるフォーカス移動があるだろう
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-left");
+            } else if (k == AribKeyCode.Right) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-right");
+            } else if (k == AribKeyCode.Up) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-up");
+            } else if (k == AribKeyCode.Down) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-down");
+            }
+            const nextFocusIndex = parseInt(nextFocus);
+            if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
+                const next = findNavIndex(nextFocusIndex);
+                if (next != null) {
+                    nextFocusStyle = window.getComputedStyle(next);
+                    // 非表示要素であれば飛ばされる (STD-B24 第二分冊 (1/2 第二編) 5.4.13.3参照)
+                    if (nextFocusStyle.visibility === "hidden") {
+                        continue;
+                    }
+                    next?.focus();
+                }
+            }
+            break;
         }
         const onkeydown = document.currentFocus.getAttribute("onkeydown");
         if (onkeydown) {
