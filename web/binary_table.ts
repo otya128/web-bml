@@ -1,4 +1,5 @@
 import { decodeEUCJP } from "../src/euc_jp";
+import { fetchLockedResource } from "./resource";
 import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
 export interface BinaryTableConstructor {
     new(table_ref: string, structure: string): IBinaryTable;// | null;
@@ -404,28 +405,11 @@ export class BinaryTable implements IBinaryTable {
         if (table_ref.startsWith("~")) {
             table_ref = ".." + table_ref.substring(1);
         }
-        let xhrBuffer: Uint8Array | null = null;
-        xhr.open("GET", table_ref + "?base64", false);
-        xhr.onload = (e) => {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-                    const arrayBuffer = xhr.response;
-                    if (arrayBuffer) {
-                        xhrBuffer = Uint8Array.from(window.atob(arrayBuffer), c => c.charCodeAt(0));
-                    }
-                } else {
-                    console.error(xhr.statusText);
-                }
-            }
-        };
-        xhr.onerror = (e) => {
-            console.error(xhr.statusText);
-        };
-        xhr.send(null);
-        if (!xhrBuffer) {
+        const res = fetchLockedResource(table_ref);
+        if (!res) {
             throw new Error("FIXME");
         }
-        let buffer: Uint8Array = xhrBuffer as Uint8Array;
+        let buffer: Uint8Array = res.data;
 
         const sep = structure.split(",");
         if (sep.length < 2) {

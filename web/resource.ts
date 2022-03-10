@@ -1,4 +1,4 @@
-import { MediaType, ResponseMessage } from "../src/ws_api";
+import { ComponentPMT, MediaType, ResponseMessage } from "../src/ws_api";
 
 // 運用的には固定
 let entryPointComponentId = 0x40;
@@ -25,12 +25,20 @@ export type CachedFile = {
 }
 const lockedComponents = new Map<number, CachedComponent>();
 
+// component id => PMT
+let pmtComponents = new Map<number, ComponentPMT>();
+
 function getCachedModule(componentId: number, moduleId: number): CachedModule | undefined {
     const cachedComponent = cachedComponents.get(componentId);
     if (cachedComponent == null) {
         return undefined;
     }
     return cachedComponent.modules.get(moduleId);
+}
+
+export function getPMTComponent(componentId: number): ComponentPMT | undefined {
+    const pmtComponent = pmtComponents.get(componentId);
+    return pmtComponent;
 }
 
 export function lockCachedModule(componentId: number, moduleId: number): boolean {
@@ -69,6 +77,7 @@ ws.addEventListener("message", (ev) => {
             window.browser.launchDocument(`/${entryPointComponentId.toString(16).padStart(2, "0")}/${entryPointModuleId.toString(16).padStart(4, "0")}/startup.bml`);
         }
     } else if (msg.type === "pmt") {
+        pmtComponents = new Map(msg.components.map(x => [x.componentId, x]));
         if (!documentLoaded()) {
             for (const component of msg.components) {
                 if (component.bxmlInfo.entryPointFlag) {
@@ -94,6 +103,16 @@ export function parseURL(url: string): { component: string | null, module: strin
         return { component: null, module: null, filename: null };
     }
     return { component: components[1] ?? null, module: components[2] ?? null, filename: components[3] ?? null };
+}
+
+export function parseURLEx(url: string): { componentId: number | null, moduleId: number | null, filename: string | null } {
+    const { component, module, filename } = parseURL(url);
+    const componentId = Number.parseInt(component ?? "", 16);
+    const moduleId = Number.parseInt(module ?? "", 16);
+    if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
+        return { componentId: null, moduleId: null, filename: null };
+    }
+    return { componentId, moduleId, filename };
 }
 
 export function fetchLockedResource(url: string): CachedFile | null {
