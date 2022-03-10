@@ -1033,26 +1033,35 @@ if (!window.browser) {
             }
         });
 
-        function getCLUT(clut: string): css.Declaration[] {
-            var xhr = new XMLHttpRequest();
-            let result: css.Declaration[] = [];
-            xhr.open("GET", clut + "?css", false);
-            xhr.onload = (e) => {
-                if (xhr.readyState === 4) {
-                    if (xhr.status === 200) {
-                        result = JSON.parse(xhr.response) as css.Declaration[];
-                    }
-                }
-            };
-            xhr.send(null);
-            return result;
+        function clutToDecls(table: number[][]): css.Declaration[] {
+            const ret = [];
+            let i = 0;
+            for (const t of table) {
+                const decl: css.Declaration = {
+                    type: "declaration",
+                    property: "--clut-color-" + i,
+                    value: `rgba(${t[0]},${t[1]},${t[2]},${t[3] / 255})`,
+                };
+                ret.push(decl);
+                i++;
+            }
+            return ret;
+        }
+
+        function getCLUT(clutUrl: string): css.Declaration[] {
+            const res = fetchLockedResource(clutUrl);
+            let clut = defaultCLUT;
+            if (res?.data) {
+                clut = readCLUT(Buffer.from(res.data));
+            }
+            return clutToDecls(clut);
         }
 
         //observer.observe(document.body, config);
         document.querySelectorAll("arib-style").forEach(style => {
             if (style.textContent) {
                 const newStyle = document.createElement("style");
-                newStyle.textContent = transpileCSS(style.textContent, { inline: false, href: location.href, clutReader: getCLUT });
+                newStyle.textContent = transpileCSS(style.textContent, { inline: false, href: "http://localhost" + activeDocument, clutReader: getCLUT });
                 style.parentElement?.appendChild(newStyle);
             }
         });
@@ -1062,7 +1071,7 @@ if (!window.browser) {
             if (!styleAttribute) {
                 return;
             }
-            style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: location.href, clutReader: getCLUT }));
+            style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + activeDocument, clutReader: getCLUT }));
         });
         document.querySelectorAll("object").forEach(obj => {
             obj.data = obj.data;
