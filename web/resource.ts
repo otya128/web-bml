@@ -31,7 +31,17 @@ export type CachedFile = {
     contentLocation: string,
     contentType: MediaType,
     data: Uint8Array,
+    blobUrl: string | null,
+};
+
+export function getCachedFileBlobUrl(file: CachedFile): string {
+    if (file.blobUrl != null) {
+        return file.blobUrl;
+    }
+    file.blobUrl = URL.createObjectURL(new Blob([file.data], { type: `${file.contentType.type}/${file.contentType.originalSubtype}` }));
+    return file.blobUrl;
 }
+
 const lockedComponents = new Map<number, CachedComponent>();
 
 // component id => PMT
@@ -77,7 +87,8 @@ ws.addEventListener("message", (ev) => {
             files: new Map(msg.files.map(file => ([file.contentLocation.toLowerCase(), {
                 contentLocation: file.contentLocation,
                 contentType: file.contentType,
-                data: Uint8Array.from(window.atob(file.dataBase64), c => c.charCodeAt(0))
+                data: Uint8Array.from(window.atob(file.dataBase64), c => c.charCodeAt(0)),
+                blobUrl: null,
             } as CachedFile]))),
         };
         cachedComponent.modules.set(msg.moduleId, cachedModule);

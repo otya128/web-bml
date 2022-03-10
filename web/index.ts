@@ -434,9 +434,9 @@ if (!window.browser) {
         if (type == 1) {
             return toHex(resource.currentProgramInfo?.eventId, 4);
         } else if (type == 2) {
-            return toHex(resource.currentProgramInfo?.serviceId, 4);          
+            return toHex(resource.currentProgramInfo?.serviceId, 4);
         } else if (type == 3) {
-            return toHex(resource.currentProgramInfo?.transportStreamId, 4);          
+            return toHex(resource.currentProgramInfo?.transportStreamId, 4);
         }
         return null;
     }
@@ -1027,8 +1027,7 @@ if (!window.browser) {
                 const blob = new Blob([png], { type: type ?? "" });
                 this.setAttribute("data", URL.createObjectURL(blob));
             } else {
-                const blob = new Blob([fetched.data], { type: type ?? "" });
-                this.setAttribute("data", URL.createObjectURL(blob));
+                this.setAttribute("data", resource.getCachedFileBlobUrl(fetched));
             }
             if (!aribType) {
                 reloadObjectElement(this);
@@ -1111,7 +1110,7 @@ if (!window.browser) {
             if (!res) {
                 return url;
             }
-            return URL.createObjectURL(new Blob([res.data]));
+            return resource.getCachedFileBlobUrl(res);
         }
 
         //observer.observe(document.body, config);
