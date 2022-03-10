@@ -15,6 +15,7 @@ import { aribPNGToPNG } from "../src/arib_png";
 import { readCLUT } from "../src/clut";
 import { defaultCLUT } from "../src/default_clut";
 import { Buffer } from "buffer";
+import * as drcs from "../src/drcs";
 interface BMLEvent {
     type: string;
     target: HTMLElement;
@@ -435,8 +436,15 @@ if (!window.browser) {
     }
     window.browser.loadDRCS = function loadDRCS(DRCS_ref: string): Number {
         console.log("loadDRCS", DRCS_ref);
-        const { component, module, filename } = parseURL(DRCS_ref);
-        const id = `drcs-${component}/${module}/${filename}`;
+        const { componentId, moduleId, filename } = parseURLEx(DRCS_ref);
+        if (componentId == null || moduleId == null) {
+            return NaN;
+        }
+        const res = fetchLockedResource(DRCS_ref);
+        if (res?.data == null) {
+            return NaN;
+        }
+        const id = `drcs-${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(2, "0")}/${filename}`;
         const css = document.getElementById(id);
         if (!css) {
             const style = document.createElement("style");
@@ -447,9 +455,12 @@ if (!window.browser) {
                 [2, "角ゴシック"],
                 [3, "太丸ゴシック"],
             ]) {
+                const glyph = drcs.loadDRCS(Buffer.from(res.data), id as number);
+                const ttf = drcs.toTTF(glyph);
+                const url = URL.createObjectURL(new Blob([ttf.buffer]));
                 tc += `@font-face {
     font-family: "${fontFamily}";
-    src: url("/${component}/${module}/${filename}?ttf=${id}");
+    src: url("${url}");
     unicode-range: U+EC00-FE00;
 }
 `;

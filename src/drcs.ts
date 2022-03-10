@@ -1,5 +1,6 @@
 import { jisToUnicodeMap } from "./jis_to_unicode_map";
 import CRC32 from "crc-32";
+import { Buffer } from "buffer";
 
 function readBits(posBits: number, bits: number, buffer: Buffer): number {
     let value = 0;
@@ -735,7 +736,6 @@ export function loadDRCS(drcs: Buffer, filterId?: number): DRCSGlyphs[] {
         const nFont = drcs.readUInt8(off);
         off += 1;
         const glyphs: DRCSGlyphs = { ku: charCode1 - 0x20, ten: charCode2 - 0x20, glyphs: [] };
-        ret.push(glyphs);
         for (let j = 0; j < nFont; j++) {
             const b = drcs.readUInt8(off);
             off += 1;
@@ -762,7 +762,7 @@ export function loadDRCS(drcs: Buffer, filterId?: number): DRCSGlyphs[] {
                 let posBits = off * 8;
                 const bitmap = new Array(width * height);
                 if (filterId == null || (fontId as number) === filterId) {
-                glyphs.glyphs.push({ width, height, depth: depth + 2, bitmap });
+                    glyphs.glyphs.push({ width, height, depth: depth + 2, bitmap });
                 }
                 for (let y = 0; y < height; y++) {
                     for (let x = 0; x < width; x++) {
@@ -776,6 +776,9 @@ export function loadDRCS(drcs: Buffer, filterId?: number): DRCSGlyphs[] {
                 // ジオメトリックは運用されない
                 throw new Error("geometric is not operated");
             }
+        }
+        if (glyphs.glyphs.length !== 0) {
+            ret.push(glyphs);
         }
     }
     return ret;
