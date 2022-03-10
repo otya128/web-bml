@@ -16,10 +16,10 @@ import { EntityParser, MediaType, parseMediaType, entityHeaderToString } from '.
 import websocket, { WebSocketContext } from "koa-easy-ws";
 import * as wsApi from "./ws_api";
 import { WebSocket } from "ws";
-import CRC32 from "crc-32";
 import { transpileCSS } from './transpile_css';
 import { ComponentPMT, AdditionalAribBXMLInfo } from './ws_api';
-import { defaultCLUT } from './default_clut';
+import { aribPNGToPNG } from './arib_png';
+import { readCLUT } from './clut';
 
 const ws = websocket();
 
@@ -739,103 +739,6 @@ function readFileAsync(path: string): Promise<string> {
     });
 }
 
-function readCLUT(clut: Buffer): number[][] {
-    let table = defaultCLUT.slice();
-    const prevLength = table.length;
-    table.length = 256;
-    table = table.fill([0, 0, 0, 255], prevLength, 256);
-    // STD-B24 第二分冊(2/2) A3 5.1.7 表5-8参照
-    // clut_typeは0(YCbCr)のみ運用される
-    const clutType = clut[0] & 0x80;
-    // depthは8ビット(1)のみが運用される
-    const depth = (clut[0] & 0x60) >> 5;
-    // region_flagは0のみが運用される
-    const regionFlag = clut[0] & 0x10;
-    // start_end_flagは1のみが運用される
-    const startEndFlag = clut[0] & 0x8;
-    let index = 1;
-    if (regionFlag) {
-        index += 2;
-        index += 2;
-        index += 2;
-        index += 2;
-        // 運用されない
-        console.error("region is not implemented");
-    }
-    let startIndex: number;
-    let endIndex: number;
-    if (startEndFlag) {
-        if (depth == 0) {
-            startIndex = clut[index] >> 4;
-            endIndex = clut[index] & 15;
-            index++;
-        } else if (depth == 1) {
-            // start_indexは128のみが運用される
-            startIndex = clut[index++];
-            // end_ndexは223のみが運用される
-            endIndex = clut[index++];
-        } else if (depth == 2) {
-            startIndex = clut[index++];
-            startIndex = (startIndex << 8) | clut[index++];
-            endIndex = clut[index++];
-            endIndex = (endIndex << 8) | clut[index++];
-        } else {
-            throw new Error("unexpected");
-        }
-        for (let i = startIndex; i <= endIndex; i++) {
-            let R: number;
-            let G: number;
-            let B: number;
-            if (clutType == 0) {
-                const Y = clut[index++];
-                const Cb = clut[index++];
-                const Cr = clut[index++];
-                R = Math.max(0, Math.min(255, Math.floor(1.164 * (Y - 16) + 1.793 * (Cr - 128))));
-                G = Math.max(0, Math.min(255, Math.floor(1.164 * (Y - 16) - 0.213 * (Cb - 128) - 0.533 * (Cr - 128))));
-                B = Math.max(0, Math.min(255, Math.floor(1.164 * (Y - 16) + 2.112 * (Cb - 128))));
-            } else {
-                R = clut[index++];
-                G = clut[index++];
-                B = clut[index++];
-            }
-            // Aは0以外が運用される
-            const A = clut[index++];
-            table[i] = [R, G, B, A];
-        }
-    } else {
-        // 運用されない
-        throw new Error("not implemented");
-    }
-    return table;
-}
-
-
-function preparePLTE(clut: number[][]): Buffer {
-    const plte = Buffer.alloc(4 /* PLTE */ + 4 /* size */ + clut.length * 3 + 4 /* CRC32 */);
-    let off = 0;
-    off = plte.writeUInt32BE(clut.length * 3, off);
-    off += plte.write("PLTE", off);
-    for (const entry of clut) {
-        off = plte.writeUInt8(entry[0], off);
-        off = plte.writeUInt8(entry[1], off);
-        off = plte.writeUInt8(entry[2], off);
-    }
-    plte.writeInt32BE(CRC32.buf(plte.slice(4, off), 0), off);
-    return plte;
-}
-
-function prepareTRNS(clut: number[][]): Buffer {
-    const trns = Buffer.alloc(4 /* PLTE */ + 4 /* size */ + clut.length + 4 /* CRC32 */);
-    let off = 0;
-    off = trns.writeUInt32BE(clut.length, off);
-    off += trns.write("tRNS", off);
-    for (const entry of clut) {
-        off = trns.writeUInt8(entry[3], off);
-    }
-    trns.writeInt32BE(CRC32.buf(trns.slice(4, off), 0), off);
-    return trns;
-}
-
 function clutToDecls(table: number[][]): CSSDeclaration[] {
     const ret = [];
     let i = 0;
@@ -849,44 +752,6 @@ function clutToDecls(table: number[][]): CSSDeclaration[] {
         i++;
     }
     return ret;
-}
-
-function isPLTEMissing(png: Buffer): boolean {
-    let off = 8;
-    // IHDR
-    const type = png[off + 0x11];
-    // palette
-    if (type !== 3) {
-        return false;
-    }
-    off += png.readUInt32BE(off) + 4 * 3;
-    while (true) {
-        let chunkLength = png.readUInt32BE(off);
-        let chunkType = png.toString("ascii", off + 4, off + 8);
-        if (chunkType === "IDAT" || chunkType === "IEND") {
-            return true;
-        }
-        if (chunkType === "PLTE") {
-            return false;
-        }
-        off += chunkLength + 4 * 3;
-    }
-}
-
-async function aribPNGToPNG(png: Buffer, clut: string): Promise<Buffer> {
-    if (!isPLTEMissing(png)) {
-        return png;
-    }
-    const table = readCLUT(await readFileAsync2(`${process.env.BASE_DIR}/${clut}`));
-    const plte = preparePLTE(table);
-    const trns = prepareTRNS(table);
-    const output = Buffer.alloc(png.length + plte.length + trns.length);
-    let off = 0;
-    off += png.copy(output, off, 0, 33);
-    off += plte.copy(output, off);
-    off += trns.copy(output, off);
-    off += png.copy(output, off, 33);
-    return output;
 }
 
 router.get('/:component/:module/:filename', proc);
@@ -934,7 +799,7 @@ async function proc(ctx: Koa.ParameterizedContext<any, Router.IRouterParamContex
         if (typeof ctx.query.clut === "string") {
             const clut = ctx.query.clut;
             const png = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-            ctx.body = await aribPNGToPNG(png, clut);
+            ctx.body = aribPNGToPNG(png, readCLUT(await readFileAsync2(clut)));
             ctx.set("Content-Type", "image/png");
             return;
         }
@@ -1009,7 +874,7 @@ router.get('/api/sleep', async ctx => {
 
 router.get("/", async ctx => {
     ctx.body = fs.createReadStream("web/index.html");
-    ctx.set("Content-Type", "text/html");
+    ctx.set("Content-Type", "application/xhtml+xml;encoding=utf-8");
 });
 app.use(ws);
 
