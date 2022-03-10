@@ -1,4 +1,4 @@
-import { ComponentPMT, MediaType, ProgramInfoMessage, ResponseMessage } from "../src/ws_api";
+import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage } from "../src/ws_api";
 
 export class LongJump extends Error { }
 
@@ -110,6 +110,7 @@ export function requestLockModule(moduleRef: string, componentId: number, module
 }
 
 export let currentProgramInfo: ProgramInfoMessage | null = null;
+export let currentTime: CurrentTime | null = null;
 ws.addEventListener("message", (ev) => {
     const msg = JSON.parse(ev.data) as ResponseMessage;
     if (msg.type === "moduleDownloaded") {
@@ -167,6 +168,8 @@ ws.addEventListener("message", (ev) => {
         }
     } else if (msg.type === "programInfo") {
         currentProgramInfo = msg;
+    } else if (msg.type === "currentTime") {
+        currentTime = msg;
     }
 });
 

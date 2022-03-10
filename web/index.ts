@@ -91,6 +91,7 @@ if (!window.browser) {
                 // delete (window as any)[k];
             }
         }
+        currentDateMode = 0;
         document.documentElement.innerHTML = bmlToXHTML(file.data);
         document.querySelectorAll("script").forEach(x => {
             const s = document.createElement("script");
@@ -125,6 +126,7 @@ if (!window.browser) {
     const components: { [key: string]: Component } = JSON.parse(document.getElementById("bml-server-data")?.textContent ?? "{}");
     window.dummy = undefined;
     window.browser = {};
+    let currentDateMode = 0;
     window.__newBT = function __newBT(klass: any, ...args: any[]) {
         if (klass === BinaryTable) {
             try {
@@ -132,6 +134,12 @@ if (!window.browser) {
             } catch {
                 return null;
             }
+        } else if (klass === Date) {
+            if (args.length === 0 && resource.currentTime?.timeUnixMillis != null) {
+                // currentDateMode=1ならtimeUnixMillisを取得した時間からオフセット追加とかが理想かもしれない
+                return new Date(resource.currentTime?.timeUnixMillis);
+            }
+            return new klass(...args);
         } else {
             return new klass(...args);
         }
@@ -147,6 +155,13 @@ if (!window.browser) {
     }
     window.browser.setCurrentDateMode = function setCurrentDateMode(mode: number): number {
         console.log("setCurrentDateMode", mode);
+        if (mode == 0) {
+            currentDateMode = 0;
+        } else if (mode == 1) {
+            currentDateMode = 1;
+        } else {
+            return NaN;
+        }
         return 1; // 成功
     };
     window.browser.getProgramRelativeTime = function getProgramRelativeTime(): number {
