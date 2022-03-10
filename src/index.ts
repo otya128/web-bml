@@ -82,12 +82,30 @@ tsStream.on("info", (data: any) => {
     });
 });
 
+let currentTime: number | null = null;
+
 tsStream.on("tdt", (pid: any, data: any) => {
     tsUtil.addTdt(pid, data);
+    const time = tsUtil.getTime().getTime();
+    if (currentTime !== time) {
+        currentTime = time;
+        broadcast({
+            type: "currentTime",
+            timeUnixMillis: currentTime,
+        });
+    }
 });
 
 tsStream.on("tot", (pid: any, data: any) => {
     tsUtil.addTot(pid, data);
+    const time = tsUtil.getTime().getTime();
+    if (currentTime !== time) {
+        currentTime = time;
+        broadcast({
+            type: "currentTime",
+            timeUnixMillis: currentTime,
+        });
+    }
 });
 
 let pidToComponent = new Map<number, ComponentPMT>();
@@ -253,7 +271,6 @@ tsStream.on("pmt", (pid: any, data: any) => {
             }
         }
         if (componentId == null || bxmlInfo == null) {
-            console.error("invalid stream in PMT");
             continue;
         }
         const componentPMT: ComponentPMT = {
@@ -319,6 +336,59 @@ type CachedComponent = {
 
 const cachedComponents = new Map<number, CachedComponent>();
 
+let currentProgramInfo: wsApi.ProgramInfoMessage | null = null;
+
+tsStream.on("eit", (pid, data) => {
+    tsUtil.addEit(pid, data);
+
+    let ids: any;
+    if (ids === null) {
+        if (tsUtil.hasOriginalNetworkId() && tsUtil.hasTransportStreamId() && tsUtil.hasServiceIds()) {
+            ids = {
+                onid: tsUtil.getOriginalNetworkId(),
+                tsid: tsUtil.getTransportStreamId(),
+                sid: tsUtil.getServiceIds()[0]
+            };
+        } else {
+            return;
+        }
+    }
+
+    if (!tsUtil.hasPresent(ids.onid, ids.tsid, ids.sid)) {
+        return;
+    }
+    const p = tsUtil.getPresent(ids.onid, ids.tsid, ids.sid);
+    const prevProgramInfo = currentProgramInfo;
+    currentProgramInfo = {
+        type: "programInfo",
+        eventId: p.event_id,
+        transportStreamId: ids.tsid,
+        originalNetworkId: ids.onid,
+        serviceId: ids.sid,
+        eventName: p.short_event.event_name,
+        startTimeUnixMillis: p.start_time?.getTime(),
+    };
+    if (prevProgramInfo?.eventId !== currentProgramInfo.eventId ||
+        prevProgramInfo?.transportStreamId !== currentProgramInfo.transportStreamId ||
+        prevProgramInfo?.originalNetworkId !== currentProgramInfo.originalNetworkId ||
+        prevProgramInfo?.serviceId !== currentProgramInfo.serviceId ||
+        prevProgramInfo?.startTimeUnixMillis !== currentProgramInfo.startTimeUnixMillis ||
+        prevProgramInfo?.eventName !== currentProgramInfo.eventName) {
+        broadcast(currentProgramInfo);
+    }
+});
+
+tsStream.on("pat", (pid, data) => {
+    tsUtil.addPat(pid, data);
+});
+
+tsStream.on("nit", (pid, data) => {
+    tsUtil.addNit(pid, data);
+});
+
+tsStream.on("sdt", (pid, data) => {
+    tsUtil.addSdt(pid, data);
+});
 tsStream.on("dsmcc", (pid: any, data: any) => {
     const c = pidToComponent.get(pid);
     if (c == null) {
@@ -920,6 +990,15 @@ router.get('/api/ws', async (ctx) => {
         type: "pmt",
         components: [...componentToPid.values()]
     });
+    if (currentProgramInfo != null) {
+        unicast(ws, currentProgramInfo);
+    }
+    if (currentTime != null) {
+        unicast(ws, {
+            type: "currentTime",
+            timeUnixMillis: currentTime,
+        });
+    }
     for (const [componentId, component] of cachedComponents) {
         for (const module of component.modules.values()) {
             if (module.files == null) {

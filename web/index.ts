@@ -220,7 +220,7 @@ if (!window.browser) {
         window.lockedModules.set(module.toLowerCase(), { module, isEx: false });
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
         setTimeout(() => {
-            eventQueueOnModuleLocked(module, false, amod);
+            eventQueueOnModuleLocked(module, false);
         }, 0);
         return 1;
     }
@@ -425,7 +425,19 @@ if (!window.browser) {
         }
     }
     window.browser.getProgramID = function getProgramID(type: number): string | null {
-
+        function toHex(n: number | null | undefined, d: number): string | null {
+            if (n == null) {
+                return null;
+            }
+            return "0x" + n.toString(16).padStart(d);
+        }
+        if (type == 1) {
+            return toHex(resource.currentProgramInfo?.eventId, 4);
+        } else if (type == 2) {
+            return toHex(resource.currentProgramInfo?.serviceId, 4);          
+        } else if (type == 3) {
+            return toHex(resource.currentProgramInfo?.transportStreamId, 4);          
+        }
         return null;
     }
     window.browser.sleep = function sleep(interval: number): number | null {

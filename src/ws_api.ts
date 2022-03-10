@@ -76,4 +76,18 @@ export type ModuleLockResponseMessage = {
     status: number,
 };
 
-export type ResponseMessage = PMTMessage | ModuleDownloadedMessage | ModuleListUpdatedMessage | ModuleLockResponseMessage;
+export type ProgramInfoMessage = {
+    type: "programInfo",
+    originalNetworkId: number | null,
+    transportStreamId: number | null,
+    serviceId: number | null,
+    eventId: number | null,
+    eventName: string | null,
+    startTimeUnixMillis: number | null,
+};
+
+export type CurrentTime = {
+    type: "currentTime",
+    timeUnixMillis: number,
+}
+export type ResponseMessage = PMTMessage | ModuleDownloadedMessage | ModuleListUpdatedMessage | ModuleLockResponseMessage | ProgramInfoMessage | CurrentTime;

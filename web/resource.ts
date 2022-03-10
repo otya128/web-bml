@@ -1,4 +1,4 @@
-import { ComponentPMT, MediaType, ResponseMessage } from "../src/ws_api";
+import { ComponentPMT, MediaType, ProgramInfoMessage, ResponseMessage } from "../src/ws_api";
 
 export class LongJump extends Error { }
 
@@ -63,6 +63,8 @@ export function lockCachedModule(componentId: number, moduleId: number): boolean
     lockedComponents.set(componentId, lockedComponent);
     return true;
 }
+
+export let currentProgramInfo: ProgramInfoMessage | null = null;
 ws.addEventListener("message", (ev) => {
     const msg = JSON.parse(ev.data) as ResponseMessage;
     if (msg.type === "moduleDownloaded") {
@@ -72,7 +74,7 @@ ws.addEventListener("message", (ev) => {
         };
         const cachedModule: CachedModule = {
             moduleId: msg.moduleId,
-            files: new Map(msg.files.map(file => ([file.contentLocation, {
+            files: new Map(msg.files.map(file => ([file.contentLocation.toLowerCase(), {
                 contentLocation: file.contentLocation,
                 contentType: file.contentType,
                 data: Uint8Array.from(window.atob(file.dataBase64), c => c.charCodeAt(0))
@@ -103,6 +105,8 @@ ws.addEventListener("message", (ev) => {
                 }
             }
         }
+    } else if (msg.type === "programInfo") {
+        currentProgramInfo = msg;
     }
 });
 
