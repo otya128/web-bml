@@ -1022,10 +1022,17 @@ if (!window.browser) {
                 const clutCss = document.defaultView?.getComputedStyle(this)?.getPropertyValue("--clut");
                 const clutUrl = clutCss == null ? null : parseCSSValue(clutCss);
                 const fetchedClut = clutUrl == null ? null : fetchLockedResource(clutUrl)?.data;
-                const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
-                const png = aribPNGToPNG(Buffer.from(fetched.data), clut);
-                const blob = new Blob([png], { type: type ?? "" });
-                this.setAttribute("data", URL.createObjectURL(blob));
+                const cachedBlob = fetched.blobUrl.get(fetchedClut);
+                if (cachedBlob != null) {
+                    this.setAttribute("data", cachedBlob);
+                } else {
+                    const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
+                    const png = aribPNGToPNG(Buffer.from(fetched.data), clut);
+                    const blob = new Blob([png], { type: type ?? "" });
+                    const b = URL.createObjectURL(blob);
+                    this.setAttribute("data", b);
+                    fetched.blobUrl.set(fetchedClut, b);
+                }
             } else {
                 this.setAttribute("data", resource.getCachedFileBlobUrl(fetched));
             }
