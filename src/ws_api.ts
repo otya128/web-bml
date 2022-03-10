@@ -46,8 +46,9 @@ export type PMTMessage = {
     components: ComponentPMT[],
 };
 
-import { MediaType } from "./entity_parser";
+import { MediaType as EMediaType } from "./entity_parser";
 
+export type MediaType = EMediaType;
 export type ModuleFile = {
     contentLocation: string,
     contentType: MediaType,

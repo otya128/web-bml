@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack')
 
 module.exports = {
     entry: './web/index.ts',
@@ -22,8 +23,18 @@ module.exports = {
             fs: false,
             path: false,
             url: false,
-        }
+            // babelのため
+            process: require.resolve('process/browser'),
+            Buffer: require.resolve('buffer'),
+        },
     },
     mode: 'development',
     devtool: 'source-map',
+    // babelのため
+    plugins: [
+        new webpack.ProvidePlugin({
+            process: 'process/browser',
+            Buffer: 'buffer',
+        }),
+    ],
 };

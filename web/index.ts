@@ -6,7 +6,10 @@ import { readPersistentArray, writePersistentArray } from "./nvram";
 import { overrideString } from "./string"
 import { overrideNumber } from "./number"
 import { overrideDate } from "./date";
-import { ResponseMessage } from "../src/ws_api";
+import { decodeEUCJP } from "../src/euc_jp";
+import { bmlToXHTML } from "../src/bml_to_xhtml";
+import { transpile } from "../src/transpile_ecm";
+import { activeDocument, CachedFile, fetchLockedResource, lockCachedModule, parseURL } from "./resource";
 interface BMLEvent {
     type: string;
     target: HTMLElement;
@@ -70,17 +73,36 @@ if (!window.browser) {
         [key: string]: {}
     };
 
-    const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/ws");
-    ws.addEventListener("message", (ev) => {
-        const msg = JSON.parse(ev.data) as ResponseMessage;
-        if (msg.type === "moduleLockResponse") {
-
-        } else if (msg.type === "pmt") {
-            
-        } else if (msg.type === "moduleListUpdated") {
-
+    function loadDocument(file: CachedFile) {
+        document.documentElement.innerHTML = bmlToXHTML(file.data);
+        document.querySelectorAll("script").forEach(x => {
+            const s = document.createElement("script");
+            x.remove();
+            s.textContent = x.textContent;
+            const src = x.getAttribute("src");
+            if (src) {
+                const res = fetchLockedResource(src);
+                if (res !== null) {
+                    // 非同期になってしまうのでこれは無し
+                    //const url = URL.createObjectURL(new Blob([res.data], {
+                    //    type: "text/javascript;encoding=euc-jp"
+                    //}));
+                    s.setAttribute("arib-src", src);
+                    s.textContent = transpile(decodeEUCJP(res.data));
         }
+            }
+            document.body.appendChild(s);
     });
+        init();
+        document.querySelectorAll("[onload]").forEach(elem => {
+            const onload = elem.getAttribute("onload");
+            if (onload != null) {
+                new Function(onload)();
+            }
+        });
+        unlockSyncEventQueue();
+        requestDispatchQueue();
+    }
     const components: { [key: string]: Component } = JSON.parse(document.getElementById("bml-server-data")?.textContent ?? "{}");
     window.dummy = undefined;
     window.browser = {};
@@ -160,21 +182,6 @@ if (!window.browser) {
         console.log("unlockAllModulesOnMemory");
         return 1; // NaN => fail
     };
-    function parseURL(url: string): { component: string | null, module: string | null, filename: string | null } {
-        if (url.startsWith("~/")) {
-            url = ".." + url.substring(1);
-        }
-        url = new URL(url, location.href).pathname.toLowerCase();
-        const components = url.split("/");
-        // [0] ""
-        // [1] component
-        // [2] module
-        // [3] filename
-        if (components.length > 4) {
-            return { component: null, module: null, filename: null };
-        }
-        return { component: components[1] ?? null, module: components[2] ?? null, filename: components[3] ?? null };
-    }
     window.lockedModules = new Map<string, LockedModule>();
     window.browser.lockModuleOnMemory = function lockModuleOnMemory(module: string): number {
         console.log("lockModuleOnMemory", module);
@@ -334,7 +341,23 @@ if (!window.browser) {
         return 0;
     };
     window.browser.launchDocument = function launchDocument(documentName: string, transitionStyle: string): number {
-        location.href = documentName;
+        const { component, module, filename } = parseURL(documentName);
+        const componentId = Number.parseInt(component ?? "", 16);
+        const moduleId = Number.parseInt(module ?? "", 16);
+        if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
+            return NaN;
+        }
+        if (!lockCachedModule(componentId, moduleId)) {
+            console.error("FIXME");
+            return NaN;
+        }
+        const res = fetchLockedResource(documentName);
+        if (res == null) {
+            console.error("NOT FOUND");
+            return NaN;
+        }
+        loadDocument(res);
+        // location.href = documentName;
         return 0;
     };
     window.browser.reloadActiveDocument = function reloadActiveDocument(): number {
@@ -354,7 +377,7 @@ if (!window.browser) {
         return Math.floor(Math.random() * num);
     };
     window.browser.getActiveDocument = function getActiveDocument(): string | null {
-        return location.pathname;
+        return activeDocument;
     }
     window.browser.getResidentAppVersion = function getResidentAppVersion(appName: string): any[] | null {
         console.log("getResidentAppVersion", appName);
@@ -551,7 +574,7 @@ if (!window.browser) {
             return null;
         }
         const uri = uriMatch.groups["uri"].replace(/\\/g, "");
-        return new URL(uri, location.href).pathname;
+        return new URL(uri, "http://localhost" + window.browser.getActiveDocument()).pathname;
     }
 
     // 同期割り込み事象キュー
