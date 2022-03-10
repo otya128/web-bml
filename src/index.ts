@@ -9,6 +9,292 @@ import { Declaration as CSSDeclaration } from "css";
 import path from "path";
 import { decodeEUCJP } from './euc_jp';
 import { loadDRCS, toTTF } from './drcs';
+import stream from "stream";
+import { TsStream, TsUtil } from "@chinachu/aribts";
+import zlib from "zlib";
+import { EntityParser, MediaType, parseMediaType, entityHeaderToString } from './entity_parser';
+
+let size = process.argv[2] === "-" ? 0 : fs.statSync(process.argv[2]).size;
+let bytesRead = 0;
+
+const readStream = process.argv[2] === "-" ? process.stdin : fs.createReadStream(process.argv[2]);
+const transformStream = new stream.Transform({
+    transform: function (chunk, _encoding, done) {
+        bytesRead += chunk.length;
+
+        process.stderr.write(`\r${bytesRead} of ${size} [${Math.floor(bytesRead / size * 100)}%]`);
+
+        this.push(chunk);
+        done();
+    },
+    flush: function (done) {
+        process.stderr.write(`${bytesRead} of ${size} [${Math.floor(bytesRead / size * 100)}%]\n`);
+
+        done();
+    }
+});
+const tsStream = new TsStream();
+
+const tsUtil = new TsUtil();
+
+readStream.pipe(transformStream);
+transformStream.pipe(tsStream);
+
+tsStream.on("data", () => {
+    // nothing
+});
+
+tsStream.on("drop", (pid: any, counter: any, expected: any) => {
+    let time = "unknown";
+
+    if (tsUtil.hasTime()) {
+        let date = tsUtil.getTime();
+        if (date) {
+            time = `${("0" + date.getHours()).slice(-2)}:${("0" + date.getMinutes()).slice(-2)}:${("0" + date.getSeconds()).slice(-2)}`;
+        }
+    }
+
+    console.error(`pid: 0x${("000" + pid.toString(16)).slice(-4)}, counter: ${counter}, expected: ${expected}, time: ${time}`);
+    console.error("");
+});
+
+tsStream.on("info", (data: any) => {
+    console.error("");
+    console.error("info:");
+    Object.keys(data).forEach(key => {
+        console.error(`0x${("000" + parseInt(key, 10).toString(16)).slice(-4)}: packet: ${data[key].packet}, drop: ${data[key].drop}, scrambling: ${data[key].scrambling}`);
+    });
+});
+
+tsStream.on("tdt", (pid: any, data: any) => {
+    tsUtil.addTdt(pid, data);
+});
+
+tsStream.on("tot", (pid: any, data: any) => {
+    tsUtil.addTot(pid, data);
+});
+
+const pidToComponent = new Map<number, number>();
+
+tsStream.on("pmt", (pid: any, data: any) => {
+    for (const stream of data.streams) {
+        // 0x0d: データカルーセル
+        if (stream.stream_type != 0x0d) {
+            continue;
+        }
+        const pid = stream.elementary_PID;
+        for (const esInfo of stream.ES_info) {
+            if (esInfo.descriptor_tag == 0x52) { // Stream identifier descriptor ストリーム識別記述子
+                // PID => component_tagの対応
+                const component_tag = esInfo.component_tag;
+                pidToComponent.set(pid, component_tag);
+            } else if (esInfo.descriptor_tag == 0xfd) { // Data component descriptor データ符号化方式記述子
+
+            }
+        }
+    }
+});
+
+type DownloadComponentInfo = {
+    componentId: number,
+    downloadId: number,
+    downloadedModuleCount: number,
+    modules: Map<number, DownloadModuleInfo>,
+};
+
+const downloadComponents = new Map<number, DownloadComponentInfo>();
+
+enum CompressionType {
+    None = -1,
+    Zlib = 0,
+}
+
+type DownloadModuleInfo = {
+    compressionType: CompressionType,
+    originalSize?: number,
+    moduleId: number,
+    moduleVersion: number,
+    moduleSize: number,
+    contentType?: string,
+    blocks: (Buffer | undefined)[],
+    downloadedBlockCount: number,
+};
+
+type CachedModuleFile = {
+    contentType: MediaType,
+    contentLocation: string,
+    data: Buffer,
+};
+
+type CachedModule = {
+    downloadModuleInfo: DownloadModuleInfo,
+    files?: Map<string, CachedModuleFile>,
+};
+
+type CachedComponent = {
+    modules: Map<number, CachedModule>,
+};
+
+const cachedComponents = new Map<number, CachedComponent>();
+
+tsStream.on("dsmcc", (pid: any, data: any) => {
+    const componentId = pidToComponent.get(pid);
+    if (componentId == null) {
+        return;
+    }
+    if (data.table_id === 0x3b) {
+        // DII
+        // console.log(pid, data);
+        const transationIdLow2byte: number = data.table_id_extension;
+        const sectionNumber: number = data.section_number;
+        const lastSectionNumber: number = data.last_section_number;
+
+        const modules = new Map<number, DownloadModuleInfo>();
+        // dsmccMessageHeader
+        // protocolDiscriminatorは常に0x11
+        // dsmccTypeは常に0x03
+        // messageIdは常に0x1002
+        const message = data.message;
+        const downloadId: number = message.downloadId;
+        if (downloadComponents.get(componentId)?.downloadId === downloadId) {
+            return;
+        }
+        const componentInfo: DownloadComponentInfo = {
+            componentId,
+            modules,
+            downloadId,
+            downloadedModuleCount: 0,
+        };
+        // downloadIdの下位28ビットは常に1で運用される
+        const data_event_id = (downloadId >> 28) & 15;
+        console.log(`componentId: ${componentId.toString(16).padStart(2, "0")} downloadId: ${downloadId}`)
+        // blockSizeは常に4066
+        const blockSize: number = message.blockSize;
+        // windowSize, ackPeriod, tCDownloadWindowは常に0
+        // privateDataは運用しない
+        // 0<=numberOfModules<=64で運用
+        // moduleSize<=256KB
+        // compatibilityDescriptorは運用しない
+        for (const module of data.message.modules) {
+            const moduleId: number = module.moduleId;
+            const moduleVersion: number = module.moduleVersion;
+            const moduleSize: number = module.moduleSize;
+            const moduleInfo: DownloadModuleInfo = {
+                compressionType: CompressionType.None,
+                moduleId,
+                moduleVersion,
+                moduleSize,
+                blocks: new Array(Math.ceil(moduleSize / blockSize)),
+                downloadedBlockCount: 0,
+            };
+            modules.set(moduleId, moduleInfo);
+            console.log(`   moduleId: ${moduleId.toString(16).padStart(4, "0")} moduleVersion: ${moduleVersion}`)
+            for (const info of module.moduleInfo) {
+                const descriptor: Buffer = info.descriptor;
+                // Type記述子, ダウンロード推定時間記述子, Compression Type記述子のみ運用される(TR-B14 第三分冊 4.2.4 表4-4参照)
+                if (info.descriptor_tag === 0x01) { // Type記述子 STD-B24 第三分冊 第三編 6.2.3.1
+                    const contentType = descriptor.toString("ascii");
+                    moduleInfo.contentType = contentType;
+                } else if (info.descriptor_tag === 0x07) { // ダウンロード推定時間記述子 STD-B24 第三分冊 第三編 6.2.3.6
+                    const est_download_time = descriptor.readUInt32BE(0);
+                } else if (info.descriptor_tag === 0xC2) { // Compression Type記述子 STD-B24 第三分冊 第三編 6.2.3.9
+                    const compression_type = descriptor.readInt8(0); // 0: zlib
+                    const original_size = descriptor.readUInt32BE(1);
+                    moduleInfo.originalSize = original_size;
+                    moduleInfo.compressionType = compression_type as CompressionType;
+                }
+            }
+        }
+        downloadComponents.set(componentId, componentInfo);
+    } else if (data.table_id === 0x3c) {
+        const componentInfo = downloadComponents.get(componentId);
+        if (componentInfo == null) {
+            return;
+        }
+        // DDB
+        const headerModuleId: number = data.table_id_extension;
+        const headerModuleVersionLow5bit: number = data.version_number;
+        const headerBlockNumberLow8bit: number = data.section_number;
+
+        const moduleId = data.message.moduleId;
+        const moduleVersion = data.message.moduleVersion;
+        const blockNumber = data.message.blockNumber;
+
+        const moduleInfo = componentInfo.modules.get(moduleId);
+        // console.log(`download ${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`)
+        if (moduleInfo == null) {
+            return;
+        }
+        if (moduleInfo.moduleVersion !== moduleVersion) {
+            return;
+        }
+        if (moduleInfo.blocks.length <= blockNumber) {
+            return;
+        }
+        if (moduleInfo.blocks[blockNumber] != null) {
+            return;
+        }
+        moduleInfo.blocks[blockNumber] = data.message.blockDataByte as Buffer;
+        moduleInfo.downloadedBlockCount++;
+        if (moduleInfo.downloadedBlockCount >= moduleInfo.blocks.length) {
+            componentInfo.downloadedModuleCount++;
+            const cachedComponent = cachedComponents.get(componentId) ?? {
+                modules: new Map<number, CachedModule>(),
+            };
+            const cachedModule: CachedModule = {
+                downloadModuleInfo: moduleInfo,
+            };
+            let moduleData = Buffer.concat(moduleInfo.blocks as Buffer[]);
+            if (moduleInfo.compressionType === CompressionType.Zlib) {
+                moduleData = zlib.inflateSync(moduleData);
+            }
+            const previousCachedModule = cachedComponent.modules.get(moduleInfo.moduleId);
+            if (previousCachedModule != null && previousCachedModule.downloadModuleInfo.moduleVersion === moduleInfo.moduleVersion) {
+                // 更新されていない
+                return;
+            }
+            console.info(`component ${componentId.toString(16).padStart(2, "0")} module ${moduleId.toString(16).padStart(4, "0")}updated`);
+            if (moduleInfo.contentType == null || moduleInfo.contentType.toLowerCase() === "multipart/mixed") {
+                const parser = new EntityParser(moduleData);
+                const mod = parser.readEntity();
+                if (mod?.multipartBody == null) {
+                    console.error("failed to parse module");
+                } else {
+                    const files = new Map<string, CachedModuleFile>();
+                    for (const entity of mod.multipartBody) {
+                        const location = entity.headers.find(x => x.name === "content-location");
+                        if (location == null) { // 必ず含む
+                            console.error("failed to find Content-Location");
+                            continue;
+                        }
+                        const contentType = entity.headers.find(x => x.name === "content-type");
+                        if (contentType == null) { // 必ず含む
+                            console.error("failed to find Content-Type");
+                            continue;
+                        }
+                        const mediaType = parseMediaType(contentType.value);
+                        if (mediaType == null) {
+                            console.error("failed to parse Content-Type");
+                            continue;
+                        }
+                        const locationString = entityHeaderToString(location);
+                        console.log("    ", locationString, entityHeaderToString(contentType));
+                        files.set(locationString, {
+                            contentLocation: locationString,
+                            contentType: mediaType,
+                            data: entity.body,
+                        });
+                    }
+                    cachedModule.files = files;
+                }
+            }
+            cachedComponent.modules.set(moduleInfo.moduleId, cachedModule);
+            cachedComponents.set(componentId, cachedComponent);
+        }
+    } else if (data.table_id === 0x3e) {
+        // ストリーム記述子
+    }
+});
 
 const baseDir = process.env.BASE_DIR;
 if (!baseDir) {

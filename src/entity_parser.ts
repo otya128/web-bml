@@ -57,6 +57,10 @@ export type FieldValue = {
     value: string
 };
 
+export function entityHeaderToString(header: EntityHeader) {
+    return header.value.map(x => x.value).join("");
+}
+
 export type EntityHeader = {
     name: string,
     originalName: string,
