@@ -83,7 +83,7 @@ if (!window.browser) {
     };
     function loadDocument(file: CachedFile) {
         // タイマー全部消す(連番前提)
-        var maxId = window.setInterval(() => { }, 0);
+        var maxId = window.setTimeout(() => { }, 0);
         for (let i = 0; i < maxId; i += 1) {
             clearInterval(i);
         }
@@ -137,6 +137,28 @@ if (!window.browser) {
             unlockSyncEventQueue();
         }
         requestDispatchQueue();
+        // 雑だけど動きはする
+        setInterval(() => {
+            const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
+            moduleLocked.forEach(beitem => {
+                if (beitem.getAttribute("subscribe") !== "subscribe") {
+                    return;
+                }            
+                const moduleRef = beitem.getAttribute("module_ref");
+                if (moduleRef == null) {
+                    return;
+                }
+                const {moduleId, componentId} = parseURLEx(moduleRef);
+                if (moduleId == null || componentId == null) {
+                    return;
+                }
+                if (resource.moduleExistsInDownloadInfo(componentId, moduleId)) {
+                    eventQueueOnModuleUpdated(moduleRef, 2);
+                } else {
+                    eventQueueOnModuleUpdated(moduleRef, 1);
+                }
+            });
+        }, 1000);
         throw new LongJump(`long jump`);
     }
     const components: { [key: string]: Component } = JSON.parse(document.getElementById("bml-server-data")?.textContent ?? "{}");
@@ -308,6 +330,42 @@ if (!window.browser) {
                 if (onoccur) {
                     document.currentEvent = {
                         type: "ModuleLocked",
+                        target: beitem as HTMLElement,
+                        status,
+                        privateData: "",
+                        esRef: "",
+                        messageId: "0",
+                        messageVersion: "0",
+                        messageGroupId: "0",
+                        moduleRef: module,
+                        languageTag: 0,//?
+                        registerId: 0,
+                        serviceId: "0",
+                        eventId: "0",
+                        peripheralRef: "",
+                        object: null,
+                        segmentId: null,
+                    } as BMLBeventEvent;
+                    new Function(onoccur)();//eval.call(window, onoccur);
+                    document.currentEvent = null;
+                }
+            }
+        }
+    }
+
+    function eventQueueOnModuleUpdated(module: string, status: number) {
+        console.log("ModuleUpdated", module);
+        const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
+        for (const beitem of Array.from(moduleLocked)) {
+            if (beitem.getAttribute("subscribe") !== "subscribe") {
+                continue;
+            }
+            const moduleRef = beitem.getAttribute("module_ref");
+            if (moduleRef?.toLowerCase() === module.toLowerCase()) {
+                const onoccur = beitem.getAttribute("onoccur");
+                if (onoccur) {
+                    document.currentEvent = {
+                        type: "ModuleUpdated",
                         target: beitem as HTMLElement,
                         status,
                         privateData: "",

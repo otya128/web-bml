@@ -517,7 +517,7 @@ tsStream.on("dsmcc", (pid: any, data: any) => {
                 return;
             }
             console.info(`component ${componentId.toString(16).padStart(2, "0")} module ${moduleId.toString(16).padStart(4, "0")}updated`);
-            if (moduleInfo.contentType == null || moduleInfo.contentType.toLowerCase() === "multipart/mixed") {
+            if (moduleInfo.contentType == null || moduleInfo.contentType.toLowerCase().startsWith("multipart/mixed")) { // FIXME
                 const parser = new EntityParser(moduleData);
                 const mod = parser.readEntity();
                 if (mod?.multipartBody == null) {
@@ -560,6 +560,8 @@ tsStream.on("dsmcc", (pid: any, data: any) => {
                         }))
                     });
                 }
+            } else {
+                console.error("not multipart");
             }
             cachedComponent.modules.set(moduleInfo.moduleId, cachedModule);
             cachedComponents.set(componentId, cachedComponent);
