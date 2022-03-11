@@ -433,10 +433,18 @@ if (!window.browser) {
         if (sProvider === "ARIB") {
             if (functionname === "BMLversion") {
                 if (additionalinfo === "3.0") {
-                    return 0;
+                    return (resource.getPMTComponent(0x40)?.bxmlInfo?.entryPointInfo?.bmlMajorVersion ?? 1) >= 3 ? 1 : 0;
                 }
             } else if (functionname === "APIGroup") {
-                if (additionalinfo === "Ctrl.Basic2") {
+                if (additionalinfo === "Ctrl.Basic") {
+                    return 1;
+                } else if (additionalinfo === "Ctrl.Screen") {
+                    return 1;
+                } else if (additionalinfo === "Ctrl.Cache2") {
+                    return 1;
+                } else if (additionalinfo === "Ctrl.Version") {
+                    return 1;
+                } else if (additionalinfo === "Ctrl.Basic2") {
                     // detectComponent
                     return 1;
                 }

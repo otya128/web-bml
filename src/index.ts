@@ -172,7 +172,7 @@ function decodeAdditionalAribBXMLInfo(additional_data_component_info: Buffer): A
             independentFlag: !!independent_flag,
             styleForTVFlag: !!style_for_tv_flag,
             bmlMajorVersion: 1,
-            bmlMinorVersion: 1,
+            bmlMinorVersion: 0,
         };
         // BSではbml_major_versionは1
         // CSではbml_major_versionは2
