@@ -35,6 +35,16 @@ export type CachedFile = {
     blobUrl: Map<any, string>,
 };
 
+export type LockedComponent = {
+    componentId: number,
+    modules: Map<number, LockedModule>,
+};
+
+export type LockedModule = {
+    moduleId: number,
+    files: Map<string, CachedFile>,
+    isEx: boolean,
+};
 
 type DownloadComponentInfo = {
     componentId: number,
@@ -53,7 +63,7 @@ export function getCachedFileBlobUrl(file: CachedFile, key?: any): string {
     return b;
 }
 
-const lockedComponents = new Map<number, CachedComponent>();
+const lockedComponents = new Map<number, LockedComponent>();
 
 // component id => PMT
 let pmtComponents = new Map<number, ComponentPMT>();
@@ -71,18 +81,37 @@ export function getPMTComponent(componentId: number): ComponentPMT | undefined {
     return pmtComponent;
 }
 
-export function lockCachedModule(componentId: number, moduleId: number): boolean {
+export function lockCachedModule(componentId: number, moduleId: number, isEx: boolean): boolean {
     const cachedModule = getCachedModule(componentId, moduleId);
     if (cachedModule == null) {
         return false;
     }
     const lockedComponent = lockedComponents.get(componentId) ?? {
         componentId,
-        modules: new Map()
+        modules: new Map<number, LockedModule>(),
     };
-    lockedComponent.modules.set(moduleId, cachedModule);
+    lockedComponent.modules.set(moduleId, { files: cachedModule.files, isEx, moduleId: cachedModule.moduleId });
     lockedComponents.set(componentId, lockedComponent);
     return true;
+}
+
+export function isModuleLocked(componentId: number, moduleId: number): boolean {
+    return lockedComponents.get(componentId)?.modules?.has(moduleId) ?? false;
+}
+
+export function unlockAllModule() {
+    lockedComponents.clear();
+}
+
+export function unlockModule(componentId: number, moduleId: number, isEx: boolean): boolean {
+    const m = lockedComponents.get(componentId);
+    if (m != null) {
+        const mod = m.modules.get(moduleId);
+        if (mod == null) {
+            return false;
+        }
+    }
+    return false;
 }
 
 export function moduleExistsInDownloadInfo(componentId: number, moduleId: number): boolean {
@@ -139,14 +168,14 @@ ws.addEventListener("message", (ev) => {
         const req = lockModuleRequests.get(k);
         if (req != null) {
             lockModuleRequests.delete(k);
-            lockCachedModule(msg.componentId, msg.moduleId);
+            lockCachedModule(msg.componentId, msg.moduleId, false);
             if (onModuleLockedHandler) {
                 onModuleLockedHandler(req.moduleRef, req.isEx, 0);
             }
         }
         const url = `/${msg.componentId.toString(16).padStart(2, "0")}/${msg.moduleId.toString(16).padStart(4, "0")}`;
         if (launchRequestDocument?.toLowerCase()?.startsWith(url) === true) {
-            lockCachedModule(msg.componentId, msg.moduleId);
+            lockCachedModule(msg.componentId, msg.moduleId, false);
             const doc = launchRequestDocument;
             launchRequestDocument = null;
             try {
@@ -214,7 +243,7 @@ export function fetchLockedResource(url: string): CachedFile | null {
     if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
         return null;
     }
-    let cachedComponent = lockedComponents.get(componentId);
+    let cachedComponent: CachedComponent | undefined = lockedComponents.get(componentId);
     if (cachedComponent == null) {
         cachedComponent = cachedComponents.get(componentId);
         if (cachedComponent == null) {

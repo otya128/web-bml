@@ -94,6 +94,7 @@ if (!window.browser) {
                 // delete (window as any)[k];
             }
         }
+        resource.unlockAllModule();
         currentDateMode = 0;
         document.documentElement.innerHTML = bmlToXHTML(file.data);
         if (defaultCss != null) {
@@ -246,16 +247,25 @@ if (!window.browser) {
     window.browser.unlockModuleOnMemory = function unlockModuleOnMemory(module: string): number {
         window.lockedModules.delete(module);
         console.log("unlockModuleOnMemory", module);
-        return 1; // NaN => fail
+        const { componentId, moduleId } = parseURLEx(module);
+        if (componentId == null || moduleId == null) {
+            return NaN;
+        }
+        return resource.unlockModule(componentId, moduleId, false) ? 1 : NaN;
     };
     window.browser.unlockModuleOnMemoryEx = function unlockModuleOnMemoryEx(module: string): number {
         window.lockedModules.delete(module);
         console.log("unlockModuleOnMemoryEx", module);
-        return 1; // NaN => fail
+        const { componentId, moduleId } = parseURLEx(module);
+        if (componentId == null || moduleId == null) {
+            return NaN;
+        }
+        return resource.unlockModule(componentId, moduleId, true) ? 1 : NaN;
     };
     window.browser.unlockAllModulesOnMemory = function unlockAllModulesOnMemory(): number {
         window.lockedModules = new Map<string, LockedModule>();
         console.log("unlockAllModulesOnMemory");
+        resource.unlockAllModule();
         return 1; // NaN => fail
     };
     window.lockedModules = new Map<string, LockedModule>();
@@ -265,6 +275,10 @@ if (!window.browser) {
         if (componentId == null || moduleId == null) {
             return NaN;
         }
+        // exと違ってロック済みならイベント発生しないはず
+        if (resource.isModuleLocked(componentId, moduleId)) {
+            return 1;
+        }
         if (!resource.getPMTComponent(componentId)) {
             console.error("lockModuleOnMemory: component does not exist in PMT", module);
             return -1;
@@ -273,7 +287,7 @@ if (!window.browser) {
             console.error("lockModuleOnMemory: component does not exist in DII", module);
             return -1;
         }
-        const cachedModule = lockCachedModule(componentId, moduleId);
+        const cachedModule = lockCachedModule(componentId, moduleId, false);
         if (!cachedModule) {
             console.error("lockModuleOnMemory: module not cached", module);
             resource.requestLockModule(module, componentId, moduleId, false);
@@ -302,7 +316,7 @@ if (!window.browser) {
             }, 0);
             return 0;
         }
-        const cachedModule = lockCachedModule(componentId, moduleId);
+        const cachedModule = lockCachedModule(componentId, moduleId, true);
         if (!cachedModule) {
             console.error("lockModuleOnMemoryEx: module not cached", module);
             resource.requestLockModule(module, componentId, moduleId, true);
@@ -492,7 +506,7 @@ if (!window.browser) {
             return NaN;
         }
         resource.launchRequest(null);
-        if (!lockCachedModule(componentId, moduleId)) {
+        if (!lockCachedModule(componentId, moduleId, false)) {
             console.error("FIXME");
             resource.launchRequest(documentName);
             throw new LongJump(`long jump`);
