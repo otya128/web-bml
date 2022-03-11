@@ -478,9 +478,11 @@ if (!window.browser) {
         if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
             return NaN;
         }
+        resource.launchRequest(null);
         if (!lockCachedModule(componentId, moduleId)) {
             console.error("FIXME");
-            return NaN;
+            resource.launchRequest(documentName);
+            throw new LongJump(`long jump`);
         }
         const res = fetchLockedResource(documentName);
         if (res == null) {

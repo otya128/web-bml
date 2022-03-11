@@ -5,11 +5,11 @@ export class LongJump extends Error { }
 // 運用的には固定
 let entryPointComponentId = 0x40;
 let entryPointModuleId = 0x0000;
+export let activeDocument: null | string = null;
 // FIXME
 function documentLoaded() {
-    return location.href === "/";
+    return activeDocument != null;
 }
-export let activeDocument = "/40/0000/startup.bml";
 export function setActiveDocument(componentId: number, moduleId: number, filename: string | null) {
     if (filename != null) { // ?
         activeDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}/${filename}`;
@@ -98,6 +98,11 @@ type LockModuleRequest = {
 
 const lockModuleRequests: Map<string, LockModuleRequest> = new Map();
 
+let launchRequestDocument: string | null = "/40/0000/startup.bml";
+export function launchRequest(document: string | null) {
+    launchRequestDocument = document;
+}
+
 // うーん
 let onModuleLockedHandler: ((module: string, isEx: boolean, status: number) => void) | null = null;
 export function registerOnModuleLockedHandler(func: typeof onModuleLockedHandler) {
@@ -139,10 +144,13 @@ ws.addEventListener("message", (ev) => {
                 onModuleLockedHandler(req.moduleRef, req.isEx, 0);
             }
         }
-        if (entryPointModuleId === msg.moduleId && entryPointComponentId === msg.componentId) {
-            lockCachedModule(entryPointComponentId, entryPointModuleId);
+        const url = `/${msg.componentId.toString(16).padStart(2, "0")}/${msg.moduleId.toString(16).padStart(4, "0")}`;
+        if (launchRequestDocument?.toLowerCase()?.startsWith(url) === true) {
+            lockCachedModule(msg.componentId, msg.moduleId);
+            const doc = launchRequestDocument;
+            launchRequestDocument = null;
             try {
-                window.browser.launchDocument(`/${entryPointComponentId.toString(16).padStart(2, "0")}/${entryPointModuleId.toString(16).padStart(4, "0")}/startup.bml`);
+                window.browser.launchDocument(doc);
             } catch (e) {
                 if (e instanceof LongJump) {
                     console.log("long jump");
