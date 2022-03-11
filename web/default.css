@@ -13,7 +13,7 @@ div, p, input, object {margin: 0 !important}
 /* padding */
 div, object {padding-top : 0 !important; padding-right : 0 !important; padding-bottom : 0 !important; padding-left : 0 !important; }
 /* border */
-div, p, span, a, input {border-width : 0 }
+:where(div, p, span, a, input) { border-width: 0; }
 object {border-width : 0 !important; border-style : none !important}
 /* display */
 meta, title, script, style, head, bml, bevent, beitem { display: none !important }
@@ -23,7 +23,7 @@ br, span, a { display : inline !important }
 p, div, object, input { position : absolute !important }
 br, span, a { position : static !important }
 /* top left width height*/
-p,div, input, object {top : 0; left : 0; width : 0; height : 0 }
+:where(p, div, input, object) { top: 0; left: 0; width: 0; height: 0; }
 /* z-index */
 div, p, br, span, a, input, object, body { z-index : auto !important }
 /* line-height */
@@ -36,16 +36,16 @@ p, div, input, object { overflow : hidden !important }
 /* background-repeat */
 body { background-repeat : repeat !important }
 /* text */
-p, input { font-family : "丸ゴシック"; font-size : 24px }
-span, a { font-family : inherit; font-size : inherit }
-p, input { text-align : left }
+:where(p, input) { font-family: "丸ゴシック"; font-size: 24px; }
+:where(span, a) { font-family: inherit; font-size: inherit; }
+:where(p, input) { text-align: left; }
 /* letter-spacing */
 span, a { letter-spacing : inherit !important }
 /* white-space */
 /* CDATA? */
 /* p, input { white-space : normal !important } */
 /* background-color-index */
-body {
+:where(body) {
     --clut-color-0: rgba(0, 0, 0, 1);
     --clut-color-1: rgba(255, 0, 0, 1);
     --clut-color-2: rgba(0, 255, 0, 1);
@@ -177,17 +177,17 @@ body {
     background-color: var(--clut-color-0);
     --background-color--index: 0;
 }
-div, p, span, a, input {
+:where(div, p, span, a, input) {
     background-color: var(--clut-color-8);
     --background-color--index: 8;
 }
 /* ?? これだとobjectが透過できなくなる */
 /* object { background-color : var(--clut-color-0) !important, --background-color: 0 !important;} */
 /* grayscale-color-index */
-p, input { --grayscale-color-index : 30 15 }
+:where(p, input) { --grayscale-color-index: 30 15; }
 
 /* reset UA CSS */
-p {
+:where(p) {
     margin-block-start: 0;
     margin-block-end: 0;
     margin-inline-start: 0;
@@ -201,8 +201,12 @@ body {
     margin: 0!important;
 }
 
-body {
+:where(body) {
     font-family: "丸ゴシック";
+}
+
+object[type="audio/X-arib-mpeg2-aac"] {
+    visibility: hidden;
 }
 
 /* STD-B24 第二分冊(2/2) 第二編 付属2 4.4.8 */
