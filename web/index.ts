@@ -48,17 +48,12 @@ interface BMLBeventEvent extends BMLEvent {
 }
 
 type BMLElement = HTMLElement;
-type LockedModule = {
-    module: string,
-    isEx: boolean
-};
 
 declare global {
     interface Window {
         browser: any;
         dummy: any;
         BinaryTable: BinaryTableConstructor;
-        lockedModules: Map<string, LockedModule>;
         newBinaryTable: any;
         __newBT: any;
     }
@@ -245,7 +240,6 @@ if (!window.browser) {
         return NaN;
     }
     window.browser.unlockModuleOnMemory = function unlockModuleOnMemory(module: string): number {
-        window.lockedModules.delete(module);
         console.log("unlockModuleOnMemory", module);
         const { componentId, moduleId } = parseURLEx(module);
         if (componentId == null || moduleId == null) {
@@ -254,7 +248,6 @@ if (!window.browser) {
         return resource.unlockModule(componentId, moduleId, false) ? 1 : NaN;
     };
     window.browser.unlockModuleOnMemoryEx = function unlockModuleOnMemoryEx(module: string): number {
-        window.lockedModules.delete(module);
         console.log("unlockModuleOnMemoryEx", module);
         const { componentId, moduleId } = parseURLEx(module);
         if (componentId == null || moduleId == null) {
@@ -263,12 +256,10 @@ if (!window.browser) {
         return resource.unlockModule(componentId, moduleId, true) ? 1 : NaN;
     };
     window.browser.unlockAllModulesOnMemory = function unlockAllModulesOnMemory(): number {
-        window.lockedModules = new Map<string, LockedModule>();
         console.log("unlockAllModulesOnMemory");
         resource.unlockAllModule();
         return 1; // NaN => fail
     };
-    window.lockedModules = new Map<string, LockedModule>();
     window.browser.lockModuleOnMemory = function lockModuleOnMemory(module: string): number {
         console.log("lockModuleOnMemory", module);
         const { componentId, moduleId } = parseURLEx(module);
@@ -287,7 +278,7 @@ if (!window.browser) {
             console.error("lockModuleOnMemory: component does not exist in DII", module);
             return -1;
         }
-        const cachedModule = lockCachedModule(componentId, moduleId, false);
+        const cachedModule = lockCachedModule(componentId, moduleId, "lockModuleOnMemory");
         if (!cachedModule) {
             console.error("lockModuleOnMemory: module not cached", module);
             resource.requestLockModule(module, componentId, moduleId, false);
@@ -316,7 +307,7 @@ if (!window.browser) {
             }, 0);
             return 0;
         }
-        const cachedModule = lockCachedModule(componentId, moduleId, true);
+        const cachedModule = lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
         if (!cachedModule) {
             console.error("lockModuleOnMemoryEx: module not cached", module);
             resource.requestLockModule(module, componentId, moduleId, true);
@@ -335,7 +326,6 @@ if (!window.browser) {
         }, 0);
     });
     function eventQueueOnModuleLocked(module: string, isEx: boolean, status: number) {
-        window.lockedModules.set(module.toLowerCase(), { module, isEx });
         console.log("ModuleLocked", module);
         const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleLocked\"]");
         for (const beitem of Array.from(moduleLocked)) {
@@ -506,7 +496,7 @@ if (!window.browser) {
             return NaN;
         }
         resource.launchRequest(null);
-        if (!lockCachedModule(componentId, moduleId, false)) {
+        if (!lockCachedModule(componentId, moduleId, "system")) {
             console.error("FIXME");
             resource.launchRequest(documentName);
             throw new LongJump(`long jump`);
@@ -549,7 +539,7 @@ if (!window.browser) {
     window.browser.getLockedModuleInfo = function getLockedModuleInfo(): LockedModuleInfo[] | null {
         console.log("getLockedModuleInfo");
         const l: LockedModuleInfo[] = [];
-        for (const [_, { module, isEx }] of window.lockedModules) {
+        for (const { module, isEx } of resource.getLockedModules()) {
             l.push([module, isEx ? 2 : 1, 1]);
         }
         return l;
@@ -1319,7 +1309,9 @@ if (!window.browser) {
         });
     }
 
-    // historyは存在しない
+    // status, historyは存在しない
+    // @ts-ignore
+    delete window.status;
     // とりあえずsetter用意
     const _originalHistory = window.history;
     (window as any)["_history"] = window.history;

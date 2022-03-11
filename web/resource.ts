@@ -43,7 +43,7 @@ export type LockedComponent = {
 export type LockedModule = {
     moduleId: number,
     files: Map<string, CachedFile>,
-    isEx: boolean,
+    lockedBy: "system" | "lockModuleOnMemory" | "lockModuleOnMemoryEx",
 };
 
 type DownloadComponentInfo = {
@@ -81,7 +81,7 @@ export function getPMTComponent(componentId: number): ComponentPMT | undefined {
     return pmtComponent;
 }
 
-export function lockCachedModule(componentId: number, moduleId: number, isEx: boolean): boolean {
+export function lockCachedModule(componentId: number, moduleId: number, lockedBy: "system" | "lockModuleOnMemory" | "lockModuleOnMemoryEx"): boolean {
     const cachedModule = getCachedModule(componentId, moduleId);
     if (cachedModule == null) {
         return false;
@@ -90,7 +90,7 @@ export function lockCachedModule(componentId: number, moduleId: number, isEx: bo
         componentId,
         modules: new Map<number, LockedModule>(),
     };
-    lockedComponent.modules.set(moduleId, { files: cachedModule.files, isEx, moduleId: cachedModule.moduleId });
+    lockedComponent.modules.set(moduleId, { files: cachedModule.files, lockedBy, moduleId: cachedModule.moduleId });
     lockedComponents.set(componentId, lockedComponent);
     return true;
 }
@@ -168,14 +168,14 @@ ws.addEventListener("message", (ev) => {
         const req = lockModuleRequests.get(k);
         if (req != null) {
             lockModuleRequests.delete(k);
-            lockCachedModule(msg.componentId, msg.moduleId, false);
+            lockCachedModule(msg.componentId, msg.moduleId, req.isEx ? "lockModuleOnMemoryEx" : "lockModuleOnMemory");
             if (onModuleLockedHandler) {
                 onModuleLockedHandler(req.moduleRef, req.isEx, 0);
             }
         }
         const url = `/${msg.componentId.toString(16).padStart(2, "0")}/${msg.moduleId.toString(16).padStart(4, "0")}`;
         if (launchRequestDocument?.toLowerCase()?.startsWith(url) === true) {
-            lockCachedModule(msg.componentId, msg.moduleId, false);
+            lockCachedModule(msg.componentId, msg.moduleId, "system");
             const doc = launchRequestDocument;
             launchRequestDocument = null;
             try {
@@ -268,4 +268,16 @@ export function fetchLockedResource(url: string): CachedFile | null {
         return null;
     }
     return cachedFile;
+}
+
+export function* getLockedModules() {
+    for (const c of lockedComponents.values()) {
+        for (const m of c.modules.values()) {
+            // ????
+            if (m.lockedBy === "system") {
+                continue;
+            }
+            yield { module: `/${c.componentId.toString(16).padStart(2, "0")}/${m.moduleId.toString(16).padStart(4, "0")}`, isEx: m.lockedBy === "lockModuleOnMemoryEx" };
+        }
+    }
 }
