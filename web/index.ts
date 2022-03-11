@@ -845,10 +845,6 @@ if (!window.browser) {
     }
 
     HTMLElement.prototype.focus = function focus(options?: FocusOptions) {
-        // focus()の中でfocus()は呼べない
-        if (document.currentEvent?.type === "focus") {
-            return;
-        }
         const prevFocus = document.currentFocus;
         if (prevFocus === this as BMLElement) {
             return;
