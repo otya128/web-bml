@@ -206,7 +206,7 @@ if (!window.browser) {
         return 10; // 秒
     }
     window.browser.subDate = function subDate(target: Date, base: Date, unit: number) {
-        const sub = target.getDate() - base.getDate();
+        const sub = target.getTime() - base.getTime();
         if (unit == 1) {
             return (sub / 1000) | 0;
         } else if (unit == 2) {
@@ -488,8 +488,7 @@ if (!window.browser) {
     };
     window.browser.reloadActiveDocument = function reloadActiveDocument(): number {
         console.log("reloadActiveDocument");
-        location.reload();
-        return NaN;
+        return window.browser.launchDocument(window.browser.getActiveDocument());
     }
     window.browser.readPersistentArray = function (filename: string, structure: string): any[] | null {
         console.log("readPersistentArray", filename, structure);
@@ -500,7 +499,7 @@ if (!window.browser) {
         return writePersistentArray(filename, structure, data, period);
     };
     window.browser.random = function random(num: number): number {
-        return Math.floor(Math.random() * num);
+        return Math.floor(Math.random() * num) + 1;
     };
     window.browser.getActiveDocument = function getActiveDocument(): string | null {
         return activeDocument;
