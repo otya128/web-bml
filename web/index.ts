@@ -141,19 +141,25 @@ if (!window.browser) {
             moduleLocked.forEach(beitem => {
                 if (beitem.getAttribute("subscribe") !== "subscribe") {
                     return;
-                }            
+                }
                 const moduleRef = beitem.getAttribute("module_ref");
                 if (moduleRef == null) {
                     return;
                 }
-                const {moduleId, componentId} = parseURLEx(moduleRef);
+                const { moduleId, componentId } = parseURLEx(moduleRef);
                 if (moduleId == null || componentId == null) {
                     return;
                 }
                 if (resource.moduleExistsInDownloadInfo(componentId, moduleId)) {
-                    eventQueueOnModuleUpdated(moduleRef, 2);
+                    if ((beitem as any).__prevStatus !== 2) {
+                        eventQueueOnModuleUpdated(moduleRef, 2);
+                        (beitem as any).__prevStatus = 2;
+                    }
                 } else {
-                    eventQueueOnModuleUpdated(moduleRef, 1);
+                    if ((beitem as any).__prevStatus !== 1) {
+                        eventQueueOnModuleUpdated(moduleRef, 1);
+                        (beitem as any).__prevStatus = 1;
+                    }
                 }
             });
         }, 1000);
