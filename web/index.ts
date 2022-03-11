@@ -432,8 +432,17 @@ if (!window.browser) {
         console.log("getBrowserSupport", sProvider, functionname, additionalinfo);
         if (sProvider === "ARIB") {
             if (functionname === "BMLversion") {
-                if (additionalinfo === "3.0") {
-                    return (resource.getPMTComponent(0x40)?.bxmlInfo?.entryPointInfo?.bmlMajorVersion ?? 1) >= 3 ? 1 : 0;
+                if (additionalinfo == null) {
+                    return 1;
+                } else {
+                    const [major, minor] = additionalinfo.split(".").map(x => Number.parseInt(x));
+                    if (major == null || minor == null) {
+                        return 0;
+                    }
+                    if ((major < 3 && major >= 0) || (major === 3 && minor === 0)) {
+                        return 1;
+                    }
+                    return 0;
                 }
             } else if (functionname === "APIGroup") {
                 if (additionalinfo === "Ctrl.Basic") {
