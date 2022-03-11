@@ -1020,8 +1020,7 @@ if (!window.browser) {
         }) as (HTMLElement | undefined);
     }
 
-    window.addEventListener("keydown", (event) => {
-        const k = keyCodeToAribKey(event.key);
+    function processKeyDown(k: AribKeyCode) {
         if (k === AribKeyCode.DataButton) {
             // データボタンの場合DataButtonPressedのみが発生する
             try {
@@ -1033,9 +1032,6 @@ if (!window.browser) {
                     throw e;
                 }
             }
-            return;
-        }
-        if (k == -1) {
             return;
         }
         if (!document.currentFocus) {
@@ -1092,6 +1088,7 @@ if (!window.browser) {
                 target: document.currentFocus,
             } as BMLIntrinsicEvent;
             try {
+                lockSyncEventQueue();
                 new Function(onkeydown)();
             } catch (e) {
                 if (e instanceof LongJump) {
@@ -1099,13 +1096,77 @@ if (!window.browser) {
                 } else {
                     throw e;
                 }
+            } finally {
+                unlockSyncEventQueue();
             }
             document.currentEvent = null;
             if (k == AribKeyCode.Enter && document.currentFocus) {
                 queueSyncEvent({ type: "click", target: document.currentFocus });
-                requestDispatchQueue();
             }
+            requestDispatchQueue();
         }
+    }
+
+    function processKeyUp(k: AribKeyCode) {
+        if (k === AribKeyCode.DataButton) {
+            return;
+        }
+        if (!document.currentFocus) {
+            return;
+        }
+        const computedStyle = window.getComputedStyle(document.currentFocus);
+        const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
+        if (usedKeyList.length && usedKeyList[0] === "none") {
+            return;
+        }
+        const keyGroup = keyCodeToKeyGroup.get(k);
+        if (keyGroup == null) {
+            return;
+        }
+        if (usedKeyList.length === 0) {
+            if (keyGroup !== "basic" && keyGroup !== "data-button") {
+                return;
+            }
+        } else if (!usedKeyList.some(x => x === keyGroup)) {
+            return;
+        }
+        const onkeyup = document.currentFocus.getAttribute("onkeyup");
+        if (onkeyup) {
+            document.currentEvent = {
+                keyCode: k,
+                type: "keyup",
+                target: document.currentFocus,
+            } as BMLIntrinsicEvent;
+            try {
+                lockSyncEventQueue();
+                new Function(onkeyup)();
+            } catch (e) {
+                if (e instanceof LongJump) {
+                    console.log("long jump");
+                } else {
+                    throw e;
+                }
+            } finally {
+                unlockSyncEventQueue();
+            }
+            document.currentEvent = null;
+            requestDispatchQueue();
+        }
+    }
+
+    window.addEventListener("keydown", (event) => {
+        const k = keyCodeToAribKey(event.key);
+        if (k == -1) {
+            return;
+        }
+        processKeyDown(k);
+    });
+    window.addEventListener("keyup", (event) => {
+        const k = keyCodeToAribKey(event.key);
+        if (k == -1) {
+            return;
+        }
+        processKeyUp(k);
     });
     function reloadObjectElement(obj: HTMLObjectElement) {
         // chromeではこうでもしないとtypeの変更が反映されない
