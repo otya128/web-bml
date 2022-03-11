@@ -91,7 +91,29 @@ if (!window.browser) {
         }
         resource.unlockAllModule();
         currentDateMode = 0;
-        document.documentElement.innerHTML = bmlToXHTML(file.data);
+        // document.documentElement.innerHTML = bmlToXHTML(file.data);
+        const documentElement = document.createElement("html");
+        documentElement.innerHTML = bmlToXHTML(file.data);
+        const p = Array.from(document.documentElement.childNodes);
+        const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
+        document.documentElement.append(...Array.from(documentElement.children));
+        const videoElementOld = document.body.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
+        if (videoElementOld != null && videoElementNew != null) {
+            for (const attr of Array.from(videoElementNew.attributes)) {
+                videoElementOld.setAttribute(attr.nodeName, attr.nodeValue ?? "");
+            }
+            videoElementNew?.replaceWith(videoElementOld);
+        }
+        if (videoElementNew != null && videoElementNew.querySelectorAll("param").length === 0) {
+            const param = document.createElement("param");
+            param.setAttribute("name", "autoplay");
+            param.setAttribute("value", "autoplay");
+            videoElementNew.appendChild(param);
+        }
+        for (const n of p) {
+            n.remove();
+        }
+
         if (defaultCss != null) {
             const defaultStylesheet = document.createElement("style");
             defaultStylesheet.textContent = defaultCss;

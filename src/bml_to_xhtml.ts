@@ -119,7 +119,16 @@ export function bmlToXHTML(data: Uint8Array): string {
             renameXmlNode(node, "arib-link");
         }
         if (getXmlNodeName(node) == "object") {
-            if (node[":@"] && node[":@"]["@_data"]) {
+            let a = false;
+            if (node[":@"] && node[":@"]["@_type"]) {
+                const type = node[":@"]["@_type"];
+                if (type.toLowerCase() === "video/x-arib-mpeg2") {
+                    node[":@"]["@_arib-type"] = type;
+                    node[":@"]["@_type"] = "video/mp4";
+                    a = true;
+                }
+            }
+            if (!a && node[":@"] && node[":@"]["@_data"]) {
                 const data = node[":@"]["@_data"];
                 node[":@"]["@_arib-data"] = data;
                 delete node[":@"]["@_data"];
