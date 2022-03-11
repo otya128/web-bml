@@ -126,12 +126,10 @@ if (!window.browser) {
                 }
                 document.body.appendChild(s);
             });
-            document.querySelectorAll("[onload]").forEach(elem => {
-                const onload = elem.getAttribute("onload");
-                if (onload != null) {
-                    new Function(onload)();
-                }
-            });
+            const onload = document.body.getAttribute("onload");
+            if (onload != null) {
+                new Function(onload)();
+            }
         }
         finally {
             unlockSyncEventQueue();
