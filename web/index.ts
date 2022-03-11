@@ -629,22 +629,22 @@ if (!window.browser) {
     }
     window.browser.Ureg = new Array(64);
     window.browser.Ureg.fill("");
-    const ureg = sessionStorage.getItem("Ureg");
-    if (ureg) {
-        const uregParsed = JSON.parse(ureg);
-        if (uregParsed.length === 64) {
-            window.browser.Ureg = uregParsed;
-        }
-    }
+    // const ureg = sessionStorage.getItem("Ureg");
+    // if (ureg) {
+    //     const uregParsed = JSON.parse(ureg);
+    //     if (uregParsed.length === 64) {
+    //         window.browser.Ureg = uregParsed;
+    //     }
+    // }
     window.browser.Greg = new Array(64);
     window.browser.Greg.fill("");
-    const greg = sessionStorage.getItem("Greg");
-    if (greg) {
-        const gregParsed = JSON.parse(greg);
-        if (gregParsed.length === 64) {
-            window.browser.Greg = gregParsed;
-        }
-    }
+    // const greg = sessionStorage.getItem("Greg");
+    // if (greg) {
+    //     const gregParsed = JSON.parse(greg);
+    //     if (gregParsed.length === 64) {
+    //         window.browser.Greg = gregParsed;
+    //     }
+    // }
     window.browser.Ureg = new Proxy(window.browser.Ureg, {
         get: (obj, prop) => {
             return obj[prop];
@@ -653,7 +653,7 @@ if (!window.browser) {
             if (Number(prop) >= 0 && Number(prop) <= 63) {
                 value = value.toString();
                 obj[prop] = value;
-                sessionStorage.setItem("Ureg", JSON.stringify(obj));
+                // sessionStorage.setItem("Ureg", JSON.stringify(obj));
             }
             return true;
         }
@@ -666,7 +666,7 @@ if (!window.browser) {
             if (Number(prop) >= 0 && Number(prop) <= 63) {
                 value = value.toString();
                 obj[prop] = value;
-                sessionStorage.setItem("Greg", JSON.stringify(obj));
+                // sessionStorage.setItem("Greg", JSON.stringify(obj));
             }
             return true;
         }
