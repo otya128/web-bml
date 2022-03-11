@@ -209,6 +209,10 @@ object[type="audio/X-arib-mpeg2-aac"] {
     visibility: hidden;
 }
 
+object[type="image/X-arib-png"] {
+    visibility: hidden !important;
+}
+
 /* STD-B24 第二分冊(2/2) 第二編 付属2 4.4.8 */
 @font-face {
     font-family: "丸ゴシック";

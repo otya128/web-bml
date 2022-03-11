@@ -118,6 +118,13 @@ export function bmlToXHTML(data: Uint8Array): string {
             }
             renameXmlNode(node, "arib-link");
         }
+        if (getXmlNodeName(node) == "object") {
+            if (node[":@"] && node[":@"]["@_data"]) {
+                const data = node[":@"]["@_data"];
+                node[":@"]["@_arib-data"] = data;
+                delete node[":@"]["@_data"];
+            }
+        }
         /*
         // keyイベントは独自なのでエミュレートした方がよさそう
         const attrs = node[":@"] as any;

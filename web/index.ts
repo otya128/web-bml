@@ -1207,7 +1207,6 @@ if (!window.browser) {
             }
             const fetched = fetchLockedResource(v);
             if (!fetched) {
-                this.setAttribute("data", v);
                 return;
             }
 
@@ -1225,7 +1224,7 @@ if (!window.browser) {
                 } else {
                     const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
                     const png = aribPNGToPNG(Buffer.from(fetched.data), clut);
-                    const blob = new Blob([png], { type: type ?? "" });
+                    const blob = new Blob([png], { type: "image/png" });
                     const b = URL.createObjectURL(blob);
                     this.setAttribute("data", b);
                     fetched.blobUrl.set(fetchedClut, b);
@@ -1298,8 +1297,11 @@ if (!window.browser) {
             style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl }));
         });
         document.querySelectorAll("object").forEach(obj => {
-            obj.data = obj.data;
-            reloadObjectElement(obj);
+            const adata = obj.getAttribute("arib-data");
+            if (adata != null) {
+                obj.data = adata;
+                reloadObjectElement(obj);
+            }
         });
     }
 
