@@ -2,10 +2,13 @@ const path = require('path');
 const webpack = require('webpack')
 
 module.exports = {
-    entry: './web/index.ts',
+    entry: {
+        arib: './web/index.ts',
+        remote_controller: './web/remote_controller_ui.ts',
+    },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'arib.js',
+        filename: '[name].js',
     },
     module: {
         rules: [

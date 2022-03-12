@@ -918,6 +918,21 @@ router.get('/arib.js.map', async ctx => {
     ctx.set('Content-Type', 'application/json')
 });
 
+router.get('/remote_controller.js', async ctx => {
+    ctx.body = fs.createReadStream("dist/remote_controller.js");
+    ctx.set('Content-Type', 'text/javascript')
+});
+
+router.get('/remote_controller.js.map', async ctx => {
+    ctx.body = fs.createReadStream("dist/remote_controller.js.map");
+    ctx.set('Content-Type', 'application/json')
+});
+
+router.get("/remote_controller.html", async ctx => {
+    ctx.body = fs.createReadStream("web/remote_controller.html");
+    ctx.set("Content-Type", "text/html");
+});
+
 router.get('/default.css', async ctx => {
     ctx.body = fs.createReadStream("web/default.css");
     ctx.set('Content-Type', 'text/css')

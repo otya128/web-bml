@@ -18,6 +18,7 @@ import { Buffer } from "buffer";
 import * as drcs from "../src/drcs";
 // @ts-ignore
 import defaultCss from "./default.css";
+import { RemoteControllerMessage } from "./remote_controller";
 
 interface BMLEvent {
     type: string;
@@ -84,6 +85,9 @@ if (!window.browser) {
         }
         document.currentFocus = null;
         for (const k of Object.keys(window)) {
+            if (Number.parseInt(k).toString() === k) {
+                continue;
+            }
             if (!windowKeys.has(k)) {
                 (window as any)[k] = undefined;
                 // delete (window as any)[k];
@@ -119,6 +123,7 @@ if (!window.browser) {
             defaultStylesheet.textContent = defaultCss;
             document.head.prepend(defaultStylesheet);
         }
+        setRemoteControllerMessage(activeDocument + "\n" + (resource.currentProgramInfo?.eventName ?? ""));
         init();
         // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
         // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
@@ -521,6 +526,7 @@ if (!window.browser) {
         if (!lockCachedModule(componentId, moduleId, "system")) {
             console.error("FIXME");
             resource.launchRequest(documentName);
+            setRemoteControllerMessage(documentName + "のデータ取得中...");
             throw new LongJump(`long jump`);
         }
         const res = fetchLockedResource(documentName);
@@ -1348,5 +1354,55 @@ if (!window.browser) {
     overrideString();
     overrideNumber();
     overrideDate();
+
+    let currentRemoteControllerMessage: string | null = null;
+    function setRemoteControllerMessage(msg: string | null) {
+        const remote = remoteController.contentDocument?.getElementById("active");
+        if (remote != null) {
+            remote.textContent = msg;
+        }
+        currentRemoteControllerMessage = msg;
+    }
+    function createRemoteController(): HTMLIFrameElement {
+        const controller = document.createElement("iframe");
+        controller.src = "/remote_controller.html";
+        controller.style.width = "280px";
+        controller.style.height = "540px";
+        controller.style.left = "1000px";
+        controller.style.position = "absolute";
+        controller.style.zIndex = "1000";
+        return controller;
+    }
+    const remoteController = createRemoteController();
+    document.documentElement.append(remoteController);
+    window.addEventListener("message", (ev) => {
+        const remoteController = ev.data?.remoteController as (RemoteControllerMessage | undefined);
+        if (remoteController != null) {
+            if (remoteController.type === "unmute") {
+                if (videoElement != null) {
+                    videoElement.muted = false;
+                }
+            } else if (remoteController.type === "mute") {
+                if (videoElement != null) {
+                    videoElement.muted = true;
+                }
+            } else if (remoteController.type === "button") {
+                processKeyDown(remoteController.keyCode as AribKeyCode);
+                processKeyUp(remoteController.keyCode as AribKeyCode);
+            } else if (remoteController.type === "keydown") {
+                const k = keyCodeToAribKey(remoteController.key);
+                if (k != -1) {
+                    processKeyDown(k);
+                }
+            } else if (remoteController.type === "keyup") {
+                const k = keyCodeToAribKey(remoteController.key);
+                if (k != -1) {
+                    processKeyUp(k);
+                }
+            } else if (remoteController.type === "load") {
+                setRemoteControllerMessage(currentRemoteControllerMessage);
+            }
+        }
+    });
     const windowKeys = new Set<string>(Object.keys(window));
 }
