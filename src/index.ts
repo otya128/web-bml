@@ -22,7 +22,9 @@ import { aribPNGToPNG } from './arib_png';
 import { readCLUT } from './clut';
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import http from "http";
-import ID3MetadataTransform from 'arib-subtitle-timedmetadater';
+import { randomUUID } from 'crypto';
+import { LiveStream } from './stream/live_stream';
+import { HLSLiveStream } from './stream/hls_stream';
 
 const ws = websocket();
 
@@ -1064,8 +1066,6 @@ router.get("/:a.jpg", async ctx => {
 });
 
 
-import { randomUUID } from 'crypto';
-
 // UUID => stream
 const streams = new Map<string, DataBroadcastingStream>();
 const max_number_of_streams = 4;
@@ -1077,17 +1077,21 @@ type DataBroadcastingStream = {
     transformStream?: stream.Transform,
     size: number,
     ws: WebSocket,
-    ffmpegProcess?: ChildProcessWithoutNullStreams,
+    liveStream?: LiveStream,
 };
 
-function closeDataBroadcastingStream(dbs: DataBroadcastingStream) {
-    console.log("close ", dbs.id);
-    if (dbs.ffmpegProcess != null) {
-        dbs.ffmpegProcess.stdout.unpipe();
-        dbs.ffmpegProcess.kill();
-    }
-    // readStream->transformStream->tsStream->ffmpeg->response
+
+function closeDataBroadcastingLiveStream(dbs: DataBroadcastingStream) {
+    console.log("close live stream ", dbs.id);
+    dbs.liveStream?.destroy();
     dbs.tsStream.unpipe();
+    dbs.liveStream = undefined;
+}
+
+function closeDataBroadcastingStream(dbs: DataBroadcastingStream) {
+    closeDataBroadcastingLiveStream(dbs);
+    console.log("close ", dbs.id);
+    // readStream->transformStream->tsStream->ffmpeg->response
     dbs.transformStream?.unpipe();
     dbs.readStream.unpipe();
     dbs.readStream.destroy();
@@ -1119,22 +1123,20 @@ router.get("/streams/:id.mp4", async (ctx) => {
     if (dbs == null) {
         return;
     }
+    if (dbs.liveStream) {
+        closeDataBroadcastingLiveStream(dbs);
+    }
     const { tsStream } = dbs;
     ctx.set("Content-Type", "video/mp4");
     ctx.status = 200;
 
-    const ffmpegProcess = spawn(ffmpeg, args);
-    dbs.ffmpegProcess = ffmpegProcess;
     tsStream.unpipe();
-    tsStream.pipe(ffmpegProcess.stdin);
+    dbs.liveStream = new LiveStream(ffmpeg, args, dbs.tsStream);
     tsStream.resume();
-    ffmpegProcess.stderr.on("data", (data) => console.error(data.toString()));
     try {
-        await pipeAsync(ffmpegProcess.stdout, ctx.res, { end: true });
+        await pipeAsync(dbs.liveStream.encoderProcess.stdout, ctx.res, { end: true });
     } finally {
-        console.log("kill ffmpeg ", dbs.id);
-        ffmpegProcess.kill();
-        dbs.ffmpegProcess = undefined;
+        closeDataBroadcastingLiveStream(dbs);
     }
 });
 
@@ -1144,22 +1146,20 @@ router.get("/streams/:id.h264.m2ts", async (ctx) => {
     if (dbs == null) {
         return;
     }
+    if (dbs.liveStream) {
+        closeDataBroadcastingLiveStream(dbs);
+    }
     const { tsStream } = dbs;
     ctx.set("Content-Type", "video/mp2t");
     ctx.status = 200;
 
-    const ffmpegProcess = spawn(ffmpeg, mpegtsArgs);
-    dbs.ffmpegProcess = ffmpegProcess;
     tsStream.unpipe();
-    tsStream.pipe(ffmpegProcess.stdin);
+    dbs.liveStream = new LiveStream(ffmpeg, mpegtsArgs, dbs.tsStream);
     tsStream.resume();
-    ffmpegProcess.stderr.on("data", (data) => console.error(data.toString()));
     try {
-        await pipeAsync(ffmpegProcess.stdout, ctx.res, { end: true });
+        await pipeAsync(dbs.liveStream.encoderProcess.stdout, ctx.res, { end: true });
     } finally {
-        console.log("kill ffmpeg ", dbs.id);
-        ffmpegProcess.kill();
-        dbs.ffmpegProcess = undefined;
+        closeDataBroadcastingLiveStream(dbs);
     }
 });
 
@@ -1193,20 +1193,18 @@ router.get("/streams/:id.m3u8", async (ctx) => {
     if (dbs == null) {
         return;
     }
-    if (dbs.ffmpegProcess) {
+    const { tsStream } = dbs;
+    if (dbs.liveStream instanceof HLSLiveStream) {
         ctx.body = await readFileAsync2(path.join(hlsDir, dbs.id + ".m3u8"));
         return;
     }
-    const { tsStream } = dbs;
-    const ffmpegProcess = spawn(ffmpeg, getHLSArguments(hlsDir, path.join(hlsDir, dbs.id + "-%09d.ts"), path.join(hlsDir, dbs.id + ".m3u8")));
-    dbs.ffmpegProcess = ffmpegProcess;
+    if (dbs.liveStream) {
+        closeDataBroadcastingLiveStream(dbs);
+    }
     tsStream.unpipe();
-    const id3MetadataTransoform = new ID3MetadataTransform();
-    tsStream.pipe(id3MetadataTransoform);
-    id3MetadataTransoform.pipe(ffmpegProcess.stdin);
-    // tsStream.pipe(ffmpegProcess.stdin);
+    const hlsLiveStream = new HLSLiveStream(ffmpeg, getHLSArguments(hlsDir, path.join(hlsDir, dbs.id + "-%09d.ts"), path.join(hlsDir, dbs.id + ".m3u8")), dbs.tsStream);
     tsStream.resume();
-    ffmpegProcess.stderr.on("data", (data) => console.error(data.toString()));
+    dbs.liveStream = hlsLiveStream;
     const pollingTime = 100;
     let limitTime = 60 * 1000;
     while (limitTime > 0) {
@@ -1260,7 +1258,7 @@ router.get("/api/streams", async (ctx) => {
         {
             id: x.id,
             registeredAt: x.registeredAt.getTime(),
-            ffmpegProcessId: x.ffmpegProcess?.pid,
+            encoderProcessId: x.liveStream?.encoderProcess.pid,
         }
     ));
     ctx.status = 200;
