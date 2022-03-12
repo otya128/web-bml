@@ -84,7 +84,7 @@ if (!window.browser) {
         window.clearInterval(handle);
         intervalHandles.delete(handle);
     }
-    function loadDocument(file: CachedFile) {
+    function loadDocument(file: CachedFile, documentName: string) {
         const onunload = document.body.getAttribute("onunload");
         if (onunload != null) {
             new Function(onunload)();
@@ -98,6 +98,7 @@ if (!window.browser) {
             window.clearTimeout(i);
         }
         timeoutHandles.clear();
+        resource.setActiveDocument(documentName);
         document.currentFocus = null;
         for (const k of Object.keys(window)) {
             if (Number.parseInt(k).toString() === k) {
@@ -538,8 +539,13 @@ if (!window.browser) {
             return NaN;
         }
         const ad = activeDocument;
-        resource.setActiveDocument(componentId, moduleId, filename);
-        loadDocument(res);
+        let normalizedDocument;
+        if (filename != null) {
+            normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}/${filename}`;
+        } else {
+            normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
+        }
+        loadDocument(res, normalizedDocument);
         console.log("return ", ad, documentName);
         // location.href = documentName;
         return 0;

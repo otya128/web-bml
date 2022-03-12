@@ -41,12 +41,8 @@ export let activeDocument: null | string = null;
 function documentLoaded() {
     return activeDocument != null;
 }
-export function setActiveDocument(componentId: number, moduleId: number, filename: string | null) {
-    if (filename != null) { // ?
-        activeDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}/${filename}`;
-    } else {
-        activeDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
-    }
+export function setActiveDocument(doc: string) {
+    activeDocument = doc;
 }
 const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/ws?param=" + encodeURIComponent(JSON.stringify(getParametersFromUrl(location.href))));
 const cachedComponents = new Map<number, CachedComponent>();
