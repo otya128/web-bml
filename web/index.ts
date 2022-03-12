@@ -85,6 +85,10 @@ if (!window.browser) {
         intervalHandles.delete(handle);
     }
     function loadDocument(file: CachedFile) {
+        const onunload = document.body.getAttribute("onunload");
+        if (onunload != null) {
+            new Function(onunload)();
+        }
         // タイマー全部消す
         for (const i of intervalHandles.values()) {
             window.clearInterval(i);
