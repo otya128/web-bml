@@ -21,6 +21,7 @@ import { ComponentPMT, AdditionalAribBXMLInfo } from './ws_api';
 import { aribPNGToPNG } from './arib_png';
 import { readCLUT } from './clut';
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
+import http from "http";
 
 const ws = websocket();
 
@@ -1050,16 +1051,48 @@ router.get("/streams/:id.mp4", async (ctx) => {
     }
 });
 
+// 40772はLinuxのエフェメラルポート
+const mirakBaseUrl = (process.env.MIRAK_URL ?? "http://localhost:40772/").replace(/\/+$/, "") + "/api/";
+const epgBaseUrl = (process.env.EPG_URL ?? "http://localhost:8888/").replace(/\/+$/, "") + "/api/";
+
+function httpGetAsync(options: string | http.RequestOptions | URL): Promise<http.IncomingMessage> {
+    return new Promise<http.IncomingMessage>((resolve, _reject) => {
+        http.get(options, (res) => {
+            resolve(res);
+        });
+    });
+}
+
 router.get('/api/ws', async (ctx) => {
     if (!ctx.ws) {
         return;
+    }
+    let readStream: stream.Readable;
+    // とりあえず手動validate
+    if (typeof ctx.query.param === "string") {
+        const query: any = JSON.parse(ctx.query.param);
+        if (query != null && typeof query === "object") {
+            if (query.type === "mirakLive" && typeof query.channelType === "string" && typeof query.channel === "string" && (query.id == null || typeof query.id == "number")) {
+                const q = query as wsApi.MirakLiveParam;
+                const res = await httpGetAsync(mirakBaseUrl + `"/channels/${encodeURI(q.channelType)}/${encodeURI(q.channel)}/services/${q.id}/stream`);
+                readStream = res;
+            } else if (query.type === "epgStationRecorded" && typeof query.videoFileId === "number") {
+                const q = query as wsApi.EPGStationRecordedParam;
+                readStream = await httpGetAsync(epgBaseUrl + `videos/${q.videoFileId}`);
+            } else {
+                return;
+            }
+        } else {
+            return;
+        }
+    } else {
+        readStream = process.argv[2] === "-" ? process.stdin : fs.createReadStream(process.argv[2]);
     }
     const ws = await ctx.ws();
     const id = randomUUID();
     let size = process.argv[2] === "-" ? 0 : fs.statSync(process.argv[2]).size;
     const tsStream = new TsStream();
 
-    const readStream = process.argv[2] === "-" ? process.stdin : fs.createReadStream(process.argv[2]);
     const dbs = {
         id,
         registeredAt: new Date(),
@@ -1078,7 +1111,7 @@ router.get('/api/ws', async (ctx) => {
         return;
     }
     // TODO: readStreamを読み終わった時もちゃんと閉じた方がよさそう
-    
+
     tsStream.pause();
     playTS(dbs);
 
@@ -1089,7 +1122,7 @@ router.get('/api/ws', async (ctx) => {
     ws.on("message", (message) => {
         const _ = JSON.parse(message.toString("utf-8")) as wsApi.RequestMessage;
     });
-    
+
     unicast(ws, {
         type: "videoStreamUrl",
         videoStreamUrl: "/streams/" + id,
