@@ -116,7 +116,7 @@ if (!window.browser) {
         const p = Array.from(document.documentElement.childNodes).filter(x => x.nodeName === "body" || x.nodeName === "head");
         const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
         document.documentElement.append(...Array.from(documentElement.children));
-        if (videoElementNew != null && videoElementNew.querySelectorAll("param").length === 0) {
+        if (videoElementNew != null) {
             videoElementNew.appendChild(videoContainer);
         }
         for (const n of p) {
@@ -130,6 +130,7 @@ if (!window.browser) {
         }
         setRemoteControllerMessage(activeDocument + "\n" + (resource.currentProgramInfo?.eventName ?? ""));
         init();
+        (document.body as any).invisible = (document.body as any).invisible;
         // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
         // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
         lockSyncEventQueue();
@@ -777,6 +778,23 @@ if (!window.browser) {
                 (this as HTMLElement).setAttribute("subscribe", "subscribe");
             } else {
                 (this as HTMLElement).removeAttribute("subscribe");
+            }
+        },
+    });
+    Object.defineProperty(HTMLBodyElement.prototype, "invisible", {
+        get: function () {
+            return (this as HTMLElement).getAttribute("invisible")?.match(/^invisible$/i) != null;
+        },
+        set: function (v: boolean) {
+            if (v) {
+                document.getElementById("arib-video-invisible-container")?.appendChild(videoContainer);
+                (this as HTMLElement).setAttribute("invisible", "invisible");
+            } else {
+                const obj = document.body.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
+                if (obj != null) {
+                    obj.appendChild(videoContainer);
+                }
+                (this as HTMLElement).removeAttribute("invisible");
             }
         },
     });
