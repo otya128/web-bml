@@ -22,6 +22,7 @@ import { aribPNGToPNG } from './arib_png';
 import { readCLUT } from './clut';
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import http from "http";
+import ID3MetadataTransform from 'arib-subtitle-timedmetadater';
 
 const ws = websocket();
 
@@ -1200,7 +1201,10 @@ router.get("/streams/:id.m3u8", async (ctx) => {
     const ffmpegProcess = spawn(ffmpeg, getHLSArguments(hlsDir, path.join(hlsDir, dbs.id + "-%09d.ts"), path.join(hlsDir, dbs.id + ".m3u8")));
     dbs.ffmpegProcess = ffmpegProcess;
     tsStream.unpipe();
-    tsStream.pipe(ffmpegProcess.stdin);
+    const id3MetadataTransoform = new ID3MetadataTransform();
+    tsStream.pipe(id3MetadataTransoform);
+    id3MetadataTransoform.pipe(ffmpegProcess.stdin);
+    // tsStream.pipe(ffmpegProcess.stdin);
     tsStream.resume();
     ffmpegProcess.stderr.on("data", (data) => console.error(data.toString()));
     const pollingTime = 100;

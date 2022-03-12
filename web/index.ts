@@ -67,6 +67,7 @@ declare global {
 
 if (!window.browser) {
     const videoElement = document.querySelector("video") as HTMLVideoElement;
+    const videoContainer = document.getElementById("arib-video-container") as HTMLDivElement;
     const timeoutHandles = new Set<number>();
     const intervalHandles = new Set<number>();
     function bmlSetTimeout(handler: TimerHandler, timeout: number, ...args: any[]): number {
@@ -111,7 +112,7 @@ if (!window.browser) {
         const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
         document.documentElement.append(...Array.from(documentElement.children));
         if (videoElementNew != null && videoElementNew.querySelectorAll("param").length === 0) {
-            videoElementNew.appendChild(videoElement);
+            videoElementNew.appendChild(videoContainer);
         }
         for (const n of p) {
             n.remove();

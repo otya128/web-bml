@@ -9,6 +9,8 @@
     "@babel/traverse": "^7.17.3",
     "@babel/types": "^7.17.0",
     "@chinachu/aribts": "^1.3.5-mirakurun.18",
+    "arib-subtitle-timedmetadater": "^4.0.9",
+    "aribb24.js": "^1.8.9",
     "buffer": "^6.0.3",
     "crc-32": "^1.2.1",
     "css": "^3.0.0",

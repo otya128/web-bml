@@ -1,6 +1,8 @@
 import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage, Param, MirakLiveParam, EPGStationRecordedParam } from "../src/ws_api";
-import Hls from "hls.js";
-import Mpegts from "mpegts.js";
+
+import { play as playMP4 } from "./player/mp4";
+import { play as playMPEGTS } from "./player/mpegts";
+import { play as playHLS } from "./player/hls";
 
 export class LongJump extends Error { }
 function getParametersFromUrl(url: string): Param | {} {
@@ -238,29 +240,7 @@ ws.addEventListener("message", (ev) => {
         currentTime = msg;
     } else if (msg.type === "videoStreamUrl") {
         const videoElement = document.querySelector("video") as HTMLVideoElement; // a
-        /*
-        videoElement.innerHTML = "";
-        const sourceElement = document.createElement("source");
-        sourceElement.type = "video/mp4";
-        sourceElement.src = msg.videoStreamUrl + ".mp4";
-        videoElement.appendChild(sourceElement);
-        //*/
-        if (Mpegts.getFeatureList().mseLivePlayback) {
-            var player = Mpegts.createPlayer({
-                type: "mse",
-                isLive: true,
-                url: msg.videoStreamUrl + ".h264.m2ts"
-            });
-            player.attachMediaElement(videoElement);
-            player.load();
-            player.play();    
-        } else if (Hls.isSupported()) {
-            var hls = new Hls({
-                manifestLoadingTimeOut: 60 * 1000,
-            });
-            hls.loadSource(msg.videoStreamUrl + ".m3u8");
-            hls.attachMedia(videoElement);
-        }
+        playHLS(msg.videoStreamUrl, videoElement);
         videoElement.style.display = "";
     } else if (msg.type === "error") {
         console.error(msg);
