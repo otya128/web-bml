@@ -144,11 +144,12 @@ export function bmlToXHTML(data: Uint8Array): string {
         }
     });
     for (const s of scripts) {
+        /*
         const __cdata = findXmlNode(s["script"], "__cdata");
         for (const c of __cdata) {
             const code = c["__cdata"][0]["#text"];
             c["__cdata"][0]["#text"] = transpile(code);
-        }
+        }*/
         bodyChildren.push(s);
     }
     //console.log(JSON.stringify(parsed, null, 4));

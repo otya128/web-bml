@@ -31,6 +31,7 @@ module.exports = {
             fs: false,
             path: false,
             url: false,
+            vm: false,
             // babelのため
             process: require.resolve('process/browser'),
             Buffer: require.resolve('buffer'),
@@ -43,6 +44,9 @@ module.exports = {
         new webpack.ProvidePlugin({
             process: 'process/browser',
             Buffer: 'buffer',
+        }),
+        new webpack.ProvidePlugin({
+            acorn: path.resolve(__dirname, 'JS-Interpreter', 'acorn.js')
         }),
     ],
 };

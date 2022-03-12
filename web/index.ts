@@ -19,6 +19,8 @@ import * as drcs from "../src/drcs";
 // @ts-ignore
 import defaultCss from "./default.css";
 import { RemoteControllerMessage } from "./remote_controller";
+import { NativeInterpreter } from '../web/interpreter/native_interpreter';
+import { JSInterpreter } from "./interpreter/js_interpreter";
 
 interface BMLEvent {
     type: string;
@@ -66,6 +68,16 @@ declare global {
 
 
 if (!window.browser) {
+    function executeEventHandler(handler: string) {
+        if (/^\s*$/.exec(handler)) {
+            return;
+        }
+        const groups = /^\s*(?<funcName>[a-zA-Z_][0-9a-zA-Z_]*)\s*\(\s*\)\s*;?\s*$/.exec(handler)?.groups;
+        if (!groups) {
+            throw new Error("invalid event handler attribute " + handler);
+        }
+        interpreter.runEventHandler(groups.funcName);
+    }
     const videoElement = document.querySelector("video") as HTMLVideoElement;
     const videoContainer = document.getElementById("arib-video-container") as HTMLDivElement;
     const timeoutHandles = new Set<number>();
@@ -87,7 +99,7 @@ if (!window.browser) {
     function loadDocument(file: CachedFile, documentName: string) {
         const onunload = document.body.getAttribute("onunload");
         if (onunload != null) {
-            new Function(onunload)();
+            executeEventHandler(onunload);
         }
         // タイマー全部消す
         for (const i of intervalHandles.values()) {
@@ -109,6 +121,7 @@ if (!window.browser) {
                 // delete (window as any)[k];
             }
         }
+        interpreter.reset();
         resource.unlockAllModule();
         currentDateMode = 0;
         const documentElement = document.createElement("html");
@@ -148,16 +161,18 @@ if (!window.browser) {
                         //    type: "text/javascript;encoding=euc-jp"
                         //}));
                         s.setAttribute("arib-src", src);
-                        s.textContent = "// " + src + "\n" + transpile(decodeEUCJP(res.data));
+                        s.textContent = "// " + src + "\n" + decodeEUCJP(res.data);
                     }
                 } else {
                     s.textContent = "// " + activeDocument + "\n" + x.textContent;
                 }
-                document.body.appendChild(s);
+                interpreter.addScript(s.textContent ?? "", src ?? undefined);
+                // document.body.appendChild(s);
             });
+            interpreter.runScript();
             const onload = document.body.getAttribute("onload");
             if (onload != null) {
-                new Function(onload)();
+                executeEventHandler(onload);
             }
         }
         finally {
@@ -386,7 +401,7 @@ if (!window.browser) {
                         object: null,
                         segmentId: null,
                     } as BMLBeventEvent;
-                    new Function(onoccur)();//eval.call(window, onoccur);
+                    executeEventHandler(onoccur);
                     document.currentEvent = null;
                 }
             }
@@ -422,7 +437,7 @@ if (!window.browser) {
                         object: null,
                         segmentId: null,
                     } as BMLBeventEvent;
-                    new Function(onoccur)();//eval.call(window, onoccur);
+                    executeEventHandler(onoccur);
                     document.currentEvent = null;
                 }
             }
@@ -456,7 +471,7 @@ if (!window.browser) {
                     object: null,
                     segmentId: null,
                 } as BMLBeventEvent;
-                new Function(onoccur)();//eval.call(window, onoccur);
+                executeEventHandler(onoccur);
                 document.currentEvent = null;
             }
         }
@@ -725,7 +740,7 @@ if (!window.browser) {
             if (iteration === 0) {
                 bmlClearInterval(handle);
             }
-            eval(evalCode);
+            executeEventHandler(evalCode);
         }, msec);
         console.log("setInterval", evalCode, msec, iteration, handle);
         return handle;
@@ -874,7 +889,7 @@ if (!window.browser) {
         } as BMLEvent;
         const handler = event.target.getAttribute("onfocus");
         if (handler) {
-            new Function(handler)();
+            executeEventHandler(handler);
         }
         document.currentEvent = null;
     }
@@ -886,7 +901,7 @@ if (!window.browser) {
         } as BMLEvent;
         const handler = event.target.getAttribute("onblur");
         if (handler) {
-            new Function(handler)();
+            executeEventHandler(handler);
         }
         document.currentEvent = null;
     }
@@ -898,7 +913,7 @@ if (!window.browser) {
         } as BMLEvent;
         const handler = event.target.getAttribute("onclick");
         if (handler) {
-            new Function(handler)();
+            executeEventHandler(handler);
         }
         document.currentEvent = null;
     }
@@ -1157,7 +1172,7 @@ if (!window.browser) {
             } as BMLIntrinsicEvent;
             try {
                 lockSyncEventQueue();
-                new Function(onkeydown)();
+                executeEventHandler(onkeydown);
             } catch (e) {
                 if (e instanceof LongJump) {
                     console.log("long jump");
@@ -1207,7 +1222,7 @@ if (!window.browser) {
             } as BMLIntrinsicEvent;
             try {
                 lockSyncEventQueue();
-                new Function(onkeyup)();
+                executeEventHandler(onkeyup);
             } catch (e) {
                 if (e instanceof LongJump) {
                     console.log("long jump");
@@ -1440,4 +1455,6 @@ if (!window.browser) {
     const remoteControllerFrame = createRemoteController();
     document.documentElement.append(remoteControllerFrame);
     const windowKeys = new Set<string>(Object.keys(window));
+    // const interpreter = new NativeInterpreter();
+    const interpreter = new JSInterpreter(window.browser);
 }
