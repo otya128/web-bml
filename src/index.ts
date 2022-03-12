@@ -247,6 +247,7 @@ function closeDataBroadcastingStream(dbs: DataBroadcastingStream) {
     dbs.readStream.unpipe();
     dbs.readStream.destroy();
     dbs.ws.close(4000);
+    streams.delete(dbs.id);
 }
 
 function registerDataBroadcastingStream(dbs: DataBroadcastingStream): boolean {
@@ -260,7 +261,6 @@ function registerDataBroadcastingStream(dbs: DataBroadcastingStream): boolean {
             } as wsApi.ResponseMessage;
             unicast(oldest[0].ws, msg);
             closeDataBroadcastingStream(oldest[0]);
-            streams.delete(oldest[0].id);
         } else {
             return false;
         }
@@ -286,9 +286,9 @@ router.get("/streams/:id.mp4", async (ctx) => {
     tsStream.resume();
     try {
         await pipeAsync(dbs.liveStream.encoderProcess.stdout, ctx.res, { end: true });
-    } finally {
-        closeDataBroadcastingLiveStream(dbs);
+    } catch {
     }
+    closeDataBroadcastingStream(dbs);
 });
 
 
@@ -309,9 +309,9 @@ router.get("/streams/:id.h264.m2ts", async (ctx) => {
     tsStream.resume();
     try {
         await pipeAsync(dbs.liveStream.encoderProcess.stdout, ctx.res, { end: true });
-    } finally {
-        closeDataBroadcastingLiveStream(dbs);
+    } catch {
     }
+    closeDataBroadcastingStream(dbs);
 });
 
 mkdirSync(hlsDir, { recursive: true });
