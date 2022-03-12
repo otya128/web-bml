@@ -598,7 +598,7 @@ if (!window.browser) {
             if (n == null) {
                 return null;
             }
-            return "0x" + n.toString(16).padStart(d);
+            return "0x" + n.toString(16).padStart(d, "0");
         }
         if (type == 1) {
             return toHex(resource.currentProgramInfo?.eventId, 4);
