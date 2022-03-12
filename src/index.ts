@@ -14,6 +14,14 @@ import { DataBroadcastingStream, LiveStream } from './stream/live_stream';
 import { HLSLiveStream } from './stream/hls_stream';
 import { decodeTS } from './decode_ts';
 
+const ffmpeg = process.env.FFMPEG ?? "ffmpeg";
+const hlsDir = process.env.HLS_DIR ?? "./hls";
+// 40772はLinuxのエフェメラルポート
+const mirakBaseUrl = (process.env.MIRAK_URL ?? "http://localhost:40772/").replace(/\/+$/, "") + "/api/";
+const epgBaseUrl = (process.env.EPG_URL ?? "http://localhost:8888/").replace(/\/+$/, "") + "/api/";
+
+const inputFile = process.argv[2];
+
 const ws = websocket();
 
 // EPGStationのパラメータ参照
@@ -68,7 +76,7 @@ const mpegtsArgs = [
     "pipe:1",
 ];
 
-function getHLSArguments(hlsDir: string, segmentFilename: string, manifestFilename: string): string[] {
+function getHLSArguments(segmentFilename: string, manifestFilename: string): string[] {
     return [
         "-re",
         "-dual_mono_mode", "main",
@@ -96,7 +104,6 @@ function getHLSArguments(hlsDir: string, segmentFilename: string, manifestFilena
         manifestFilename,
     ]
 };
-const ffmpeg = "ffmpeg";
 
 
 function unicast(client: WebSocket, msg: wsApi.ResponseMessage) {
@@ -307,7 +314,6 @@ router.get("/streams/:id.h264.m2ts", async (ctx) => {
     }
 });
 
-const hlsDir = process.env.HLS_DIR ?? "./hls";
 mkdirSync(hlsDir, { recursive: true });
 function cleanUpHLS() {
     for (const entry of fs.readdirSync(hlsDir, { withFileTypes: true })) {
@@ -346,7 +352,7 @@ router.get("/streams/:id.m3u8", async (ctx) => {
         closeDataBroadcastingLiveStream(dbs);
     }
     tsStream.unpipe();
-    const hlsLiveStream = new HLSLiveStream(ffmpeg, getHLSArguments(hlsDir, path.join(hlsDir, dbs.id + "-%09d.ts"), path.join(hlsDir, dbs.id + ".m3u8")), dbs.tsStream);
+    const hlsLiveStream = new HLSLiveStream(ffmpeg, getHLSArguments(path.join(hlsDir, dbs.id + "-%09d.ts"), path.join(hlsDir, dbs.id + ".m3u8")), dbs.tsStream);
     tsStream.resume();
     dbs.liveStream = hlsLiveStream;
     const pollingTime = 100;
@@ -361,9 +367,6 @@ router.get("/streams/:id.m3u8", async (ctx) => {
     }
 });
 
-// 40772はLinuxのエフェメラルポート
-const mirakBaseUrl = (process.env.MIRAK_URL ?? "http://localhost:40772/").replace(/\/+$/, "") + "/api/";
-const epgBaseUrl = (process.env.EPG_URL ?? "http://localhost:8888/").replace(/\/+$/, "") + "/api/";
 
 async function streamToString(stream: stream.Readable) {
     const chunks: Buffer[] = [];
@@ -403,6 +406,7 @@ router.get("/api/streams", async (ctx) => {
             id: x.id,
             registeredAt: x.registeredAt.getTime(),
             encoderProcessId: x.liveStream?.encoderProcess.pid,
+            source: x.source,
         }
     ));
     ctx.status = 200;
@@ -413,6 +417,8 @@ router.get('/api/ws', async (ctx) => {
         return;
     }
     let readStream: stream.Readable;
+    let size = 0;
+    let source: string;
     // とりあえず手動validate
     if (typeof ctx.query.param === "string") {
         const query: any = JSON.parse(ctx.query.param);
@@ -420,15 +426,21 @@ router.get('/api/ws', async (ctx) => {
             if (query.type === "mirakLive" && typeof query.channelType === "string" && typeof query.channel === "string" && (query.serviceId == null || typeof query.serviceId == "number")) {
                 const q = query as wsApi.MirakLiveParam;
                 if (q.serviceId == null) {
-                    const res = await httpGetAsync(mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/stream`);
-                    readStream = res;
+                    source = mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/stream`;
                 } else {
-                    const res = await httpGetAsync(mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/services/${q.serviceId}/stream`);
-                    readStream = res;
+                    source = mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/services/${q.serviceId}/stream`;
                 }
+                const res = await httpGetAsync(source);
+                readStream = res;
             } else if (query.type === "epgStationRecorded" && typeof query.videoFileId === "number") {
                 const q = query as wsApi.EPGStationRecordedParam;
-                readStream = await httpGetAsync(epgBaseUrl + `videos/${q.videoFileId}`);
+                source = epgBaseUrl + `videos/${q.videoFileId}`;
+                const res = await httpGetAsync(source);
+                readStream = res;
+                const len = Number.parseInt(res.headers["content-length"] || "NaN");
+                if (Number.isFinite(len)) {
+                    size = len;
+                }
             } else {
                 return;
             }
@@ -436,20 +448,27 @@ router.get('/api/ws', async (ctx) => {
             return;
         }
     } else {
-        readStream = process.argv[2] === "-" ? process.stdin : fs.createReadStream(process.argv[2]);
+        if (inputFile === "-" || inputFile == null) {
+            source = "stdin";
+            readStream = process.stdin;
+        } else {
+            source = inputFile;
+            readStream = fs.createReadStream(inputFile);
+            size = fs.statSync(inputFile).size;
+        }
     }
     const ws = await ctx.ws();
     const id = randomUUID();
-    let size = process.argv[2] === "-" ? 0 : fs.statSync(process.argv[2]).size;
     const tsStream = new TsStream();
 
-    const dbs = {
+    const dbs: DataBroadcastingStream = {
         id,
         registeredAt: new Date(),
         readStream,
         tsStream,
         size,
         ws,
+        source,
     };
     if (!registerDataBroadcastingStream(dbs)) {
         const msg = {

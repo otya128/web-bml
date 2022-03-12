@@ -11,6 +11,7 @@ export type DataBroadcastingStream = {
     size: number,
     ws: WebSocket,
     liveStream?: LiveStream,
+    source: string,
 };
 
 export class LiveStream {
