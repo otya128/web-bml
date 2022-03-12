@@ -1132,6 +1132,31 @@ router.get("/streams/:id.mp4", async (ctx) => {
     }
 });
 
+
+router.get("/streams/:id.h264.m2ts", async (ctx) => {
+    const dbs = streams.get(ctx.params.id);
+    if (dbs == null) {
+        return;
+    }
+    const { tsStream } = dbs;
+    ctx.set("Content-Type", "video/mp2t");
+    ctx.status = 200;
+
+    const ffmpegProcess = spawn(ffmpeg, mpegtsArgs);
+    dbs.ffmpegProcess = ffmpegProcess;
+    tsStream.unpipe();
+    tsStream.pipe(ffmpegProcess.stdin);
+    tsStream.resume();
+    ffmpegProcess.stderr.on("data", (data) => console.error(data.toString()));
+    try {
+        await pipeAsync(ffmpegProcess.stdout, ctx.res, { end: true });
+    } finally {
+        console.log("kill ffmpeg ", dbs.id);
+        ffmpegProcess.kill();
+        dbs.ffmpegProcess = undefined;
+    }
+});
+
 const hlsDir = process.env.HLS_DIR ?? "./hls";
 mkdirSync(hlsDir, { recursive: true });
 function cleanUpHLS() {

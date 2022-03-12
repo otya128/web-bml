@@ -1,5 +1,6 @@
 import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage, Param, MirakLiveParam, EPGStationRecordedParam } from "../src/ws_api";
 import Hls from "hls.js";
+import Mpegts from "mpegts.js";
 
 export class LongJump extends Error { }
 function getParametersFromUrl(url: string): Param | {} {
@@ -246,7 +247,16 @@ ws.addEventListener("message", (ev) => {
         sourceElement.src = msg.videoStreamUrl + ".mp4";
         videoElement.appendChild(sourceElement);
         //*/
-        if (Hls.isSupported()) {
+        if (Mpegts.getFeatureList().mseLivePlayback) {
+            var player = Mpegts.createPlayer({
+                type: "mse",
+                isLive: true,
+                url: msg.videoStreamUrl + ".h264.m2ts"
+            });
+            player.attachMediaElement(videoElement);
+            player.load();
+            player.play();    
+        } else if (Hls.isSupported()) {
             var hls = new Hls({
                 manifestLoadingTimeOut: 60 * 1000,
             });
