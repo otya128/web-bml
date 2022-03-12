@@ -1,5 +1,17 @@
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
-import { Transform } from "stream";
+import { Transform, Readable } from "stream";
+import { WebSocket } from "ws";
+
+export type DataBroadcastingStream = {
+    id: string,
+    registeredAt: Date,
+    readStream: Readable,
+    tsStream: Transform,
+    transformStream?: Transform,
+    size: number,
+    ws: WebSocket,
+    liveStream?: LiveStream,
+};
 
 export class LiveStream {
     encoderProcess: ChildProcessWithoutNullStreams;
