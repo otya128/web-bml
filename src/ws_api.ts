@@ -91,9 +91,13 @@ export type CurrentTime = {
     timeUnixMillis: number,
 };
 
-export type videoStreamUrlMessage = {
+export type VideoStreamUrlMessage = {
     type: "videoStreamUrl",
     videoStreamUrl: string,
 };
 
-export type ResponseMessage = PMTMessage | ModuleDownloadedMessage | ModuleListUpdatedMessage | ModuleLockResponseMessage | ProgramInfoMessage | CurrentTime | videoStreamUrlMessage;
+export type ErrorMessage = {
+    type: "error",
+    message: string,
+};
+export type ResponseMessage = PMTMessage | ModuleDownloadedMessage | ModuleListUpdatedMessage | ModuleLockResponseMessage | ProgramInfoMessage | CurrentTime | VideoStreamUrlMessage | ErrorMessage;

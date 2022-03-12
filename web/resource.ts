@@ -214,6 +214,8 @@ ws.addEventListener("message", (ev) => {
         sourceElement.type = "video/mp4";
         sourceElement.src = msg.videoStreamUrl + ".mp4";
         videoElement.appendChild(sourceElement);
+    } else if (msg.type === "error") {
+        console.error(msg);
     }
 });
 

@@ -983,7 +983,7 @@ import { randomUUID } from 'crypto';
 
 // UUID => stream
 const streams = new Map<string, DataBroadcastingStream>();
-const MAX_STREAM = 10;
+const max_number_of_streams = 4;
 type DataBroadcastingStream = {
     id: string,
     registeredAt: Date,
@@ -993,6 +993,38 @@ type DataBroadcastingStream = {
     ws: WebSocket,
     ffmpegProcess?: ChildProcessWithoutNullStreams,
 };
+
+function closeDataBroadcastingStream(dbs: DataBroadcastingStream) {
+    console.log("close ", dbs.id);
+    if (dbs.ffmpegProcess != null) {
+        dbs.ffmpegProcess.stdout.unpipe();
+        dbs.ffmpegProcess.kill();
+    }
+    dbs.tsStream.unpipe();
+    dbs.readStream.unpipe();
+    dbs.readStream.destroy();
+    dbs.ws.close(4000);
+}
+
+function registerDataBroadcastingStream(dbs: DataBroadcastingStream): boolean {
+    if (streams.size >= max_number_of_streams) {
+        console.error("The maximum number of streams has been exceeded.");
+        const oldest = [...streams.values()].sort((a, b) => (a.registeredAt.getTime() - b.registeredAt.getTime()));
+        if (oldest[0] != null) {
+            const msg = {
+                type: "error",
+                message: "The maximum number of streams has been exceeded.",
+            } as wsApi.ResponseMessage;
+            unicast(oldest[0].ws, msg);
+            closeDataBroadcastingStream(oldest[0]);
+            streams.delete(oldest[0].id);
+        } else {
+            return false;
+        }
+    }
+    streams.set(dbs.id, dbs);
+    return true;
+}
 
 router.get("/streams/:id.mp4", async (ctx) => {
     const dbs = streams.get(ctx.params.id);
@@ -1036,13 +1068,22 @@ router.get('/api/ws', async (ctx) => {
         size,
         ws,
     };
-    streams.set(id, dbs);
+    if (!registerDataBroadcastingStream(dbs)) {
+        const msg = {
+            type: "error",
+            message: "The maximum number of streams has been exceeded.",
+        } as wsApi.ResponseMessage;
+        unicast(dbs.ws, msg);
+        closeDataBroadcastingStream(dbs);
+        return;
+    }
+    // TODO: readStreamを読み終わった時もちゃんと閉じた方がよさそう
     
     tsStream.pause();
     playTS(dbs);
 
     ws.on("close", (_code: number, _reason: Buffer) => {
-        streams.delete(id);
+        closeDataBroadcastingStream(dbs);
     });
 
     ws.on("message", (message) => {
@@ -1052,7 +1093,7 @@ router.get('/api/ws', async (ctx) => {
     unicast(ws, {
         type: "videoStreamUrl",
         videoStreamUrl: "/streams/" + id,
-    })
+    });
 });
 
 console.log("OK");
