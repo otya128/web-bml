@@ -6,7 +6,7 @@ export type MirakLiveParam = {
     type: "mirakLive",
     channelType: "GR" | "BS" | "CS" | "SKY",
     channel: string,
-    id?: number,
+    serviceId?: number,
 };
 
 // EPGStationのAPIを使ってtsを取得

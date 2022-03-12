@@ -3,18 +3,22 @@
     PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja">
 
-<video muted="muted" autoplay="autoplay" style="width: 100%; height: 100%;" id="arib-video"></video>
+<video muted="muted" autoplay="autoplay" style="width: 100%; height: 100%; max-height: 100vh; max-width: 100vw;" id="arib-video" controls="controls"></video>
 
 <head>
     <title>
         データ放送ブラウザ
     </title>
-    <link rel="stylesheet" href="/default.css" />
-    <script src="arib.js"></script>
 </head>
 
 <body>
-    データ放送ブラウザ
+    <h1>
+        データ放送ブラウザ
+    </h1>
+    <div id="ui-main">
+        読み込み中...
+    </div>
+    <script src="/arib.js"></script>
 </body>
 
 </html>

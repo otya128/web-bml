@@ -1,6 +1,35 @@
-import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage } from "../src/ws_api";
+import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage, Param, MirakLiveParam, EPGStationRecordedParam } from "../src/ws_api";
 
 export class LongJump extends Error { }
+function getParametersFromUrl(url: string): Param | {} {
+    const pathname = new URL(url).pathname;
+    const mirakGroups = /^\/channels\/(?<type>.+?)\/(?<channel>.+?)\/services\/(?<serviceId>.+?)\/stream\/*$/.exec(pathname)?.groups;
+    if (mirakGroups != null) {
+        const type = decodeURIComponent(mirakGroups.type);
+        const channel = decodeURIComponent(mirakGroups.channel);
+        const serviceId = Number.parseInt(decodeURIComponent(mirakGroups.serviceId));
+        if (!Number.isNaN(serviceId)) {
+            return {
+                type: "mirakLive",
+                channel,
+                channelType: type,
+                serviceId,
+            } as MirakLiveParam;
+        }
+    } else {
+        const epgGroups = /^\/videos\/(?<videoId>.+?)\/*$/.exec(pathname)?.groups;
+        if (epgGroups != null) {
+            const videoFileId = Number.parseInt(decodeURIComponent(epgGroups.videoId));
+            if (!Number.isNaN(videoFileId)) {
+                return {
+                    type: "epgStationRecorded",
+                    videoFileId,
+                } as EPGStationRecordedParam;
+            }
+        }
+    }
+    return {};
+}
 
 // 運用的には固定
 let entryPointComponentId = 0x40;
@@ -17,7 +46,7 @@ export function setActiveDocument(componentId: number, moduleId: number, filenam
         activeDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
     }
 }
-const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/ws");
+const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/ws?param=" + encodeURIComponent(JSON.stringify(getParametersFromUrl(location.href))));
 const cachedComponents = new Map<number, CachedComponent>();
 export type CachedComponent = {
     componentId: number,
@@ -214,6 +243,7 @@ ws.addEventListener("message", (ev) => {
         sourceElement.type = "video/mp4";
         sourceElement.src = msg.videoStreamUrl + ".mp4";
         videoElement.appendChild(sourceElement);
+        videoElement.style.display = "";
     } else if (msg.type === "error") {
         console.error(msg);
     }

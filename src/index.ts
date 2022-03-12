@@ -94,7 +94,8 @@ function unicast(client: WebSocket, msg: wsApi.ResponseMessage) {
 }
 
 
-function playTS({ size, readStream, tsStream, ws }: DataBroadcastingStream) {
+function playTS(dbs: DataBroadcastingStream) {
+    const { size, readStream, tsStream, ws } = dbs;
     let bytesRead = 0;
     const tsUtil = new TsUtil();
     let pidToComponent = new Map<number, ComponentPMT>();
@@ -117,6 +118,7 @@ function playTS({ size, readStream, tsStream, ws }: DataBroadcastingStream) {
             done();
         }
     });
+    dbs.transformStream = transformStream;
 
     readStream.pipe(transformStream);
     transformStream.pipe(tsStream);
@@ -904,32 +906,32 @@ async function proc(ctx: Koa.ParameterizedContext<any, Router.IRouterParamContex
 
 router.get('/arib.js', async ctx => {
     ctx.body = fs.createReadStream("dist/arib.js");
-    ctx.set('Content-Type', 'text/javascript')
+    ctx.set('Content-Type', 'text/javascript; charset=utf-8')
 });
 
 router.get('/arib.js.map', async ctx => {
     ctx.body = fs.createReadStream("dist/arib.js.map");
-    ctx.set('Content-Type', 'application/json')
+    ctx.set('Content-Type', 'application/json; charset=utf-8')
 });
 
 router.get('/remote_controller.js', async ctx => {
     ctx.body = fs.createReadStream("dist/remote_controller.js");
-    ctx.set('Content-Type', 'text/javascript')
+    ctx.set('Content-Type', 'text/javascript; charset=utf-8')
 });
 
 router.get('/remote_controller.js.map', async ctx => {
     ctx.body = fs.createReadStream("dist/remote_controller.js.map");
-    ctx.set('Content-Type', 'application/json')
+    ctx.set('Content-Type', 'application/json; charset=utf-8')
 });
 
 router.get("/remote_controller.html", async ctx => {
     ctx.body = fs.createReadStream("web/remote_controller.html");
-    ctx.set("Content-Type", "text/html");
+    ctx.set("Content-Type", "text/html; charset=utf-8");
 });
 
 router.get('/default.css', async ctx => {
     ctx.body = fs.createReadStream("web/default.css");
-    ctx.set('Content-Type', 'text/css')
+    ctx.set('Content-Type', 'text/css; charset=utf-8')
 });
 
 router.get("/rounded-mplus-1m-arib.ttf", async ctx => {
@@ -954,9 +956,29 @@ router.get('/api/sleep', async ctx => {
     ctx.body = "OK";
 });
 
+router.get('/video_list.js', async ctx => {
+    ctx.body = fs.createReadStream("dist/video_list.js");
+    ctx.set('Content-Type', 'text/javascript; charset=utf-8')
+});
+
+router.get('/video_list.js.map', async ctx => {
+    ctx.body = fs.createReadStream("dist/video_list.js.map");
+    ctx.set('Content-Type', 'application/json; charset=utf-8')
+});
+
 router.get("/", async ctx => {
+    ctx.body = fs.createReadStream("web/video_list.html");
+    ctx.set("Content-Type", "text/html; charset=utf-8");
+});
+
+router.get("/channels/:channelType/:channel/services/:id/stream", async ctx => {
     ctx.body = fs.createReadStream("web/index.html");
-    ctx.set("Content-Type", "application/xhtml+xml;encoding=utf-8");
+    ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
+});
+
+router.get("/videos/:videoFileId", async ctx => {
+    ctx.body = fs.createReadStream("web/index.html");
+    ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
 });
 
 function pipeAsync(from: stream.Readable, to: stream.Writable, options?: { end?: boolean }): Promise<void> {
@@ -990,6 +1012,7 @@ type DataBroadcastingStream = {
     registeredAt: Date,
     readStream: stream.Readable,
     tsStream: TsStream,
+    transformStream?: stream.Transform,
     size: number,
     ws: WebSocket,
     ffmpegProcess?: ChildProcessWithoutNullStreams,
@@ -1001,7 +1024,9 @@ function closeDataBroadcastingStream(dbs: DataBroadcastingStream) {
         dbs.ffmpegProcess.stdout.unpipe();
         dbs.ffmpegProcess.kill();
     }
+    // readStream->transformStream->tsStream->ffmpeg->response
     dbs.tsStream.unpipe();
+    dbs.transformStream?.unpipe();
     dbs.readStream.unpipe();
     dbs.readStream.destroy();
     dbs.ws.close(4000);
@@ -1045,7 +1070,7 @@ router.get("/streams/:id.mp4", async (ctx) => {
     try {
         await pipeAsync(ffmpegProcess.stdout, ctx.res, { end: true });
     } finally {
-        console.log("!END!");
+        console.log("kill ffmpeg ", dbs.id);
         ffmpegProcess.kill();
         dbs.ffmpegProcess = undefined;
     }
@@ -1055,6 +1080,14 @@ router.get("/streams/:id.mp4", async (ctx) => {
 const mirakBaseUrl = (process.env.MIRAK_URL ?? "http://localhost:40772/").replace(/\/+$/, "") + "/api/";
 const epgBaseUrl = (process.env.EPG_URL ?? "http://localhost:8888/").replace(/\/+$/, "") + "/api/";
 
+async function streamToString(stream: stream.Readable) {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+        chunks.push(Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks).toString("utf-8");
+}
+
 function httpGetAsync(options: string | http.RequestOptions | URL): Promise<http.IncomingMessage> {
     return new Promise<http.IncomingMessage>((resolve, _reject) => {
         http.get(options, (res) => {
@@ -1062,6 +1095,24 @@ function httpGetAsync(options: string | http.RequestOptions | URL): Promise<http
         });
     });
 }
+
+router.get("/api/channels", async (ctx) => {
+    ctx.set("Content-Type", "application/json");
+    const response = await httpGetAsync(mirakBaseUrl + "channels");
+    ctx.body = JSON.parse(await streamToString(response));
+    if (response.statusCode != null) {
+        ctx.status = response.statusCode;
+    }
+});
+
+router.get("/api/recorded", async (ctx) => {
+    ctx.set("Content-Type", "application/json");
+    const response = await httpGetAsync(epgBaseUrl + "recorded?" + ctx.querystring);
+    ctx.body = JSON.parse(await streamToString(response));
+    if (response.statusCode != null) {
+        ctx.status = response.statusCode;
+    }
+});
 
 router.get('/api/ws', async (ctx) => {
     if (!ctx.ws) {
@@ -1072,10 +1123,15 @@ router.get('/api/ws', async (ctx) => {
     if (typeof ctx.query.param === "string") {
         const query: any = JSON.parse(ctx.query.param);
         if (query != null && typeof query === "object") {
-            if (query.type === "mirakLive" && typeof query.channelType === "string" && typeof query.channel === "string" && (query.id == null || typeof query.id == "number")) {
+            if (query.type === "mirakLive" && typeof query.channelType === "string" && typeof query.channel === "string" && (query.serviceId == null || typeof query.serviceId == "number")) {
                 const q = query as wsApi.MirakLiveParam;
-                const res = await httpGetAsync(mirakBaseUrl + `"/channels/${encodeURI(q.channelType)}/${encodeURI(q.channel)}/services/${q.id}/stream`);
-                readStream = res;
+                if (q.serviceId == null) {
+                    const res = await httpGetAsync(mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/stream`);
+                    readStream = res;
+                } else {
+                    const res = await httpGetAsync(mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/services/${q.serviceId}/stream`);
+                    readStream = res;
+                }
             } else if (query.type === "epgStationRecorded" && typeof query.videoFileId === "number") {
                 const q = query as wsApi.EPGStationRecordedParam;
                 readStream = await httpGetAsync(epgBaseUrl + `videos/${q.videoFileId}`);

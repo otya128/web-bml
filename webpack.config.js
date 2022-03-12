@@ -4,6 +4,7 @@ const webpack = require('webpack')
 module.exports = {
     entry: {
         arib: './web/index.ts',
+        video_list: './web/video_list.tsx',
         remote_controller: './web/remote_controller_ui.ts',
     },
     output: {
@@ -13,7 +14,7 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.ts$/,
+                test: /\.tsx?$/,
                 use: 'ts-loader',
             },
             {
@@ -24,7 +25,7 @@ module.exports = {
     },
     resolve: {
         extensions: [
-            '.ts', '.js',
+            '.ts', '.js', '.tsx'
         ],
         fallback: {
             fs: false,
