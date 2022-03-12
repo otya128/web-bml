@@ -9,7 +9,7 @@ import { DataBroadcastingStream } from './stream/live_stream';
 
 type DownloadComponentInfo = {
     componentId: number,
-    downloadId: number,
+    transactionId: number,
     downloadedModuleCount: number,
     modules: Map<number, DownloadModuleInfo>,
 };
@@ -371,16 +371,17 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             // dsmccTypeは常に0x03
             // messageIdは常に0x1002
             const message = data.message;
-            const downloadId: number = message.downloadId;
-            if (downloadComponents.get(componentId)?.downloadId === downloadId) {
+            const transactionId: number = data.message.transaction_id;
+            if (downloadComponents.get(componentId)?.transactionId === data.message.transaction_id) {
                 return;
             }
             const componentInfo: DownloadComponentInfo = {
                 componentId,
                 modules,
-                downloadId,
+                transactionId,
                 downloadedModuleCount: 0,
             };
+            const downloadId: number = message.downloadId;
             // downloadIdの下位28ビットは常に1で運用される
             const data_event_id = (downloadId >> 28) & 15;
             console.log(`componentId: ${componentId.toString(16).padStart(2, "0")} downloadId: ${downloadId}`)
