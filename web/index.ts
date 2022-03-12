@@ -392,7 +392,7 @@ if (!window.browser) {
     }
 
     function eventQueueOnModuleUpdated(module: string, status: number) {
-        console.log("ModuleUpdated", module);
+        console.log("ModuleUpdated", module, status);
         const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
         for (const beitem of Array.from(moduleLocked)) {
             if (beitem.getAttribute("subscribe") !== "subscribe") {
@@ -598,6 +598,8 @@ if (!window.browser) {
         } else if (type == 2) {
             return toHex(resource.currentProgramInfo?.serviceId, 4);
         } else if (type == 3) {
+            return toHex(resource.currentProgramInfo?.originalNetworkId, 4);
+        } else if (type == 4) {
             return toHex(resource.currentProgramInfo?.transportStreamId, 4);
         }
         return null;
