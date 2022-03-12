@@ -1027,6 +1027,11 @@ router.get("/", async ctx => {
     ctx.set("Content-Type", "text/html; charset=utf-8");
 });
 
+router.get("/channels/:channelType/:channel/stream", async ctx => {
+    ctx.body = fs.createReadStream("web/index.html");
+    ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
+});
+
 router.get("/channels/:channelType/:channel/services/:id/stream", async ctx => {
     ctx.body = fs.createReadStream("web/index.html");
     ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");

@@ -5,19 +5,17 @@ import Mpegts from "mpegts.js";
 export class LongJump extends Error { }
 function getParametersFromUrl(url: string): Param | {} {
     const pathname = new URL(url).pathname;
-    const mirakGroups = /^\/channels\/(?<type>.+?)\/(?<channel>.+?)\/services\/(?<serviceId>.+?)\/stream\/*$/.exec(pathname)?.groups;
+    const mirakGroups = /^\/channels\/(?<type>.+?)\/(?<channel>.+?)\/(services\/(?<serviceId>.+?)\/)?stream\/*$/.exec(pathname)?.groups;
     if (mirakGroups != null) {
         const type = decodeURIComponent(mirakGroups.type);
         const channel = decodeURIComponent(mirakGroups.channel);
         const serviceId = Number.parseInt(decodeURIComponent(mirakGroups.serviceId));
-        if (!Number.isNaN(serviceId)) {
             return {
                 type: "mirakLive",
                 channel,
                 channelType: type,
-                serviceId,
+                serviceId: Number.isNaN(serviceId) ? undefined : serviceId,
             } as MirakLiveParam;
-        }
     } else {
         const epgGroups = /^\/videos\/(?<videoId>.+?)\/*$/.exec(pathname)?.groups;
         if (epgGroups != null) {

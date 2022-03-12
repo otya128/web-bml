@@ -47,7 +47,10 @@ function Channel({ channel }: { channel: MirakChannel }) {
         return null;
     }
     return (
-        <li>{channel.channel} {channel.name}
+        <li>
+            <a href={`/channels/${encodeURIComponent(channel.type)}/${encodeURIComponent(channel.channel)}/stream`}>
+                {channel.channel} {channel.name}
+            </a>
             <ul>
                 {channel.services?.map(service => <li key={service.id}><Service key={service.id} channel={channel} service={service} /></li>)}
             </ul>
