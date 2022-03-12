@@ -207,6 +207,13 @@ ws.addEventListener("message", (ev) => {
         currentProgramInfo = msg;
     } else if (msg.type === "currentTime") {
         currentTime = msg;
+    } else if (msg.type === "videoStreamUrl") {
+        const videoElement = document.querySelector("video") as HTMLVideoElement; // a
+        videoElement.innerHTML = "";
+        const sourceElement = document.createElement("source");
+        sourceElement.type = "video/mp4";
+        sourceElement.src = msg.videoStreamUrl + ".mp4";
+        videoElement.appendChild(sourceElement);
     }
 });
 

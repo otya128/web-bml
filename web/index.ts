@@ -1365,6 +1365,14 @@ if (!window.browser) {
                 if (videoElement != null) {
                     videoElement.muted = true;
                 }
+            } else if (remoteController.type === "pause") {
+                if (videoElement != null) {
+                    videoElement.pause();
+                }
+            } else if (remoteController.type === "play") {
+                if (videoElement != null) {
+                    videoElement.play();
+                }
             } else if (remoteController.type === "button") {
                 processKeyDown(remoteController.keyCode as AribKeyCode);
                 processKeyUp(remoteController.keyCode as AribKeyCode);

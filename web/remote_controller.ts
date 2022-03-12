@@ -5,5 +5,5 @@ export type RemoteControllerMessage = {
     type: "button",
     keyCode: number,
 } | {
-    type: "mute" | "unmute" | "load",
+    type: "mute" | "unmute" | "load" | "pause" | "play",
 };
