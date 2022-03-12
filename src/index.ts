@@ -1,22 +1,13 @@
 import Koa from 'koa';
 import Router from 'koa-router';
-import fs, { mkdirSync, readFileSync } from "fs"
+import fs, { mkdirSync } from "fs"
 import 'dotenv/config'
-import { TextDecoder } from 'util';
-import { XMLParser, XMLBuilder } from 'fast-xml-parser';
-import { transpile } from "./transpile_ecm";
-import { Declaration as CSSDeclaration } from "css";
 import path from "path";
-import { decodeEUCJP } from './euc_jp';
-import { loadDRCS, toTTF } from './drcs';
 import stream from "stream";
 import { TsStream } from "@chinachu/aribts";
 import websocket, { WebSocketContext } from "koa-easy-ws";
 import * as wsApi from "./ws_api";
 import { WebSocket } from "ws";
-import { transpileCSS } from './transpile_css';
-import { aribPNGToPNG } from './arib_png';
-import { readCLUT } from './clut';
 import http from "http";
 import { randomUUID } from 'crypto';
 import { DataBroadcastingStream, LiveStream } from './stream/live_stream';
@@ -112,105 +103,9 @@ function unicast(client: WebSocket, msg: wsApi.ResponseMessage) {
     client.send(JSON.stringify(msg));
 }
 
-const baseDir = process.env.BASE_DIR ?? "./data/";
-
-type Component = {
-    [key: string]: Module
-};
-
-type Module = {
-    [key: string]: File
-};
-
-type File = {
-    [key: string]: {}
-};
-
-const components: { [key: string]: Component } = {};
-
-for (const componentDirent of fs.readdirSync(baseDir, { withFileTypes: true })) {
-    if (!componentDirent.isDirectory() || componentDirent.name.length !== 2) {
-        continue;
-    }
-    const component: Component = {};
-    components[componentDirent.name.toLowerCase()] = component;
-    for (const moduleDirent of fs.readdirSync(path.join(baseDir, componentDirent.name), { withFileTypes: true })) {
-        if (!moduleDirent.isDirectory() || moduleDirent.name.length !== 4) {
-            continue;
-        }
-        const module: Module = {};
-        component[moduleDirent.name.toLowerCase()] = module;
-        for (const fileDirent of fs.readdirSync(path.join(baseDir, componentDirent.name, moduleDirent.name), { withFileTypes: true })) {
-            if (!fileDirent.isFile()) {
-                continue;
-            }
-            const file: File = {};
-            module[fileDirent.name.toLowerCase()] = file;
-        }
-    }
-}
-
 const app = new Koa();
 const router = new Router<any, WebSocketContext>();
-
-function findXmlNode(xml: any[], nodeName: string): any {
-    const result = [];
-    for (const i of xml) {
-        for (const k in i) {
-            if (k === ":@") {
-                continue;
-            }
-            if (k == nodeName) {
-                result.push(i);
-                break;
-            }
-        }
-    }
-    return result;
-}
-
-function renameXmlNode(node: any, name: string) {
-    for (const k in node) {
-        if (k === ":@") {
-            continue;
-        }
-        node[name] = node[k];
-        delete node[k];
-    }
-}
-
-function getXmlNodeName(node: any): string | null {
-    for (const k in node) {
-        if (k === ":@") {
-            continue;
-        }
-        return k;
-    }
-    return null;
-}
-
-function getXmlChildren(node: any): any[] {
-    for (const k in node) {
-        if (k == "#text") {
-            return [];
-        }
-        if (k === ":@") {
-            continue;
-        }
-        return node[k];
-    }
-    return [];
-}
-
-function visitXmlNodes(node: any, callback: (node: any) => void) {
-    callback(node);
-    for (const child of getXmlChildren(node)) {
-        visitXmlNodes(child, callback);
-    }
-}
-
-
-function readFileAsync2(path: string): Promise<Buffer> {
+function readFileAsync(path: string): Promise<Buffer> {
     return new Promise<Buffer>((resolve, reject) => {
         fs.readFile(path, null, (err, data) => {
             if (err) {
@@ -222,219 +117,6 @@ function readFileAsync2(path: string): Promise<Buffer> {
     })
 }
 
-function decodeText(enc: string, data: Buffer | Uint8Array) {
-    if (enc.match(/euc[-_]?jp/i)) {
-        return decodeEUCJP(data);
-    } else {
-        return new TextDecoder(enc).decode(data);
-    }
-}
-
-function readFileAsync(path: string): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-        fs.readFile(path, null, (err, data) => {
-            if (err) {
-                reject(err);
-            } else {
-                const opts = {
-                    ignoreAttributes: false,
-                    attributeNamePrefix: "@_",
-                    preserveOrder: true,
-                    cdataPropName: "__cdata",
-                    trimValues: false,
-                    parseTagValue: false,
-                };
-                const parser = new XMLParser(opts);
-                let parsed = parser.parse(data);
-                parsed = parser.parse(decodeText(parsed[0][":@"]["@_encoding"], data));
-                parsed[0][":@"]["@_encoding"] = "UTF-8";
-                const builder = new XMLBuilder(opts);
-                const bmlRoot = findXmlNode(parsed, "bml")[0];
-                renameXmlNode(bmlRoot, "html");
-                if (!bmlRoot[":@"]) {
-                    bmlRoot[":@"] = {};
-                }
-                bmlRoot[":@"]["@_xmlns"] = "http://www.w3.org/1999/xhtml";
-                const htmlChildren = bmlRoot["html"];
-                const headChildren: any[] = findXmlNode(htmlChildren, "head")[0]["head"];
-                const scripts: any[] = [];
-                visitXmlNodes(bmlRoot, (node) => {
-                    const children = getXmlChildren(node);
-                    const nodeName = getXmlNodeName(node);
-                    for (let i = 0; i < children.length; i++) {
-                        const c = children[i];
-                        const prev = i > 0 ? getXmlNodeName(children[i - 1]) : "";
-                        const next = i + 1 < children.length ? getXmlNodeName(children[i + 1]) : "";
-                        // STD-B24 第二分冊(2/2) 第二編 付属2 5.3.2参照
-                        if ("#text" in c) {
-                            if ((prev === "span" || prev === "a") && nodeName === "p") {
-                                c["#text"] = c["#text"].replace(/^([ \t\n\r] +)/g, " ");
-                                if ((next === "span" || next === "a" || next === "br") && nodeName === "p") {
-                                    c["#text"] = c["#text"].replace(/([ \t\n\r] +)$/g, " ");
-                                    c["#text"] = c["#text"].replace(/(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
-                                }
-                            } else if ((next === "span" || next === "a" || next === "br") && nodeName === "p") {
-                                c["#text"] = c["#text"].replace(/([ \t\n\r] +)$/g, " ");
-                                c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
-                            } else {
-                                // 制御符号は0x20, 0x0d, 0x0a, 0x09のみ
-                                // 2バイト文字と2バイト文字との間の制御符号は削除する
-                                c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|([ \t\n\r] +)$|(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
-                            }
-                        }
-                    }
-                    if (getXmlNodeName(node) == "script") {
-                        scripts.push({ ...node });
-                        renameXmlNode(node, "arib-script");
-                    }
-                    if (getXmlNodeName(node) == "style") {
-                        renameXmlNode(node, "arib-style");
-                    }
-                    if (getXmlNodeName(node) == "link") {
-                        if (!node[":@"]["@_rel"]) {
-                            node[":@"]["@_rel"] = "stylesheet";
-                        }
-                    }
-                    /*
-                    // keyイベントは独自なのでエミュレートした方がよさそう
-                    const attrs = node[":@"] as any;
-                    if (attrs && Object.keys(attrs).some(x => x.toLowerCase().startsWith("@_onkey"))) {
-                        attrs["@_tabindex"] = "-1";
-                    } */
-                });
-                const bodyChildren = findXmlNode(htmlChildren, "body")[0]["body"];
-                bodyChildren.push({
-                    "script": [],
-                    ":@": {
-                        "@_src": "/arib.js"
-                    }
-                });
-                for (const s of scripts) {
-                    const __cdata = findXmlNode(s["script"], "__cdata");
-                    for (const c of __cdata) {
-                        const code = c["__cdata"][0]["#text"];
-                        c["__cdata"][0]["#text"] = transpile(code);
-                    }
-                    bodyChildren.push(s);
-                }
-                headChildren.splice(0, 0, {
-                    "link": [],
-                    ":@": {
-                        "@_href": "/default.css",
-                        "@_rel": "stylesheet"
-                    }
-                }, {
-                    "script": [
-                        {
-                            "#text": JSON.stringify(components)
-                        }
-                    ], ":@": {
-                        "@_type": "application/json",
-                        "@_id": "bml-server-data",
-                    }
-                });
-                //console.log(JSON.stringify(parsed, null, 4));
-                resolve(builder.build(parsed));
-            }
-        });
-    });
-}
-
-function clutToDecls(table: number[][]): CSSDeclaration[] {
-    const ret = [];
-    let i = 0;
-    for (const t of table) {
-        const decl: CSSDeclaration = {
-            type: "declaration",
-            property: "--clut-color-" + i,
-            value: `rgba(${t[0]},${t[1]},${t[2]},${t[3] / 255})`,
-        };
-        ret.push(decl);
-        i++;
-    }
-    return ret;
-}
-
-router.get('/:component/:module/:filename', proc);
-router.get('/:component/:moduleUnused/~/:module/:filename', async ctx => {
-    const component = (ctx.params.component as string).toLowerCase();
-    const module = (ctx.params.module as string).toLowerCase();
-    const filename = (ctx.params.filename as string).toLowerCase();
-    ctx.redirect(`/${component}/${module}/${filename}`);
-});
-async function proc(ctx: Koa.ParameterizedContext<any, Router.IRouterParamContext<any, {}>, any>) {
-    const component = (ctx.params.component as string).toLowerCase();
-    const module = (ctx.params.module as string).toLowerCase();
-    const filename = (ctx.params.filename as string).toLowerCase();
-    const componentId = parseInt(component, 16);
-    const moduleId = parseInt(module, 16);
-    if (Number.isNaN(componentId)) {
-        ctx.body = "invalid componentId";
-        ctx.status = 400;
-        return;
-    }
-    if (Number.isNaN(moduleId)) {
-        ctx.body = "invalid moduleId";
-        ctx.status = 400;
-        return;
-    }
-    if (ctx.headers["sec-fetch-dest"] === "script" || filename.endsWith(".ecm")) {
-        const b = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-        const file = new TextDecoder("euc-jp").decode(b);
-        ctx.body = transpile(file);
-        ctx.set("Content-Type", "text/X-arib-ecmascript");
-    } else if (ctx.headers["sec-fetch-dest"] === "style" || filename.endsWith(".css")) {
-        const b = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-        const file = new TextDecoder("euc-jp").decode(b);
-        ctx.body = transpileCSS(file, {
-            inline: false, href: ctx.href, clutReader(cssValue: string) {
-                return clutToDecls(readCLUT(readFileSync(`${process.env.BASE_DIR}/${cssValue}`)));
-            }
-        });
-        ctx.set("Content-Type", "text/css");
-    } else if (filename.endsWith(".bml")) {
-        const file = await readFileAsync(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-        ctx.body = file;
-        ctx.set('Content-Type', 'application/xhtml+xml')
-    } else {
-        if (typeof ctx.query.clut === "string") {
-            const clut = ctx.query.clut;
-            const png = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-            ctx.body = aribPNGToPNG(png, readCLUT(await readFileAsync2(clut)));
-            ctx.set("Content-Type", "image/png");
-            return;
-        }
-        if (typeof ctx.query.css === "string") {
-            const clut = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-            const table = readCLUT(clut);
-            ctx.body = clutToDecls(table);
-        } else if (typeof ctx.query.base64 === "string") {
-            ctx.body = (await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`)).toString('base64');
-        } else if (typeof ctx.query.ttf === "string") {
-            const filterId = parseInt(ctx.query.ttf);
-            const drcs = await readFileAsync2(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-            ctx.body = toTTF(loadDRCS(drcs, Number.isFinite(filterId) ? filterId : undefined));
-        } else {
-            const s = fs.createReadStream(`${process.env.BASE_DIR}/${component}/${module}/${filename}`);
-            s.on("error", () => {
-                // chrome対策でダミー画像を用意する (text/html返すとiframeになる上に画像が表示できなくなる)
-                ctx.set("Content-Type", "image/png");
-                const dummyPng = [
-                    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x18, 0x57, 0x63, 0x60, 0x60, 0x60, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01, 0x5C, 0xCD, 0xFF, 0x69, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
-                ];
-                ctx.set("Content-Length", dummyPng.length.toString());
-                ctx.res.write(Buffer.from(dummyPng));
-                ctx.res.end();
-            });
-            ctx.body = s;
-        }
-        if (filename.endsWith(".png")) {
-            ctx.set("Content-Type", "image/png");
-        } else if (filename.endsWith(".jpg")) {
-            ctx.set("Content-Type", "image/jpeg");
-        }
-    }
-}
 
 router.get('/arib.js', async ctx => {
     ctx.body = fs.createReadStream("dist/arib.js");
@@ -641,7 +323,7 @@ router.get(/^\/streams\/(?<id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
     if (dbs == null) {
         return;
     }
-    ctx.body = await readFileAsync2(path.join(hlsDir, ctx.params.id + "-" + ctx.params.segment + ".ts"));
+    ctx.body = await readFileAsync(path.join(hlsDir, ctx.params.id + "-" + ctx.params.segment + ".ts"));
 });
 
 function delayAsync(ms: number): Promise<void> {
@@ -657,7 +339,7 @@ router.get("/streams/:id.m3u8", async (ctx) => {
     }
     const { tsStream } = dbs;
     if (dbs.liveStream instanceof HLSLiveStream) {
-        ctx.body = await readFileAsync2(path.join(hlsDir, dbs.id + ".m3u8"));
+        ctx.body = await readFileAsync(path.join(hlsDir, dbs.id + ".m3u8"));
         return;
     }
     if (dbs.liveStream) {
@@ -671,7 +353,7 @@ router.get("/streams/:id.m3u8", async (ctx) => {
     let limitTime = 60 * 1000;
     while (limitTime > 0) {
         if (fs.existsSync(path.join("./hls", dbs.id + ".m3u8"))) {
-            ctx.body = await readFileAsync2(path.join("./hls", dbs.id + ".m3u8"));
+            ctx.body = await readFileAsync(path.join("./hls", dbs.id + ".m3u8"));
             return;
         }
         await delayAsync(pollingTime);
