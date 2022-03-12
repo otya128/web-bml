@@ -205,6 +205,9 @@ ws.addEventListener("message", (ev) => {
             }
         }
         const url = `/${msg.componentId.toString(16).padStart(2, "0")}/${msg.moduleId.toString(16).padStart(4, "0")}`;
+        if (currentProgramInfo == null) {
+            return;
+        }
         if (launchRequestDocument?.toLowerCase()?.startsWith(url) === true) {
             lockCachedModule(msg.componentId, msg.moduleId, "system");
             const doc = launchRequestDocument;
@@ -235,6 +238,34 @@ ws.addEventListener("message", (ev) => {
             }
         }
     } else if (msg.type === "programInfo") {
+        if (msg.serviceId != null && msg.serviceId !== currentProgramInfo?.serviceId) {
+            // TR-B14 第二分冊 5.12.6.1
+            if (currentProgramInfo != null) {
+                console.log("serviceId changed", msg.serviceId, currentProgramInfo?.serviceId)
+            }
+            window.browser.Ureg[0] = "0x" + msg.serviceId.toString(16).padStart(4);
+            for (let i = 1; i < 64; i++) { // FIXME
+                window.browser.Ureg[i] = "";
+            }
+        }
+        if (currentProgramInfo == null && launchRequestDocument != null) {
+            currentProgramInfo = msg;
+            const { componentId, moduleId } = parseURLEx(launchRequestDocument);
+            if (componentId != null &&  moduleId != null && getCachedModule(componentId, moduleId)) {
+                const doc = launchRequestDocument;
+                launchRequestDocument = null;
+                try {
+                    window.browser.launchDocument(doc);
+                } catch (e) {
+                    if (e instanceof LongJump) {
+                        console.log("long jump");
+                    } else {
+                        throw e;
+                    }
+                }
+            }
+            return;
+        }
         currentProgramInfo = msg;
     } else if (msg.type === "currentTime") {
         currentTime = msg;
