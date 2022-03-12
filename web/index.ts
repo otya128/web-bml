@@ -66,17 +66,7 @@ declare global {
 
 
 if (!window.browser) {
-    type Component = {
-        [key: string]: Module
-    };
-
-    type Module = {
-        [key: string]: File
-    };
-
-    type File = {
-        [key: string]: {}
-    };
+    const videoElement = document.querySelector("video") as HTMLVideoElement;
     function loadDocument(file: CachedFile) {
         // タイマー全部消す(連番前提)
         var maxId = window.setTimeout(() => { }, 0);
@@ -95,24 +85,13 @@ if (!window.browser) {
         }
         resource.unlockAllModule();
         currentDateMode = 0;
-        // document.documentElement.innerHTML = bmlToXHTML(file.data);
         const documentElement = document.createElement("html");
         documentElement.innerHTML = bmlToXHTML(file.data);
-        const p = Array.from(document.documentElement.childNodes);
+        const p = Array.from(document.documentElement.childNodes).filter(x => x.nodeName === "body" || x.nodeName === "head");
         const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
         document.documentElement.append(...Array.from(documentElement.children));
-        const videoElementOld = document.body.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
-        if (videoElementOld != null && videoElementNew != null) {
-            for (const attr of Array.from(videoElementNew.attributes)) {
-                videoElementOld.setAttribute(attr.nodeName, attr.nodeValue ?? "");
-            }
-            videoElementNew?.replaceWith(videoElementOld);
-        }
         if (videoElementNew != null && videoElementNew.querySelectorAll("param").length === 0) {
-            const param = document.createElement("param");
-            param.setAttribute("name", "autoplay");
-            param.setAttribute("value", "autoplay");
-            videoElementNew.appendChild(param);
+            videoElementNew.appendChild(videoElement);
         }
         for (const n of p) {
             n.remove();
@@ -188,7 +167,6 @@ if (!window.browser) {
         }, 1000);
         throw new LongJump(`long jump`);
     }
-    const components: { [key: string]: Component } = JSON.parse(document.getElementById("bml-server-data")?.textContent ?? "{}");
     window.dummy = undefined;
     window.browser = {};
     let currentDateMode = 0;
@@ -655,6 +633,9 @@ if (!window.browser) {
     }
     window.browser.getIRDID = function getIRDID(type: number): string | null {
         console.log("getIRDID", type);
+        if (type === 5) {
+            return "00000000000000000000";
+        }
         return null;
     }
     window.browser.isIPConnected = function isIPConnected(): number {
@@ -1357,7 +1338,7 @@ if (!window.browser) {
 
     let currentRemoteControllerMessage: string | null = null;
     function setRemoteControllerMessage(msg: string | null) {
-        const remote = remoteController.contentDocument?.getElementById("active");
+        const remote = remoteControllerFrame.contentDocument?.getElementById("active");
         if (remote != null) {
             remote.textContent = msg;
         }
@@ -1373,8 +1354,6 @@ if (!window.browser) {
         controller.style.zIndex = "1000";
         return controller;
     }
-    const remoteController = createRemoteController();
-    document.documentElement.append(remoteController);
     window.addEventListener("message", (ev) => {
         const remoteController = ev.data?.remoteController as (RemoteControllerMessage | undefined);
         if (remoteController != null) {
@@ -1404,5 +1383,7 @@ if (!window.browser) {
             }
         }
     });
+    const remoteControllerFrame = createRemoteController();
+    document.documentElement.append(remoteControllerFrame);
     const windowKeys = new Set<string>(Object.keys(window));
 }

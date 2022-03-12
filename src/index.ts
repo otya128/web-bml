@@ -20,6 +20,7 @@ import { transpileCSS } from './transpile_css';
 import { ComponentPMT, AdditionalAribBXMLInfo } from './ws_api';
 import { aribPNGToPNG } from './arib_png';
 import { readCLUT } from './clut';
+import { spawn } from "child_process";
 
 const ws = websocket();
 
@@ -27,18 +28,63 @@ type ModuleLockRequest = {
     componentId: number,
     moduleId: number,
 };
+// EPGStationのパラメータ参照
+const args = [
+    "-dual_mono_mode", "main",
+    "-i", "pipe:0",
+    "-sn",
+    "-threads", "0",
+    "-c:a", "aac",
+    "-ar", "48000",
+    "-b:a", "192k",
+    "-ac", "2",
+    "-c:v", "libx264",
+    "-vf", "yadif,scale=-2:720",
+    "-b:v", "3000k",
+    "-profile:v", "baseline",
+    "-preset", "veryfast",
+    "-tune", "fastdecode,zerolatency",
+    "-movflags", "frag_keyframe+empty_moov+faststart+default_base_moof",
+    "-y",
+    "-analyzeduration", "10M",
+    "-probesize", "32M",
+    "-f", "mp4",
+    "pipe:1",
+];
 
+const ffmpeg = "ffmpeg";
 const moduleLockRequests: ModuleLockRequest[] = [];
 
 let size = process.argv[2] === "-" ? 0 : fs.statSync(process.argv[2]).size;
 let bytesRead = 0;
 
 const readStream = process.argv[2] === "-" ? process.stdin : fs.createReadStream(process.argv[2]);
+let prevTime: number | null = null;
+let prevTsTime: number = 0;
 const transformStream = new stream.Transform({
     transform: function (chunk, _encoding, done) {
         bytesRead += chunk.length;
 
-        process.stderr.write(`\r${bytesRead} of ${size} [${Math.floor(bytesRead / size * 100)}%]`);
+        process.stderr.write(`\r ${tsUtil.getTime()} ${bytesRead} of ${size} [${Math.floor(bytesRead / size * 100)}%]`);
+
+        const tsTime = tsUtil.getTime()?.getTime();
+        /*if (tsTime != null) {
+            const currentTime = new Date().getTime();
+            if (prevTime != null) {
+                const diffRealTime = currentTime - prevTime;
+                const diffTsTime = tsTime - prevTsTime;
+                const delay = Math.max(0, diffTsTime - diffRealTime);
+                setTimeout(() => {
+                    this.push(chunk);
+                    done();
+                }, delay);
+                prevTsTime = tsTime;
+                prevTime = new Date().getTime();
+                return;
+            }
+            prevTsTime = tsTime;
+            prevTime = currentTime;
+        }*/
 
         this.push(chunk);
         done();
@@ -53,8 +99,6 @@ const tsStream = new TsStream();
 
 const tsUtil = new TsUtil();
 
-readStream.pipe(transformStream);
-transformStream.pipe(tsStream);
 
 tsStream.on("data", () => {
     // nothing
@@ -963,6 +1007,78 @@ router.get('/api/sleep', async ctx => {
 router.get("/", async ctx => {
     ctx.body = fs.createReadStream("web/index.html");
     ctx.set("Content-Type", "application/xhtml+xml;encoding=utf-8");
+});
+
+readStream.pipe(transformStream);
+transformStream.pipe(tsStream);
+const streams: stream.Writable[] = [];
+
+const transformStream2 = new stream.Transform({
+    transform: function (chunk, _encoding, done) {
+        const cb = () => {
+            if (streams.length === 0) {
+                setTimeout(cb, 100);
+            } else {
+                let d = 0;
+                let len = streams.length;
+                for (const s of streams) {
+                    if (!s.write(chunk, () => {
+                        d++;
+                        if (d == len) {
+                            this.push("");
+                            done();
+                        }
+                    })) {
+                        s.once('drain', () => {
+                            d++;
+                            if (d == len) {
+                                this.push("");
+                                done();
+                            }
+                        });
+                    } else {
+                        d++;
+                        if (d == len) {
+                            this.push("");
+                            done();
+                        }
+                    }
+                }
+            }
+        }
+        cb();
+    },
+    flush: function (done) {
+        done();
+    }
+});
+//tsStream.pipe(transformStream2);
+//transformStream2.pipe(process.stdout);
+tsStream.pause();
+function pipeAsync(from: stream.Readable, to: stream.Writable, options?: { end?: boolean }): Promise<void> {
+    return new Promise((resolve, reject) => {
+        from.pipe(to, options);
+        from.on('error', reject);
+        from.on('end', resolve);
+    });
+}
+
+router.get("/-1", async ctx => {
+    ctx.set("Content-Type", "video/mp4");
+    ctx.status = 200;
+
+    const ffmpegProcess = spawn(ffmpeg, args);
+    streams.push(ffmpegProcess.stdin);
+    tsStream.unpipe();
+    tsStream.pipe(ffmpegProcess.stdin);
+    tsStream.resume();
+    ffmpegProcess.stderr.on("data", (data) => console.error(data.toString()));
+    try {
+        await pipeAsync(ffmpegProcess.stdout, ctx.res, { end: true });
+    } finally {
+        console.log("!END!");
+        streams.splice(streams.findIndex(x => x === ffmpegProcess.stdin), 1);
+    }
 });
 app.use(ws);
 
