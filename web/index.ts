@@ -572,11 +572,10 @@ if (!window.browser) {
         return l;
     }
     window.browser.detectComponent = function detectComponent(component_ref: string) {
-        const { component } = parseURL(component_ref);
-        if (!component) {
+        const { componentId } = parseURLEx(component_ref);
+        if (componentId == null) {
             return NaN;
         }
-        const componentId = Number.parseInt(component);
         if (resource.getPMTComponent(componentId)) {
             return 1;
         } else {

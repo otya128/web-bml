@@ -240,7 +240,7 @@ ws.addEventListener("message", (ev) => {
         currentTime = msg;
     } else if (msg.type === "videoStreamUrl") {
         const videoElement = document.querySelector("video") as HTMLVideoElement; // a
-        playHLS(msg.videoStreamUrl, videoElement);
+        playMP4(msg.videoStreamUrl, videoElement);
         videoElement.style.display = "";
     } else if (msg.type === "error") {
         console.error(msg);
@@ -267,8 +267,11 @@ export function parseURLEx(url: string): { componentId: number | null, moduleId:
     const { component, module, filename } = parseURL(url);
     const componentId = Number.parseInt(component ?? "", 16);
     const moduleId = Number.parseInt(module ?? "", 16);
-    if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
+    if (!Number.isInteger(componentId)) {
         return { componentId: null, moduleId: null, filename: null };
+    }
+    if (!Number.isInteger(moduleId)) {
+        return { componentId, moduleId: null, filename: null };
     }
     return { componentId, moduleId, filename };
 }
