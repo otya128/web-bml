@@ -1,6 +1,6 @@
 import Koa from 'koa';
 import Router from 'koa-router';
-import fs, { readFileSync } from "fs"
+import fs, { mkdir, mkdirSync, readFileSync } from "fs"
 import 'dotenv/config'
 import { TextDecoder } from 'util';
 import { XMLParser, XMLBuilder } from 'fast-xml-parser';
@@ -49,6 +49,62 @@ const args = [
     "pipe:1",
 ];
 
+const mpegtsArgs = [
+    "-dual_mono_mode", "main",
+    "-f", "mpegts",
+    "-analyzeduration", "500000",
+    "-i", "pipe:0",
+    "-map", "0",
+    "-c:s", "copy",
+    "-c:d", "copy",
+    "-ignore_unknown",
+    "-fflags", "nobuffer",
+    "-flags", "low_delay",
+    "-max_delay", "250000",
+    "-max_interleave_delta", "1",
+    "-threads", "0",
+    "-c:a", "aac",
+    "-ar", "48000",
+    "-b:a", "192k",
+    "-ac", "2",
+    "-c:v", "libx264",
+    "-flags", "+cgop",
+    "-vf", "yadif,scale=-2:720",
+    "-b:v", "3000k",
+    "-preset", "veryfast",
+    "-y",
+    "-f", "mpegts",
+    "pipe:1",
+];
+
+function getHLSArguments(hlsDir: string, segmentFilename: string, manifestFilename: string): string[] {
+    return [
+        "-re",
+        "-dual_mono_mode", "main",
+        "-i", "pipe:0",
+        "-sn",
+        "-map", "0",
+        "-threads", "0",
+        "-ignore_unknown",
+        "-max_muxing_queue_size", "1024",
+        "-f", "hls",
+        "-hls_time", "3",
+        "-hls_list_size", "17",
+        "-hls_allow_cache", "1",
+        "-hls_segment_filename", segmentFilename,
+        "-hls_flags", "delete_segments",
+        "-c:a", "aac",
+        "-ar", "48000",
+        "-b:a", "192k",
+        "-ac", "2",
+        "-c:v", "libx264",
+        "-vf", "yadif,scale=-2:720",
+        "-b:v", "3000k",
+        "-preset", "veryfast",
+        "-flags", "+loop-global_header",
+        manifestFilename,
+    ]
+};
 const ffmpeg = "ffmpeg";
 
 
@@ -1076,6 +1132,59 @@ router.get("/streams/:id.mp4", async (ctx) => {
     }
 });
 
+const hlsDir = process.env.HLS_DIR ?? "./hls";
+mkdirSync(hlsDir, { recursive: true });
+function cleanUpHLS() {
+    for (const entry of fs.readdirSync(hlsDir, { withFileTypes: true })) {
+        if (entry.name.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(\.m3u8|-[0-9]{9}\.ts)$/)) {
+            fs.unlinkSync(path.join(hlsDir, entry.name));
+        }
+    }
+}
+cleanUpHLS();
+
+router.get(/^\/streams\/(?<id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-(?<segment>[0-9]{9})\.ts$/, async (ctx) => {
+    const dbs = streams.get(ctx.params.id);
+    if (dbs == null) {
+        return;
+    }
+    ctx.body = await readFileAsync2(path.join(hlsDir, ctx.params.id + "-" + ctx.params.segment + ".ts"));
+});
+
+function delayAsync(ms: number): Promise<void> {
+    return new Promise((resolve, _reject) => {
+        setTimeout(resolve, 1000);
+    });
+}
+
+router.get("/streams/:id.m3u8", async (ctx) => {
+    const dbs = streams.get(ctx.params.id);
+    if (dbs == null) {
+        return;
+    }
+    if (dbs.ffmpegProcess) {
+        ctx.body = await readFileAsync2(path.join(hlsDir, dbs.id + ".m3u8"));
+        return;
+    }
+    const { tsStream } = dbs;
+    const ffmpegProcess = spawn(ffmpeg, getHLSArguments(hlsDir, path.join(hlsDir, dbs.id + "-%09d.ts"), path.join(hlsDir, dbs.id + ".m3u8")));
+    dbs.ffmpegProcess = ffmpegProcess;
+    tsStream.unpipe();
+    tsStream.pipe(ffmpegProcess.stdin);
+    tsStream.resume();
+    ffmpegProcess.stderr.on("data", (data) => console.error(data.toString()));
+    const pollingTime = 100;
+    let limitTime = 60 * 1000;
+    while (limitTime > 0) {
+        if (fs.existsSync(path.join("./hls", dbs.id + ".m3u8"))) {
+            ctx.body = await readFileAsync2(path.join("./hls", dbs.id + ".m3u8"));
+            return;
+        }
+        await delayAsync(pollingTime);
+        limitTime -= pollingTime;
+    }
+});
+
 // 40772はLinuxのエフェメラルポート
 const mirakBaseUrl = (process.env.MIRAK_URL ?? "http://localhost:40772/").replace(/\/+$/, "") + "/api/";
 const epgBaseUrl = (process.env.EPG_URL ?? "http://localhost:8888/").replace(/\/+$/, "") + "/api/";
@@ -1097,7 +1206,6 @@ function httpGetAsync(options: string | http.RequestOptions | URL): Promise<http
 }
 
 router.get("/api/channels", async (ctx) => {
-    ctx.set("Content-Type", "application/json");
     const response = await httpGetAsync(mirakBaseUrl + "channels");
     ctx.body = JSON.parse(await streamToString(response));
     if (response.statusCode != null) {
@@ -1106,12 +1214,22 @@ router.get("/api/channels", async (ctx) => {
 });
 
 router.get("/api/recorded", async (ctx) => {
-    ctx.set("Content-Type", "application/json");
     const response = await httpGetAsync(epgBaseUrl + "recorded?" + ctx.querystring);
     ctx.body = JSON.parse(await streamToString(response));
     if (response.statusCode != null) {
         ctx.status = response.statusCode;
     }
+});
+
+router.get("/api/streams", async (ctx) => {
+    ctx.body = [...streams.values()].sort((a, b) => a.registeredAt.getTime() - b.registeredAt.getTime()).map(x => (
+        {
+            id: x.id,
+            registeredAt: x.registeredAt.getTime(),
+            ffmpegProcessId: x.ffmpegProcess?.pid,
+        }
+    ));
+    ctx.status = 200;
 });
 
 router.get('/api/ws', async (ctx) => {

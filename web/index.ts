@@ -67,12 +67,32 @@ declare global {
 
 if (!window.browser) {
     const videoElement = document.querySelector("video") as HTMLVideoElement;
+    const timeoutHandles = new Set<number>();
+    const intervalHandles = new Set<number>();
+    function bmlSetTimeout(handler: TimerHandler, timeout: number, ...args: any[]): number {
+        const handle = window.setTimeout(handler, timeout, ...args);
+        timeoutHandles.add(handle);
+        return handle;
+    }
+    function bmlSetInterval(handler: TimerHandler, timeout: number, ...args: any[]): number {
+        const handle = window.setInterval(handler, timeout, ...args);
+        intervalHandles.add(handle);
+        return handle;
+    }
+    function bmlClearInterval(handle: number): void {
+        window.clearInterval(handle);
+        intervalHandles.delete(handle);
+    }
     function loadDocument(file: CachedFile) {
-        // タイマー全部消す(連番前提)
-        var maxId = window.setTimeout(() => { }, 0);
-        for (let i = 0; i < maxId; i += 1) {
-            clearInterval(i);
+        // タイマー全部消す
+        for (const i of intervalHandles.values()) {
+            window.clearInterval(i);
         }
+        intervalHandles.clear();
+        for (const i of timeoutHandles.values()) {
+            window.clearTimeout(i);
+        }
+        timeoutHandles.clear();
         document.currentFocus = null;
         for (const k of Object.keys(window)) {
             if (Number.parseInt(k).toString() === k) {
@@ -138,7 +158,7 @@ if (!window.browser) {
         }
         requestDispatchQueue();
         // 雑だけど動きはする
-        setInterval(() => {
+        bmlSetInterval(() => {
             const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
             moduleLocked.forEach(beitem => {
                 if (beitem.getAttribute("subscribe") !== "subscribe") {
@@ -290,7 +310,7 @@ if (!window.browser) {
             return 1;
         }
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
-        setTimeout(() => {
+        bmlSetTimeout(() => {
             eventQueueOnModuleLocked(module, false, 0);
         }, 0);
         return 1;
@@ -307,7 +327,7 @@ if (!window.browser) {
         }
         if (!resource.moduleExistsInDownloadInfo(componentId, moduleId)) {
             console.error("lockModuleOnMemoryEx: component does not exist in DII", module);
-            setTimeout(() => {
+            bmlSetTimeout(() => {
                 eventQueueOnModuleLocked(module, true, -2);
             }, 0);
             return 0;
@@ -320,13 +340,13 @@ if (!window.browser) {
             return 0;
         }
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
-        setTimeout(() => {
+        bmlSetTimeout(() => {
             eventQueueOnModuleLocked(module, true, 0);
         }, 0);
         return 1;
     }
     resource.registerOnModuleLockedHandler((module: string, isEx: boolean, status: number) => {
-        setTimeout(() => {
+        bmlSetTimeout(() => {
             eventQueueOnModuleLocked(module, isEx, status);
         }, 0);
     });
@@ -584,10 +604,6 @@ if (!window.browser) {
         xhr.send(null);
         return 1;
     }
-    window.browser.detectComponent = function detectComponent(component_ref: string): number | null {
-        console.log("detectComponent", component_ref);
-        return 1;
-    }
     window.browser.loadDRCS = function loadDRCS(DRCS_ref: string): Number {
         console.log("loadDRCS", DRCS_ref);
         const { componentId, moduleId, filename } = parseURLEx(DRCS_ref);
@@ -691,10 +707,10 @@ if (!window.browser) {
         }
     })
     window.browser.setInterval = function setInterval(evalCode: string, msec: number, iteration: number): number {
-        const handle = window.setInterval(() => {
+        const handle = bmlSetInterval(() => {
             iteration--;
             if (iteration === 0) {
-                window.clearInterval(handle);
+                bmlClearInterval(handle);
             }
             eval(evalCode);
         }, msec);
@@ -703,7 +719,7 @@ if (!window.browser) {
     }
     window.browser.clearTimer = function setInterval(timerID: number): number {
         console.log("clearTimer", timerID);
-        window.clearInterval(timerID);
+        bmlClearInterval(timerID);
         return 1;
     }
     function defineAttributeProperty(propertyName: string, attrName: string, nodeName: string, readable: boolean, writable: boolean, defaultValue?: string) {
