@@ -2998,8 +2998,10 @@ Interpreter.prototype.setValueToScope = function(name, value) {
 Interpreter.prototype.populateScope_ = function(node, scope) {
   if (node['type'] === 'VariableDeclaration') {
     for (var i = 0; i < node['declarations'].length; i++) {
-      this.setProperty(scope.object, node['declarations'][i]['id']['name'],
-          undefined, Interpreter.VARIABLE_DESCRIPTOR);
+      if (!this.hasProperty(scope.object, node['declarations'][i]['id']['name'])) {
+        this.setProperty(scope.object, node['declarations'][i]['id']['name'],
+            undefined, Interpreter.VARIABLE_DESCRIPTOR);
+      }
     }
   } else if (node['type'] === 'FunctionDeclaration') {
     this.setProperty(scope.object, node['id']['name'],
