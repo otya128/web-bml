@@ -195,6 +195,7 @@ span, a { letter-spacing : inherit !important }
 }
 p {
     white-space: break-spaces !important;
+    line-break: anywhere !important;
 }
 body {
     padding: 0!important; /* NHK BS1とかbodyにpadding: 6pt;があって崩れる? */
