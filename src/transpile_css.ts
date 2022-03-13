@@ -60,7 +60,7 @@ export type CSSTranspileOptions = {
     convertUrl?: (url: string) => string,
 };
 
-function colorIndexToVar(colorIndex: string | null | undefined): string | null | undefined {
+export function colorIndexToVar(colorIndex: string | null | undefined): string | null | undefined {
     if (colorIndex == null) {
         return colorIndex;
     }
@@ -72,7 +72,7 @@ function colorIndexToVar(colorIndex: string | null | undefined): string | null |
     }
 }
 
-function varToColorIndex(colorIndexVar: string | null | undefined): string | null | undefined {
+export function varToColorIndex(colorIndexVar: string | null | undefined): string | null | undefined {
     if (colorIndexVar == null) {
         return colorIndexVar;
     }

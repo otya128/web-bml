@@ -21,10 +21,11 @@ import defaultCss from "./default.css";
 import { RemoteControllerMessage } from "./remote_controller";
 import { NativeInterpreter } from '../web/interpreter/native_interpreter';
 import { JSInterpreter } from "./interpreter/js_interpreter";
+import { BML } from "./interface/DOM";
 
 interface BMLEvent {
     type: string;
-    target: HTMLElement;
+    target: HTMLElement | null;
 }
 
 
@@ -68,6 +69,25 @@ declare global {
 
 
 if (!window.browser) {
+    const bmlDocument = BML.document;
+    function setCurrentEvent(a: BMLEvent) {
+        const { target: _, ...b } = a;
+        const c = { target: BML.htmlElementToBMLHTMLElement(a.target), ...b }
+        bmlDocument._currentEvent = new BML.BMLEvent(c);
+    }
+    function setCurrentIntrinsicEvent(a: BMLIntrinsicEvent) {
+        const { target: _, ...b } = a;
+        const c = { target: BML.htmlElementToBMLHTMLElement(a.target), ...b }
+        bmlDocument._currentEvent = new BML.BMLIntrinsicEvent(c);
+    }
+    function setCurrentBeventEvent(a: BMLBeventEvent) {
+        const { target: _1, object: _2, ...b } = a;
+        const c = { target: BML.htmlElementToBMLHTMLElement(a.target), object: BML.htmlElementToBMLHTMLElement(a.object) as (BML.BMLObjectElement | null), ...b }
+        bmlDocument._currentEvent = new BML.BMLBeventEvent(c);
+    }
+    function resetCurrentEvent() {
+        bmlDocument._currentEvent = null;
+    }
     async function executeEventHandler(handler: string): Promise<void> {
         if (/^\s*$/.exec(handler)) {
             return;
@@ -391,7 +411,7 @@ if (!window.browser) {
                 const onoccur = beitem.getAttribute("onoccur");
                 if (onoccur) {
                     queueAsyncEvent(async () => {
-                        document.currentEvent = {
+                        setCurrentBeventEvent({
                             type: "ModuleLocked",
                             target: beitem as HTMLElement,
                             status,
@@ -408,9 +428,9 @@ if (!window.browser) {
                             peripheralRef: "",
                             object: null,
                             segmentId: null,
-                        } as BMLBeventEvent;
+                        } as BMLBeventEvent);
                         await executeEventHandler(onoccur);
-                        document.currentEvent = null;
+                        resetCurrentEvent();
                     });
                     processEventQueue();
                 }
@@ -430,7 +450,7 @@ if (!window.browser) {
                 const onoccur = beitem.getAttribute("onoccur");
                 if (onoccur) {
                     queueAsyncEvent(async () => {
-                        document.currentEvent = {
+                        setCurrentBeventEvent({
                             type: "ModuleUpdated",
                             target: beitem as HTMLElement,
                             status,
@@ -447,9 +467,9 @@ if (!window.browser) {
                             peripheralRef: "",
                             object: null,
                             segmentId: null,
-                        } as BMLBeventEvent;
+                        } as BMLBeventEvent);
                         await executeEventHandler(onoccur);
-                        document.currentEvent = null;
+                        resetCurrentEvent();
                     });
                     processEventQueue();
                 }
@@ -467,7 +487,7 @@ if (!window.browser) {
             const onoccur = beitem.getAttribute("onoccur");
             if (onoccur) {
                 queueAsyncEvent(async () => {
-                    document.currentEvent = {
+                    setCurrentBeventEvent({
                         type: "DataButtonPressed",
                         target: beitem as HTMLElement,
                         status: 0,
@@ -484,9 +504,9 @@ if (!window.browser) {
                         peripheralRef: "",
                         object: null,
                         segmentId: null,
-                    } as BMLBeventEvent;
+                    } as BMLBeventEvent);
                     await executeEventHandler(onoccur);
-                    document.currentEvent = null;
+                    resetCurrentEvent();
                 });
                 processEventQueue();
             }
@@ -919,39 +939,39 @@ if (!window.browser) {
     }
 
     async function dispatchFocus(event: SyncFocusEvent): Promise<void> {
-        document.currentEvent = {
+        setCurrentEvent({
             type: "focus",
             target: event.target,
-        } as BMLEvent;
+        } as BMLEvent);
         const handler = event.target.getAttribute("onfocus");
         if (handler) {
             await executeEventHandler(handler);
         }
-        document.currentEvent = null;
+        resetCurrentEvent();
     }
 
     async function dispatchBlur(event: SyncBlurEvent): Promise<void> {
-        document.currentEvent = {
+        setCurrentEvent({
             type: "blur",
             target: event.target,
-        } as BMLEvent;
+        } as BMLEvent);
         const handler = event.target.getAttribute("onblur");
         if (handler) {
             await executeEventHandler(handler);
         }
-        document.currentEvent = null;
+        resetCurrentEvent();
     }
 
     async function dispatchClick(event: SyncClickEvent): Promise<void> {
-        document.currentEvent = {
+        setCurrentEvent({
             type: "click",
             target: event.target,
-        } as BMLEvent;
+        } as BMLEvent);
         const handler = event.target.getAttribute("onclick");
         if (handler) {
             await executeEventHandler(handler);
         }
-        document.currentEvent = null;
+        resetCurrentEvent();
     }
 
     HTMLElement.prototype.focus = function focus(options?: FocusOptions) {
@@ -1201,11 +1221,11 @@ if (!window.browser) {
         const onkeydown = document.currentFocus.getAttribute("onkeydown");
         if (onkeydown) {
             queueAsyncEvent(async () => {
-                document.currentEvent = {
-                    keyCode: k,
+                setCurrentIntrinsicEvent({
+                    keyCode: k as number,
                     type: "keydown",
                     target: document.currentFocus,
-                } as BMLIntrinsicEvent;
+                });
                 try {
                     lockSyncEventQueue();
                     await executeEventHandler(onkeydown);
@@ -1218,7 +1238,7 @@ if (!window.browser) {
                 } finally {
                     unlockSyncEventQueue();
                 }
-                document.currentEvent = null;
+                resetCurrentEvent();
                 if (k == AribKeyCode.Enter && document.currentFocus) {
                     queueSyncEvent({ type: "click", target: document.currentFocus });
                 }
@@ -1253,11 +1273,11 @@ if (!window.browser) {
         const onkeyup = document.currentFocus.getAttribute("onkeyup");
         if (onkeyup) {
             queueAsyncEvent(async () => {
-                document.currentEvent = {
+                setCurrentIntrinsicEvent({
                     keyCode: k,
                     type: "keyup",
                     target: document.currentFocus,
-                } as BMLIntrinsicEvent;
+                } as BMLIntrinsicEvent);
                 try {
                     lockSyncEventQueue();
                     await executeEventHandler(onkeyup);
@@ -1270,7 +1290,7 @@ if (!window.browser) {
                 } finally {
                     unlockSyncEventQueue();
                 }
-                document.currentEvent = null;
+                resetCurrentEvent();
             });
             processEventQueue();
         }

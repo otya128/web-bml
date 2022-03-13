@@ -45,6 +45,7 @@ export class NativeInterpreter implements IInterpreter {
     }
 
     public resetStack(): void {
+        this._isExecuting = false;
     }
 
     executionFinishedHandlers: (() => void)[] = [];

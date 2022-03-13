@@ -36,8 +36,146 @@ function sleep(ms: number, callback: () => void) {
  * XMLDoc (Class.XMLDocが1であればサポート)
  * navigator (運用しない)
  */
+
+import { BML } from "../interface/DOM";
+import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
+
 export class JSInterpreter implements IInterpreter {
     interpreter: any;
+
+    nativeProtoToPseudoObject = new Map<any, any>();
+
+    domObjectToPseudo(interpreter: any, object: any): any {
+        const pseudo = this.nativeProtoToPseudoObject.get(Object.getPrototypeOf(object));
+        if (!pseudo) {
+            throw new Error("!?");
+        }
+        const wrapper = interpreter.createObjectProto(pseudo.properties["prototype"]);
+        wrapper.data = object;
+        return wrapper;
+    }
+
+    domClassToPseudo(interpreter: any, prototype: any): any {
+        const p = this.nativeProtoToPseudoObject.get(prototype);
+        if (p) {
+            return p;
+        }
+
+        const pseudo = interpreter.createNativeFunction(function elementWrapper(this: any) {
+            throw new TypeError("forbidden");
+        }, true);
+        const parent = Object.getPrototypeOf(prototype);
+        if (Object.getPrototypeOf(Object) !== parent) {
+            const parentPseudo = this.domClassToPseudo(interpreter, parent);
+            interpreter.setProperty(pseudo, "prototype", interpreter.createObject(parentPseudo), Interpreter.NONENUMERABLE_DESCRIPTOR);
+        }
+        const proto = pseudo.properties["prototype"];
+        interpreter.setProperty(pseudo, "name", prototype.constructor.name === "Function" ? prototype.name : prototype.constructor.name, Interpreter.NONENUMERABLE_DESCRIPTOR);
+        type PseudoDesc = {
+            configurable?: boolean;
+            enumerable?: boolean;
+            value?: any;
+            writable?: boolean;
+            get?: any;
+            set?: any;
+        };
+        const nativeProtoToPseudoObject = this.nativeProtoToPseudoObject;
+        const domObjectToPseudo = this.domObjectToPseudo.bind(this);
+        for (const [name, desc] of Object.entries(Object.getOwnPropertyDescriptors(prototype.prototype))) {
+            if (name === "constructor") {
+                continue;
+            }
+            const pseudoDesc: PseudoDesc = {};
+            const { get, set, value } = desc;
+            if (get) {
+                pseudoDesc.get = interpreter.createNativeFunction(function wrap(this: { data: any }) {
+                    console.log("get", name, this.data);
+                    const result = get.bind(this.data)();
+                    console.log("=>", result);
+                    if (nativeProtoToPseudoObject.has(Object.getPrototypeOf(result))) {
+                        return domObjectToPseudo(interpreter, result);
+                    }
+                    return result;
+                });
+            }
+            if (set) {
+                pseudoDesc.set = interpreter.createNativeFunction(function wrap(this: { data: any }, value: any) {
+                    console.log("set", name, value, this.data);
+                    set.bind(this.data)(value);
+                });
+            }
+
+            if (typeof value === "function") {
+                pseudoDesc.value = interpreter.createNativeFunction(function wrap(this: { data: any }, ...args: any[]) {
+                    console.log("call", name, value, this.data, args);
+                    const result = value.bind(this.data)(...args);
+                    console.log("=>", result);
+                    if (nativeProtoToPseudoObject.has(Object.getPrototypeOf(result))) {
+                        return domObjectToPseudo(interpreter, result);
+                    }
+                    return result;
+                });
+            } else if (typeof value === "undefined") {
+            } else {
+                throw new Error("unreachable");
+            }
+            if ("enumerable" in desc) {
+                pseudoDesc.enumerable = desc["enumerable"];
+            }
+            if ("configurable" in desc) {
+                pseudoDesc.configurable = desc["configurable"];
+            }
+            if ("writable" in desc) {
+                pseudoDesc.enumerable = desc["writable"];
+            }
+            interpreter.setProperty(proto, name, Interpreter.VALUE_IN_DESCRIPTOR, pseudoDesc);
+        }
+        this.nativeProtoToPseudoObject.set(prototype.prototype, pseudo);
+        return pseudo;
+    }
+
+    registerDOMClasses(interpreter: any, globalObject: any) {
+        this.nativeProtoToPseudoObject.clear();
+        interpreter.setProperty(globalObject, "Node", this.domClassToPseudo(interpreter, BML.Node));
+        interpreter.setProperty(globalObject, "CharacterData", this.domClassToPseudo(interpreter, BML.CharacterData));
+        interpreter.setProperty(globalObject, "Text", this.domClassToPseudo(interpreter, BML.Text));
+        interpreter.setProperty(globalObject, "CDATASection", this.domClassToPseudo(interpreter, BML.CDATASection));
+        interpreter.setProperty(globalObject, "Document", this.domClassToPseudo(interpreter, BML.Document));
+        interpreter.setProperty(globalObject, "HTMLDocument", this.domClassToPseudo(interpreter, BML.HTMLDocument));
+        interpreter.setProperty(globalObject, "BMLDocument", this.domClassToPseudo(interpreter, BML.BMLDocument));
+        interpreter.setProperty(globalObject, "Element", this.domClassToPseudo(interpreter, BML.Element));
+        interpreter.setProperty(globalObject, "HTMLElement", this.domClassToPseudo(interpreter, BML.HTMLElement));
+        interpreter.setProperty(globalObject, "HTMLBRElement", this.domClassToPseudo(interpreter, BML.HTMLBRElement));
+        interpreter.setProperty(globalObject, "BMLBRElement", this.domClassToPseudo(interpreter, BML.BMLBRElement));
+        interpreter.setProperty(globalObject, "HTMLHtmlElement", this.domClassToPseudo(interpreter, BML.HTMLHtmlElement));
+        interpreter.setProperty(globalObject, "BMLBmlElement", this.domClassToPseudo(interpreter, BML.BMLBmlElement));
+        interpreter.setProperty(globalObject, "HTMLAnchorElement", this.domClassToPseudo(interpreter, BML.HTMLAnchorElement));
+        interpreter.setProperty(globalObject, "BMLAnchorElement", this.domClassToPseudo(interpreter, BML.BMLAnchorElement));
+        interpreter.setProperty(globalObject, "HTMLInputElement", this.domClassToPseudo(interpreter, BML.HTMLInputElement));
+        interpreter.setProperty(globalObject, "BMLInputElement", this.domClassToPseudo(interpreter, BML.BMLInputElement));
+        interpreter.setProperty(globalObject, "HTMLObjectElement", this.domClassToPseudo(interpreter, BML.HTMLObjectElement));
+        interpreter.setProperty(globalObject, "BMLObjectElement", this.domClassToPseudo(interpreter, BML.BMLObjectElement));
+        interpreter.setProperty(globalObject, "BMLSpanElement", this.domClassToPseudo(interpreter, BML.BMLSpanElement));
+        interpreter.setProperty(globalObject, "HTMLBodyElement", this.domClassToPseudo(interpreter, BML.HTMLBodyElement));
+        interpreter.setProperty(globalObject, "BMLBodyElement", this.domClassToPseudo(interpreter, BML.BMLBodyElement));
+        interpreter.setProperty(globalObject, "HTMLDivElement", this.domClassToPseudo(interpreter, BML.HTMLDivElement));
+        interpreter.setProperty(globalObject, "BMLDivElement", this.domClassToPseudo(interpreter, BML.BMLDivElement));
+        interpreter.setProperty(globalObject, "HTMLParagraphElement", this.domClassToPseudo(interpreter, BML.HTMLParagraphElement));
+        interpreter.setProperty(globalObject, "BMLParagraphElement", this.domClassToPseudo(interpreter, BML.BMLParagraphElement));
+        interpreter.setProperty(globalObject, "HTMLMetaElement", this.domClassToPseudo(interpreter, BML.HTMLMetaElement));
+        interpreter.setProperty(globalObject, "HTMLTitleElement", this.domClassToPseudo(interpreter, BML.HTMLTitleElement));
+        interpreter.setProperty(globalObject, "HTMLScriptElement", this.domClassToPseudo(interpreter, BML.HTMLScriptElement));
+        interpreter.setProperty(globalObject, "HTMLStyleElement", this.domClassToPseudo(interpreter, BML.HTMLStyleElement));
+        interpreter.setProperty(globalObject, "HTMLHeadElement", this.domClassToPseudo(interpreter, BML.HTMLHeadElement));
+        interpreter.setProperty(globalObject, "BMLBeventElement", this.domClassToPseudo(interpreter, BML.BMLBeventElement));
+        interpreter.setProperty(globalObject, "BMLBeitemElement", this.domClassToPseudo(interpreter, BML.BMLBeitemElement));
+        interpreter.setProperty(globalObject, "BMLEvent", this.domClassToPseudo(interpreter, BML.BMLEvent));
+        interpreter.setProperty(globalObject, "BMLIntrinsicEvent", this.domClassToPseudo(interpreter, BML.BMLIntrinsicEvent));
+        interpreter.setProperty(globalObject, "BMLBeventEvent", this.domClassToPseudo(interpreter, BML.BMLBeventEvent));
+        interpreter.setProperty(globalObject, "DOMImplementation", this.domClassToPseudo(interpreter, BML.DOMImplementation));
+        interpreter.setProperty(globalObject, "BMLCSS2Properties", this.domClassToPseudo(interpreter, BMLCSS2Properties));
+    }
+
     public reset() {
         const browser = window.browser;
         this.interpreter = new Interpreter("", (interpreter: any, globalObject: any) => {
@@ -56,7 +194,7 @@ export class JSInterpreter implements IInterpreter {
                         }),
                     });
                 }
-    
+
                 function defineRW3(pseudo: any, propName: string) {
                     interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
                         get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
@@ -67,47 +205,10 @@ export class JSInterpreter implements IInterpreter {
                         }),
                     });
                 }
-    
+
                 defineRW2(interpreter.getProperty(pseudoBrowser, "Greg"), i.toString());
                 defineRW3(interpreter.getProperty(pseudoBrowser, "Ureg"), i.toString());
             }
-            const pseudoStyle = interpreter.createNativeFunction(function elementWrapper(this: any) {
-                throw new TypeError("forbidden");
-            }, true);
-
-            defineReadOnlyProperty(pseudoStyle, "paddingTop");
-            defineReadOnlyProperty(pseudoStyle, "paddingRight");
-            defineReadOnlyProperty(pseudoStyle, "paddingBottom");
-            defineReadOnlyProperty(pseudoStyle, "paddingLeft");
-            defineReadOnlyProperty(pseudoStyle, "borderWidth");
-            defineReadOnlyProperty(pseudoStyle, "borderStyle");
-            defineRWProperty(pseudoStyle, "left");
-            defineRWProperty(pseudoStyle, "top");
-            defineRWProperty(pseudoStyle, "width");
-            defineRWProperty(pseudoStyle, "height");
-            defineReadOnlyProperty(pseudoStyle, "lineHeight");
-            defineRWProperty(pseudoStyle, "visibility");
-            defineRWProperty(pseudoStyle, "fontFamily");
-            defineRWProperty(pseudoStyle, "fontSize");
-            defineRWProperty(pseudoStyle, "fontWeight");
-            defineReadOnlyProperty(pseudoStyle, "textAlign");
-            defineReadOnlyProperty(pseudoStyle, "letterSpacing");
-            defineRWProperty(pseudoStyle, "borderTopColorIndex");
-            defineRWProperty(pseudoStyle, "borderRightColorIndex");
-            defineRWProperty(pseudoStyle, "borderrLeftColorIndex");
-            defineRWProperty(pseudoStyle, "borderBottomColorIndex");
-            defineRWProperty(pseudoStyle, "backgroundColorIndex");
-            defineRWProperty(pseudoStyle, "colorIndex");
-            defineRWProperty(pseudoStyle, "grayscaleColorIndex");
-            defineReadOnlyProperty(pseudoStyle, "clut");
-            defineReadOnlyProperty(pseudoStyle, "resolution");
-            defineReadOnlyProperty(pseudoStyle, "displayAspectRatio");
-            defineReadOnlyProperty(pseudoStyle, "navIndex");
-            defineReadOnlyProperty(pseudoStyle, "navUp");
-            defineReadOnlyProperty(pseudoStyle, "navDown");
-            defineReadOnlyProperty(pseudoStyle, "navLeft");
-            defineReadOnlyProperty(pseudoStyle, "navRight");
-            defineRWProperty(pseudoStyle, "usedKeyList");
             function defineReadOnlyProperty(pseudo: any, propName: string) {
                 interpreter.setProperty(pseudo.properties["prototype"], propName, Interpreter.VALUE_IN_DESCRIPTOR, {
                     get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
@@ -131,101 +232,6 @@ export class JSInterpreter implements IInterpreter {
                 });
             }
 
-            const pseudoElement = interpreter.createNativeFunction(function elementWrapper(this: any) {
-                throw new TypeError("forbidden");
-            }, true);
-            interpreter.setProperty(pseudoElement.properties["prototype"], "subscribe", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getSubscribe(this: { data: HTMLElement }) {
-                    return (this.data as any).subscribe;
-                }),
-                set: interpreter.createNativeFunction(function getSubscribe(this: { data: HTMLElement }, value: any) {
-                    (this.data as any).subscribe = value;
-                }),
-            });
-
-            defineReadOnlyProperty(pseudoElement, "type");
-            defineRWProperty(pseudoElement, "esRef");
-            defineRWProperty(pseudoElement, "moduleRef");
-            defineReadOnlyProperty(pseudoElement, "messageGroupId");
-            defineRWProperty(pseudoElement, "messageId");
-            defineRWProperty(pseudoElement, "languageTag");
-            defineReadOnlyProperty(pseudoElement, "timeMode");
-            defineRWProperty(pseudoElement, "timeValue");
-            defineRWProperty(pseudoElement, "objectId");
-            // Node
-            interpreter.setProperty(pseudoElement.properties["prototype"], "firstChild", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getFirstChild(this: { data: HTMLElement }) {
-                    return wrapElement((this.data as any).firstChild);
-                }),
-            });
-            interpreter.setProperty(pseudoElement.properties["prototype"], "lastChild", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getLastChild(this: { data: HTMLElement }) {
-                    return wrapElement((this.data as any).lastChild);
-                }),
-            });
-            interpreter.setProperty(pseudoElement.properties["prototype"], "parentNode", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getParentNode(this: { data: HTMLElement }) {
-                    return wrapElement((this.data as any).parentNode);
-                }),
-            });
-            interpreter.setProperty(pseudoElement.properties["prototype"], "previousSibling", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getPreviousSibling(this: { data: HTMLElement }) {
-                    return wrapElement((this.data as any).previousSibling);
-                }),
-            });
-            interpreter.setProperty(pseudoElement.properties["prototype"], "nextSibling", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getNextSibling(this: { data: HTMLElement }) {
-                    return wrapElement((this.data as any).nextSibling);
-                }),
-            });
-
-            interpreter.setProperty(pseudoElement.properties["prototype"], "visibility", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getVisibility(this: { data: HTMLElement }) {
-                    return (this.data as any).visibility;
-                }),
-                set: interpreter.createNativeFunction(function setVisibility(this: { data: HTMLElement }, value: any) {
-                    (this.data as any).visibility = value;
-                }),
-            });
-
-            interpreter.setProperty(pseudoElement.properties["prototype"], "data", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getData(this: { data: HTMLElement }) {
-                    return (this.data as any).data;
-                }),
-                set: interpreter.createNativeFunction(function setData(this: { data: HTMLElement }, value: any) {
-                    (this.data as any).data = value;
-                }),
-            });
-
-            interpreter.setProperty(pseudoElement.properties["prototype"], "normalStyle", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getNormalStyle(this: { data: HTMLElement }) {
-                    return wrapStyle((this.data as any).normalStyle);
-                }),
-            });
-
-            interpreter.setNativeFunctionPrototype(pseudoElement, "focus", function focus(this: { data: HTMLElement }) {
-                return this.data.focus();
-            });
-
-            interpreter.setNativeFunctionPrototype(pseudoElement, "blur", function blur(this: { data: HTMLElement }) {
-                return this.data.blur();
-            });
-
-            // body
-            defineRWProperty(pseudoElement, "invisible");
-            // title
-            defineReadOnlyProperty(pseudoElement, "text");
-            // meta
-            defineReadOnlyProperty(pseudoElement, "name");
-            defineReadOnlyProperty(pseudoElement, "content");
-
-            defineReadOnlyProperty(pseudoElement, "tagName");
-
-
-            defineReadOnlyProperty(pseudoElement, "id");
-            defineReadOnlyProperty(pseudoElement, "className");
-
-
             interpreter.setProperty(globalObject, "browser", pseudoBrowser);
             interpreter.setProperty(pseudoBrowser, "sleep", interpreter.createAsyncFunction(sleep));
             interpreter.setProperty(pseudoBrowser, "readPersistentArray", interpreter.createNativeFunction(function readPersistentArray(filename: string, structure: string): any[] | null {
@@ -234,49 +240,10 @@ export class JSInterpreter implements IInterpreter {
             interpreter.setProperty(pseudoBrowser, "writePersistentArray", interpreter.createNativeFunction(function writePersistentArray(filename: string, structure: string, data: any[], period?: Date): number {
                 return browser.writePersistentArray(filename, structure, interpreter.arrayPseudoToNative(data), period);
             }));
-            const pseudoDocument = interpreter.createObjectProto(interpreter.OBJECT_PROTO);
-            function wrapElement(elem: HTMLElement | null | undefined) {
-                if (elem == null) {
-                    return null;
-                }
-                const elemWrapper = interpreter.createObjectProto(pseudoElement.properties["prototype"]);
-                elemWrapper.data = elem;
-                return elemWrapper;
-            }
-            function wrapStyle(style: CSSStyleDeclaration | null | undefined) {
-                if (style == null) {
-                    return null;
-                }
-                const wrapper = interpreter.createObjectProto(pseudoStyle.properties["prototype"]);
-                wrapper.data = style;
-                return wrapper;
-            }
-            interpreter.setProperty(pseudoDocument, "getElementById", interpreter.createNativeFunction(
-                function getElementById(id: string) {
-                    return wrapElement(document.getElementById(id));
-                }
-            ));
-            interpreter.setProperty(pseudoDocument, "currentFocus", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getCurrentFocus() {
-                    return wrapElement(document.currentFocus);
-                })
-            });
-            interpreter.setProperty(pseudoDocument, "currentEvent", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getCurrentEvent() {
-                    if (document.currentEvent == null) {
-                        return null;
-                    }
-                    if (document.currentEvent?.target != null) {
-                        const cloned = { ...document.currentEvent };
-                        (cloned as any).target = null;
-                        const pseudo = interpreter.nativeToPseudo(cloned);
-                        interpreter.setProperty(pseudo, "target", wrapElement(document.currentEvent.target));
-                        return pseudo;
-                    }
-                    return interpreter.nativeToPseudo(document.currentEvent);
-                })
-            });
-            interpreter.setProperty(globalObject, "document", pseudoDocument);
+
+            this.registerDOMClasses(interpreter, globalObject);
+            interpreter.setProperty(globalObject, "document", this.domObjectToPseudo(interpreter, BML.document));
+
             const pseudoBinaryTable = interpreter.createNativeFunction(function BinaryTable(this: any, table_ref: string, structure: string) {
                 try {
                     this.instance = new BT.BinaryTable(table_ref, structure);
@@ -358,6 +325,7 @@ export class JSInterpreter implements IInterpreter {
             }
         } finally {
             this._isExecuting = false;
+            this.interpreter.resolve = null;
             const hs = this.executionFinishedHandlers.slice();
             this.executionFinishedHandlers = [];
             for (const h of hs) {
