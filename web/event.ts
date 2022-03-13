@@ -68,9 +68,9 @@ export async function executeEventHandler(handler: string): Promise<void> {
     if (!groups) {
         throw new Error("invalid event handler attribute " + handler);
     }
-    console.trace("EXECUTE", handler);
+    console.debug("EXECUTE", handler);
     await browserStatus.interpreter.runEventHandler(groups.funcName);
-    console.trace("END", handler);
+    console.debug("END", handler);
 }
 
 const timeoutHandles = new Set<number>();

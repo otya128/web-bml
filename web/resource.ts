@@ -250,7 +250,7 @@ ws.addEventListener("message", (ev) => {
         currentTime = msg;
     } else if (msg.type === "videoStreamUrl") {
         const videoElement = document.querySelector("video") as HTMLVideoElement; // a
-        playMP4(msg.videoStreamUrl, videoElement);
+        playMPEGTS(msg.videoStreamUrl, videoElement);
         videoElement.style.display = "";
     } else if (msg.type === "error") {
         console.error(msg);

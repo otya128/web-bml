@@ -49,6 +49,7 @@ const args = [
 ];
 
 const mpegtsArgs = [
+    "-re",
     "-dual_mono_mode", "main",
     "-f", "mpegts",
     "-analyzeduration", "500000",
@@ -288,7 +289,7 @@ router.get("/streams/:id.mp4", async (ctx) => {
         await pipeAsync(dbs.liveStream.encoderProcess.stdout, ctx.res, { end: true });
     } catch {
     }
-    closeDataBroadcastingStream(dbs);
+    closeDataBroadcastingLiveStream(dbs);
 });
 
 
@@ -311,7 +312,7 @@ router.get("/streams/:id.h264.m2ts", async (ctx) => {
         await pipeAsync(dbs.liveStream.encoderProcess.stdout, ctx.res, { end: true });
     } catch {
     }
-    closeDataBroadcastingStream(dbs);
+    closeDataBroadcastingLiveStream(dbs);
 });
 
 mkdirSync(hlsDir, { recursive: true });
