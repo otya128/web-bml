@@ -39,6 +39,7 @@ function sleep(ms: number, callback: () => void) {
 
 import { BML } from "../interface/DOM";
 import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
+import { Browser } from "../browser";
 
 export class JSInterpreter implements IInterpreter {
     interpreter: any;
@@ -177,7 +178,7 @@ export class JSInterpreter implements IInterpreter {
     }
 
     public reset() {
-        const browser = window.browser;
+        const browser = this.browser;
         this.interpreter = new Interpreter("", (interpreter: any, globalObject: any) => {
             interpreter.setProperty(globalObject, "___log", interpreter.createNativeFunction(function log(log: string) {
                 console.log(log);
@@ -187,10 +188,10 @@ export class JSInterpreter implements IInterpreter {
                 function defineRW2(pseudo: any, propName: string) {
                     interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
                         get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
-                            return (window.browser.Greg)[propName];
+                            return (browser.Greg as any)[propName];
                         }),
                         set: interpreter.createNativeFunction(function getSubscribe(this: { data: any }, value: any) {
-                            (window.browser.Greg)[propName] = value;
+                            (browser.Greg as any)[propName] = value;
                         }),
                     });
                 }
@@ -198,38 +199,15 @@ export class JSInterpreter implements IInterpreter {
                 function defineRW3(pseudo: any, propName: string) {
                     interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
                         get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
-                            return (window.browser.Ureg)[propName];
+                            return (browser.Ureg as any)[propName];
                         }),
                         set: interpreter.createNativeFunction(function getSubscribe(this: { data: any }, value: any) {
-                            (window.browser.Ureg)[propName] = value;
+                            (browser.Ureg as any)[propName] = value;
                         }),
                     });
                 }
-
                 defineRW2(interpreter.getProperty(pseudoBrowser, "Greg"), i.toString());
                 defineRW3(interpreter.getProperty(pseudoBrowser, "Ureg"), i.toString());
-            }
-            function defineReadOnlyProperty(pseudo: any, propName: string) {
-                interpreter.setProperty(pseudo.properties["prototype"], propName, Interpreter.VALUE_IN_DESCRIPTOR, {
-                    get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
-                        return (this.data as any)[propName];
-                    }),
-                });
-            }
-
-            function defineRWProperty(pseudo: any, propName: string) {
-                defineRW(pseudo.properties["prototype"], propName);
-            }
-
-            function defineRW(pseudo: any, propName: string) {
-                interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
-                    get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
-                        return (this.data as any)[propName];
-                    }),
-                    set: interpreter.createNativeFunction(function getSubscribe(this: { data: any }, value: any) {
-                        (this.data as any)[propName] = value;
-                    }),
-                });
             }
 
             interpreter.setProperty(globalObject, "browser", pseudoBrowser);
@@ -296,7 +274,9 @@ export class JSInterpreter implements IInterpreter {
     }
 
     _isExecuting: boolean;
+    browser: Browser;
     public constructor(browser: any) {
+        this.browser = browser;
         this._isExecuting = false;
         this.reset();
     }

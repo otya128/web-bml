@@ -12,12 +12,12 @@ function getParametersFromUrl(url: string): Param | {} {
         const type = decodeURIComponent(mirakGroups.type);
         const channel = decodeURIComponent(mirakGroups.channel);
         const serviceId = Number.parseInt(decodeURIComponent(mirakGroups.serviceId));
-            return {
-                type: "mirakLive",
-                channel,
-                channelType: type,
-                serviceId: Number.isNaN(serviceId) ? undefined : serviceId,
-            } as MirakLiveParam;
+        return {
+            type: "mirakLive",
+            channel,
+            channelType: type,
+            serviceId: Number.isNaN(serviceId) ? undefined : serviceId,
+        } as MirakLiveParam;
     } else {
         const epgGroups = /^\/videos\/(?<videoId>.+?)\/*$/.exec(pathname)?.groups;
         if (epgGroups != null) {
@@ -154,9 +154,11 @@ type LockModuleRequest = {
 
 const lockModuleRequests: Map<string, LockModuleRequest> = new Map();
 
-let launchRequestDocument: string | null = "/40/0000/startup.bml";
-export function launchRequest(document: string | null) {
+let launchRequestDocument: string | null = null;
+let launchRequestDocumentCallback: (() => void) | null = null;
+export function launchRequest(document: string | null, cb: (() => void) | null) {
     launchRequestDocument = document;
+    launchRequestDocumentCallback = cb;
 }
 
 // うーん
@@ -172,6 +174,9 @@ export function requestLockModule(moduleRef: string, componentId: number, module
 
 export let currentProgramInfo: ProgramInfoMessage | null = null;
 export let currentTime: CurrentTime | null = null;
+
+export const resourceEventTarget = new EventTarget();
+
 ws.addEventListener("message", (ev) => {
     const msg = JSON.parse(ev.data) as ResponseMessage;
     if (msg.type === "moduleDownloaded") {
@@ -208,15 +213,9 @@ ws.addEventListener("message", (ev) => {
             lockCachedModule(msg.componentId, msg.moduleId, "system");
             const doc = launchRequestDocument;
             launchRequestDocument = null;
-            try {
-                window.browser.launchDocument(doc);
-            } catch (e) {
-                if (e instanceof LongJump) {
-                    console.log("long jump");
-                } else {
-                    throw e;
-                }
-            }
+            const cb = launchRequestDocumentCallback;
+            launchRequestDocumentCallback = null;
+            cb!();
         }
     } else if (msg.type === "moduleListUpdated") {
         downloadComponents.set(msg.componentId, {
@@ -234,31 +233,15 @@ ws.addEventListener("message", (ev) => {
             }
         }
     } else if (msg.type === "programInfo") {
-        if (msg.serviceId != null && msg.serviceId !== currentProgramInfo?.serviceId) {
-            // TR-B14 第二分冊 5.12.6.1
-            if (currentProgramInfo != null) {
-                console.log("serviceId changed", msg.serviceId, currentProgramInfo?.serviceId)
-            }
-            window.browser.Ureg[0] = "0x" + msg.serviceId.toString(16).padStart(4);
-            for (let i = 1; i < 64; i++) { // FIXME
-                window.browser.Ureg[i] = "";
-            }
-        }
         if (currentProgramInfo == null && launchRequestDocument != null) {
             currentProgramInfo = msg;
             const { componentId, moduleId } = parseURLEx(launchRequestDocument);
-            if (componentId != null &&  moduleId != null && getCachedModule(componentId, moduleId)) {
+            if (componentId != null && moduleId != null && getCachedModule(componentId, moduleId)) {
                 const doc = launchRequestDocument;
                 launchRequestDocument = null;
-                try {
-                    window.browser.launchDocument(doc);
-                } catch (e) {
-                    if (e instanceof LongJump) {
-                        console.log("long jump");
-                    } else {
-                        throw e;
-                    }
-                }
+                const cb = launchRequestDocumentCallback;
+                launchRequestDocumentCallback = null;
+                cb!();
             }
             return;
         }
@@ -272,6 +255,7 @@ ws.addEventListener("message", (ev) => {
     } else if (msg.type === "error") {
         console.error(msg);
     }
+    resourceEventTarget.dispatchEvent(new CustomEvent("message", { detail: msg }));
 });
 
 export function parseURL(url: string): { component: string | null, module: string | null, filename: string | null } {

@@ -3,18 +3,25 @@ export namespace BML {
     type DOMString = string;
 
     export function nodeToBMLNode(node: globalThis.Node | null): Node | null {
-        return node == null ? null : wrapNode2(node);
+        return node == null ? null : wrapNodeNonNull(node);
     }
 
     export function htmlElementToBMLHTMLElement(node: globalThis.HTMLElement | null): HTMLElement | null {
-        return node == null ? null : wrapNode2(node) as HTMLElement;
+        if (node == null) {
+            return null;
+        }
+        const result = wrapNodeNonNull(node);
+        if (!(result instanceof HTMLElement)) {
+            throw new TypeError("failed to cast to BML.HTMLElement");
+        }
+        return result;
     }
 
     function wrapNode(node: globalThis.Node | null): Node | null {
-        return node == null ? null : wrapNode2(node);
+        return node == null ? null : wrapNodeNonNull(node);
     }
 
-    function wrapNode2(node: globalThis.Node): Node {
+    function wrapNodeNonNull(node: globalThis.Node): Node {
         const a: any = node;
         const klass = getNodeClass(node);
         if (a.__klass) {
@@ -29,6 +36,7 @@ export namespace BML {
         a.__bmlInstance = inst;
         return inst;
     }
+
     function getNodeClass(node: globalThis.Node): typeof Node {
         if (node instanceof globalThis.HTMLInputElement) {
             return BMLInputElement;
@@ -173,7 +181,7 @@ export namespace BML {
             return this._implementation;
         }
         public get documentElement(): HTMLElement {
-            return wrapNode2(this.node.documentElement) as HTMLElement;
+            return wrapNodeNonNull(this.node.documentElement) as HTMLElement;
         }
     }
 
@@ -726,5 +734,5 @@ export namespace BML {
             return feature.toUpperCase() === "BML" && version === "1.0";
         }
     }
-    export const document = wrapNode2(window.document) as BMLDocument;
+    export const document = wrapNodeNonNull(window.document) as BMLDocument;
 }
