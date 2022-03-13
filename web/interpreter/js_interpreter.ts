@@ -1,10 +1,14 @@
 // @ts-ignore
 import { Interpreter } from "../../JS-Interpreter/interpreter";
-import { transpile } from "../../src/transpile_ecm";
+import { LongJump } from "../resource";
 import * as BT from "../binary_table";
 import { IInterpreter } from "./interpreter";
 function sleep(ms: number, callback: () => void) {
-    setTimeout(callback, ms);
+    console.log("SLEEP ", ms);
+    setTimeout(() => {
+        console.log("END SLEEP ", ms);
+        callback();
+    }, ms);
 }
 /*
  * Object
@@ -37,9 +41,36 @@ export class JSInterpreter implements IInterpreter {
     public reset() {
         const browser = window.browser;
         this.interpreter = new Interpreter("", (interpreter: any, globalObject: any) => {
-            const pseudoConsole = interpreter.nativeToPseudo(console);
-            interpreter.setProperty(globalObject, "console", pseudoConsole);
+            interpreter.setProperty(globalObject, "___log", interpreter.createNativeFunction(function log(log: string) {
+                console.log(log);
+            }));
             const pseudoBrowser = interpreter.nativeToPseudo(browser);
+            for (let i = 0; i < 64; i++) {
+                function defineRW2(pseudo: any, propName: string) {
+                    interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
+                        get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
+                            return (window.browser.Greg)[propName];
+                        }),
+                        set: interpreter.createNativeFunction(function getSubscribe(this: { data: any }, value: any) {
+                            (window.browser.Greg)[propName] = value;
+                        }),
+                    });
+                }
+    
+                function defineRW3(pseudo: any, propName: string) {
+                    interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
+                        get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
+                            return (window.browser.Ureg)[propName];
+                        }),
+                        set: interpreter.createNativeFunction(function getSubscribe(this: { data: any }, value: any) {
+                            (window.browser.Ureg)[propName] = value;
+                        }),
+                    });
+                }
+    
+                defineRW2(interpreter.getProperty(pseudoBrowser, "Greg"), i.toString());
+                defineRW3(interpreter.getProperty(pseudoBrowser, "Ureg"), i.toString());
+            }
             const pseudoStyle = interpreter.createNativeFunction(function elementWrapper(this: any) {
                 throw new TypeError("forbidden");
             }, true);
@@ -86,7 +117,11 @@ export class JSInterpreter implements IInterpreter {
             }
 
             function defineRWProperty(pseudo: any, propName: string) {
-                interpreter.setProperty(pseudo.properties["prototype"], propName, Interpreter.VALUE_IN_DESCRIPTOR, {
+                defineRW(pseudo.properties["prototype"], propName);
+            }
+
+            function defineRW(pseudo: any, propName: string) {
+                interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
                     get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
                         return (this.data as any)[propName];
                     }),
@@ -143,7 +178,7 @@ export class JSInterpreter implements IInterpreter {
                     return wrapElement((this.data as any).nextSibling);
                 }),
             });
-            
+
             interpreter.setProperty(pseudoElement.properties["prototype"], "visibility", Interpreter.VALUE_IN_DESCRIPTOR, {
                 get: interpreter.createNativeFunction(function getVisibility(this: { data: HTMLElement }) {
                     return (this.data as any).visibility;
@@ -152,7 +187,7 @@ export class JSInterpreter implements IInterpreter {
                     (this.data as any).visibility = value;
                 }),
             });
-            
+
             interpreter.setProperty(pseudoElement.properties["prototype"], "data", Interpreter.VALUE_IN_DESCRIPTOR, {
                 get: interpreter.createNativeFunction(function getData(this: { data: HTMLElement }) {
                     return (this.data as any).data;
@@ -189,8 +224,8 @@ export class JSInterpreter implements IInterpreter {
 
             defineReadOnlyProperty(pseudoElement, "id");
             defineReadOnlyProperty(pseudoElement, "className");
-            
-            
+
+
             interpreter.setProperty(globalObject, "browser", pseudoBrowser);
             interpreter.setProperty(pseudoBrowser, "sleep", interpreter.createAsyncFunction(sleep));
             interpreter.setProperty(pseudoBrowser, "readPersistentArray", interpreter.createNativeFunction(function readPersistentArray(filename: string, structure: string): any[] | null {
@@ -232,9 +267,9 @@ export class JSInterpreter implements IInterpreter {
                         return null;
                     }
                     if (document.currentEvent?.target != null) {
-                        const cloned = {...document.currentEvent};
+                        const cloned = { ...document.currentEvent };
                         (cloned as any).target = null;
-                        const pseudo =  interpreter.nativeToPseudo(cloned);
+                        const pseudo = interpreter.nativeToPseudo(cloned);
                         interpreter.setProperty(pseudo, "target", wrapElement(document.currentEvent.target));
                         return pseudo;
                     }
@@ -243,7 +278,12 @@ export class JSInterpreter implements IInterpreter {
             });
             interpreter.setProperty(globalObject, "document", pseudoDocument);
             const pseudoBinaryTable = interpreter.createNativeFunction(function BinaryTable(this: any, table_ref: string, structure: string) {
-                this.instance = new BT.BinaryTable(table_ref, structure);
+                try {
+                    this.instance = new BT.BinaryTable(table_ref, structure);
+                } catch (e) {
+                    console.error("BT", e);
+                    return null;
+                }
                 return this;
             }, true);
             interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "close", function close(this: { instance: BT.BinaryTable }) {
@@ -269,7 +309,7 @@ export class JSInterpreter implements IInterpreter {
                 // FIXME: errorshori
                 const props = Object.getOwnPropertyNames(args[args.length - 1]);
                 for (var i = 0; i < props.length; i++) {
-                  interpreter.setProperty(resultArray, props[i], interpreter.nativeToPseudo(args[args.length - 1][props[i]]));
+                    interpreter.setProperty(resultArray, props[i], interpreter.nativeToPseudo(args[args.length - 1][props[i]]));
                 }
                 return result;
             });
@@ -285,33 +325,73 @@ export class JSInterpreter implements IInterpreter {
             });
             interpreter.setProperty(globalObject, "BinaryTable", pseudoBinaryTable);
         });
-        
+        this.resetStack();
     }
+
+    _isExecuting: boolean;
     public constructor(browser: any) {
+        this._isExecuting = false;
         this.reset();
     }
 
-    public addScript(script: string, src?: string) {
-        const elem = document.createElement("dummy-script");
+    public addScript(script: string, src?: string): Promise<void> {
+        const elem = document.createElement("arib-script");
         elem.textContent = script;//transpile(script);
         document.body.appendChild(elem);
         this.interpreter.appendCode(script);
+        return this.runScript();
     }
 
-    public async runScript(): Promise<void> {
-        new Promise<void>((resolve, _reject) => {
-            if (this.interpreter.run()) {
-                setTimeout(() => {
-                    this.runScript();
-                }, 100);
-            } else {
-                resolve();
-            }
+    runBlock(): Promise<boolean> {
+        return new Promise<boolean>((resolve, _) => {
+            this.interpreter.runAsync(resolve);
         });
     }
 
+    async runScript(): Promise<void> {
+        if (this.isExecuting) {
+            throw new Error("this.isExecuting");
+        }
+        try {
+            this._isExecuting = true;
+            while (await this.runBlock()) {
+            }
+        } finally {
+            this._isExecuting = false;
+            const hs = this.executionFinishedHandlers.slice();
+            this.executionFinishedHandlers = [];
+            for (const h of hs) {
+                await h();
+            }
+        }
+    }
+
+    public get isExecuting() {
+        return this._isExecuting;
+    }
+
     public async runEventHandler(funcName: string): Promise<void> {
-        this.interpreter.appendCode(`console.log(${funcName});${funcName}();`);
+        this.interpreter.appendCode(`___log(${funcName});${funcName}();`);
         await this.runScript();
+    }
+
+    public destroyStack(): void {
+        this.resetStack();
+        throw new LongJump("long jump");
+    }
+
+    public resetStack(): void {
+        const state = new Interpreter.State(this.interpreter.ast, this.interpreter.globalScope);
+        state.done = false;
+        this.interpreter.stateStack.length = 0;
+        this.interpreter.stateStack[0] = state;
+        this.interpreter.resolve = null;
+        this._isExecuting = false;
+    }
+
+    executionFinishedHandlers: (() => void)[] = [];
+
+    public onceExecutionFinished(eventHandler: () => void): void {
+        this.executionFinishedHandlers.push(eventHandler);
     }
 }

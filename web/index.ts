@@ -68,7 +68,7 @@ declare global {
 
 
 if (!window.browser) {
-    function executeEventHandler(handler: string) {
+    async function executeEventHandler(handler: string): Promise<void> {
         if (/^\s*$/.exec(handler)) {
             return;
         }
@@ -76,7 +76,7 @@ if (!window.browser) {
         if (!groups) {
             throw new Error("invalid event handler attribute " + handler);
         }
-        interpreter.runEventHandler(groups.funcName);
+        await interpreter.runEventHandler(groups.funcName);
     }
     const videoElement = document.querySelector("video") as HTMLVideoElement;
     const videoContainer = document.getElementById("arib-video-container") as HTMLDivElement;
@@ -96,11 +96,17 @@ if (!window.browser) {
         window.clearInterval(handle);
         intervalHandles.delete(handle);
     }
-    function loadDocument(file: CachedFile, documentName: string) {
+
+
+    async function loadDocument(file: CachedFile, documentName: string): Promise<void> {
+        // スクリプトが呼ばれているときにさらにスクリプトが呼ばれることはないがonunloadだけ例外
+        interpreter.resetStack();
         const onunload = document.body.getAttribute("onunload");
         if (onunload != null) {
-            executeEventHandler(onunload);
+            await executeEventHandler(onunload);
         }
+        asyncEventQueue.splice(0, asyncEventQueue.length);
+        syncEventQueue.splice(0, syncEventQueue.length);
         // タイマー全部消す
         for (const i of intervalHandles.values()) {
             window.clearInterval(i);
@@ -125,7 +131,11 @@ if (!window.browser) {
         resource.unlockAllModule();
         currentDateMode = 0;
         const documentElement = document.createElement("html");
-        documentElement.innerHTML = bmlToXHTML(file.data);
+        try {
+            documentElement.innerHTML = bmlToXHTML(file.data);
+        } catch (e) {
+            console.error(e);
+        }
         const p = Array.from(document.documentElement.childNodes).filter(x => x.nodeName === "body" || x.nodeName === "head");
         const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
         document.documentElement.append(...Array.from(documentElement.children));
@@ -149,7 +159,7 @@ if (!window.browser) {
         lockSyncEventQueue();
         try {
             findNavIndex(0)?.focus();
-            document.querySelectorAll("script").forEach(x => {
+            for (const x of Array.from(document.querySelectorAll("script"))) {
                 const s = document.createElement("script");
                 x.remove();
                 const src = x.getAttribute("src");
@@ -166,19 +176,18 @@ if (!window.browser) {
                 } else {
                     s.textContent = "// " + activeDocument + "\n" + x.textContent;
                 }
-                interpreter.addScript(s.textContent ?? "", src ?? undefined);
+                await interpreter.addScript(s.textContent ?? "", src ?? undefined);
                 // document.body.appendChild(s);
-            });
-            interpreter.runScript();
+            }
             const onload = document.body.getAttribute("onload");
             if (onload != null) {
-                executeEventHandler(onload);
+                await executeEventHandler(onload);
             }
         }
         finally {
             unlockSyncEventQueue();
         }
-        requestDispatchQueue();
+        await processEventQueue();
         // 雑だけど動きはする
         bmlSetInterval(() => {
             const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
@@ -207,7 +216,7 @@ if (!window.browser) {
                 }
             });
         }, 1000);
-        throw new LongJump(`long jump`);
+        interpreter.destroyStack();
     }
     window.dummy = undefined;
     window.browser = {};
@@ -368,9 +377,7 @@ if (!window.browser) {
         return 1;
     }
     resource.registerOnModuleLockedHandler((module: string, isEx: boolean, status: number) => {
-        bmlSetTimeout(() => {
-            eventQueueOnModuleLocked(module, isEx, status);
-        }, 0);
+        eventQueueOnModuleLocked(module, isEx, status);
     });
     function eventQueueOnModuleLocked(module: string, isEx: boolean, status: number) {
         console.log("ModuleLocked", module);
@@ -383,26 +390,29 @@ if (!window.browser) {
             if (moduleRef?.toLowerCase() === module.toLowerCase()) {
                 const onoccur = beitem.getAttribute("onoccur");
                 if (onoccur) {
-                    document.currentEvent = {
-                        type: "ModuleLocked",
-                        target: beitem as HTMLElement,
-                        status,
-                        privateData: "",
-                        esRef: "",
-                        messageId: "0",
-                        messageVersion: "0",
-                        messageGroupId: "0",
-                        moduleRef: module,
-                        languageTag: 0,//?
-                        registerId: 0,
-                        serviceId: "0",
-                        eventId: "0",
-                        peripheralRef: "",
-                        object: null,
-                        segmentId: null,
-                    } as BMLBeventEvent;
-                    executeEventHandler(onoccur);
-                    document.currentEvent = null;
+                    queueAsyncEvent(async () => {
+                        document.currentEvent = {
+                            type: "ModuleLocked",
+                            target: beitem as HTMLElement,
+                            status,
+                            privateData: "",
+                            esRef: "",
+                            messageId: "0",
+                            messageVersion: "0",
+                            messageGroupId: "0",
+                            moduleRef: module,
+                            languageTag: 0,//?
+                            registerId: 0,
+                            serviceId: "0",
+                            eventId: "0",
+                            peripheralRef: "",
+                            object: null,
+                            segmentId: null,
+                        } as BMLBeventEvent;
+                        await executeEventHandler(onoccur);
+                        document.currentEvent = null;
+                    });
+                    processEventQueue();
                 }
             }
         }
@@ -419,26 +429,29 @@ if (!window.browser) {
             if (moduleRef?.toLowerCase() === module.toLowerCase()) {
                 const onoccur = beitem.getAttribute("onoccur");
                 if (onoccur) {
-                    document.currentEvent = {
-                        type: "ModuleUpdated",
-                        target: beitem as HTMLElement,
-                        status,
-                        privateData: "",
-                        esRef: "",
-                        messageId: "0",
-                        messageVersion: "0",
-                        messageGroupId: "0",
-                        moduleRef: module,
-                        languageTag: 0,//?
-                        registerId: 0,
-                        serviceId: "0",
-                        eventId: "0",
-                        peripheralRef: "",
-                        object: null,
-                        segmentId: null,
-                    } as BMLBeventEvent;
-                    executeEventHandler(onoccur);
-                    document.currentEvent = null;
+                    queueAsyncEvent(async () => {
+                        document.currentEvent = {
+                            type: "ModuleUpdated",
+                            target: beitem as HTMLElement,
+                            status,
+                            privateData: "",
+                            esRef: "",
+                            messageId: "0",
+                            messageVersion: "0",
+                            messageGroupId: "0",
+                            moduleRef: module,
+                            languageTag: 0,//?
+                            registerId: 0,
+                            serviceId: "0",
+                            eventId: "0",
+                            peripheralRef: "",
+                            object: null,
+                            segmentId: null,
+                        } as BMLBeventEvent;
+                        await executeEventHandler(onoccur);
+                        document.currentEvent = null;
+                    });
+                    processEventQueue();
                 }
             }
         }
@@ -453,26 +466,29 @@ if (!window.browser) {
             }
             const onoccur = beitem.getAttribute("onoccur");
             if (onoccur) {
-                document.currentEvent = {
-                    type: "DataButtonPressed",
-                    target: beitem as HTMLElement,
-                    status: 0,
-                    privateData: "",
-                    esRef: "",
-                    messageId: "0",
-                    messageVersion: "0",
-                    messageGroupId: "0",
-                    moduleRef: "",
-                    languageTag: 0,//?
-                    registerId: 0,
-                    serviceId: "0",
-                    eventId: "0",
-                    peripheralRef: "",
-                    object: null,
-                    segmentId: null,
-                } as BMLBeventEvent;
-                executeEventHandler(onoccur);
-                document.currentEvent = null;
+                queueAsyncEvent(async () => {
+                    document.currentEvent = {
+                        type: "DataButtonPressed",
+                        target: beitem as HTMLElement,
+                        status: 0,
+                        privateData: "",
+                        esRef: "",
+                        messageId: "0",
+                        messageVersion: "0",
+                        messageGroupId: "0",
+                        moduleRef: "",
+                        languageTag: 0,//?
+                        registerId: 0,
+                        serviceId: "0",
+                        eventId: "0",
+                        peripheralRef: "",
+                        object: null,
+                        segmentId: null,
+                    } as BMLBeventEvent;
+                    await executeEventHandler(onoccur);
+                    document.currentEvent = null;
+                });
+                processEventQueue();
             }
         }
     }
@@ -547,7 +563,7 @@ if (!window.browser) {
             console.error("FIXME");
             resource.launchRequest(documentName);
             setRemoteControllerMessage(documentName + "のデータ取得中...");
-            throw new LongJump(`long jump`);
+            interpreter.destroyStack();
         }
         const res = fetchLockedResource(documentName);
         if (res == null) {
@@ -563,7 +579,7 @@ if (!window.browser) {
         }
         loadDocument(res, normalizedDocument);
         console.log("return ", ad, documentName);
-        // location.href = documentName;
+        interpreter.destroyStack();
         return 0;
     };
     window.browser.reloadActiveDocument = function reloadActiveDocument(): number {
@@ -740,7 +756,10 @@ if (!window.browser) {
             if (iteration === 0) {
                 bmlClearInterval(handle);
             }
-            executeEventHandler(evalCode);
+            queueAsyncEvent(async () => {
+                await executeEventHandler(evalCode)
+            });
+            processEventQueue();
         }, msec);
         console.log("setInterval", evalCode, msec, iteration, handle);
         return handle;
@@ -840,80 +859,97 @@ if (!window.browser) {
 
     type SyncEvent = SyncFocusEvent | SyncBlurEvent | SyncClickEvent;
 
+    let asyncEventQueue: (() => Promise<void>)[] = [];
     let syncEventQueue: SyncEvent[] = [];
-    let syncEventQueueLocked = false;
+    let syncEventQueueLockCount = 0;
+
+
+    async function processEventQueue(): Promise<void> {
+        while (syncEventQueue.length || asyncEventQueue.length) {
+            if (syncEventQueueLockCount) {
+                return;
+            }
+            if (syncEventQueue.length) {
+                try {
+                    lockSyncEventQueue();
+                    const event = syncEventQueue.shift();
+                    if (event?.type === "focus") {
+                        await dispatchFocus(event);
+                    } else if (event?.type === "blur") {
+                        await dispatchBlur(event);
+                    } else if (event?.type === "click") {
+                        await dispatchClick(event);
+                    }
+                } finally {
+                    unlockSyncEventQueue();
+                }
+                continue;
+            }
+            if (asyncEventQueue.length) {
+                try {
+                    lockSyncEventQueue();
+                    const cb = asyncEventQueue.shift();
+                    if (cb) {
+                        await cb();
+                    }
+                } finally {
+                    unlockSyncEventQueue();
+                }
+            }
+        }
+    }
 
     function queueSyncEvent(event: SyncEvent) {
         syncEventQueue.push(event);
     }
 
-    function requestDispatchQueue() {
-        if (!syncEventQueueLocked) {
-            dispatchEventQueue();
-        }
+    async function queueAsyncEvent(callback: () => Promise<void>): Promise<void> {
+        asyncEventQueue.push(callback);
     }
 
     function lockSyncEventQueue() {
-        syncEventQueueLocked = true;
+        syncEventQueueLockCount++;
     }
 
     function unlockSyncEventQueue() {
-        syncEventQueueLocked = false;
-    }
-
-    function dispatchEventQueue() {
-        try {
-            lockSyncEventQueue();
-            while (true) {
-                const event = syncEventQueue.shift();
-                if (event == null) {
-                    return;
-                }
-                if (event.type === "focus") {
-                    dispatchFocus(event);
-                } else if (event.type === "blur") {
-                    dispatchBlur(event);
-                } else if (event.type === "click") {
-                    dispatchClick(event);
-                }
-            }
-        } finally {
-            unlockSyncEventQueue();
+        syncEventQueueLockCount--;
+        if (syncEventQueueLockCount < 0) {
+            throw new Error("syncEventQueueLockCount < 0");
         }
     }
 
-    function dispatchFocus(event: SyncFocusEvent) {
+    async function dispatchFocus(event: SyncFocusEvent): Promise<void> {
         document.currentEvent = {
             type: "focus",
             target: event.target,
         } as BMLEvent;
         const handler = event.target.getAttribute("onfocus");
         if (handler) {
-            executeEventHandler(handler);
+            await executeEventHandler(handler);
         }
         document.currentEvent = null;
     }
 
-    function dispatchBlur(event: SyncBlurEvent) {
+    async function dispatchBlur(event: SyncBlurEvent): Promise<void> {
         document.currentEvent = {
             type: "blur",
             target: event.target,
         } as BMLEvent;
         const handler = event.target.getAttribute("onblur");
         if (handler) {
-            executeEventHandler(handler);
+            await executeEventHandler(handler);
         }
         document.currentEvent = null;
     }
 
-    function dispatchClick(event: SyncClickEvent) {
+    async function dispatchClick(event: SyncClickEvent): Promise<void> {
         document.currentEvent = {
             type: "click",
             target: event.target,
         } as BMLEvent;
         const handler = event.target.getAttribute("onclick");
         if (handler) {
-            executeEventHandler(handler);
+            await executeEventHandler(handler);
         }
         document.currentEvent = null;
     }
@@ -931,7 +967,6 @@ if (!window.browser) {
         if (prevFocus != null) {
             queueSyncEvent({ type: "blur", target: prevFocus });
         }
-        requestDispatchQueue();
     };
 
     Object.defineProperty(Document.prototype, "currentFocus", {
@@ -1165,28 +1200,30 @@ if (!window.browser) {
         }
         const onkeydown = document.currentFocus.getAttribute("onkeydown");
         if (onkeydown) {
-            document.currentEvent = {
-                keyCode: k,
-                type: "keydown",
-                target: document.currentFocus,
-            } as BMLIntrinsicEvent;
-            try {
-                lockSyncEventQueue();
-                executeEventHandler(onkeydown);
-            } catch (e) {
-                if (e instanceof LongJump) {
-                    console.log("long jump");
-                } else {
-                    throw e;
+            queueAsyncEvent(async () => {
+                document.currentEvent = {
+                    keyCode: k,
+                    type: "keydown",
+                    target: document.currentFocus,
+                } as BMLIntrinsicEvent;
+                try {
+                    lockSyncEventQueue();
+                    await executeEventHandler(onkeydown);
+                } catch (e) {
+                    if (e instanceof LongJump) {
+                        console.log("long jump");
+                    } else {
+                        throw e;
+                    }
+                } finally {
+                    unlockSyncEventQueue();
                 }
-            } finally {
-                unlockSyncEventQueue();
-            }
-            document.currentEvent = null;
-            if (k == AribKeyCode.Enter && document.currentFocus) {
-                queueSyncEvent({ type: "click", target: document.currentFocus });
-            }
-            requestDispatchQueue();
+                document.currentEvent = null;
+                if (k == AribKeyCode.Enter && document.currentFocus) {
+                    queueSyncEvent({ type: "click", target: document.currentFocus });
+                }
+            });
+            processEventQueue();
         }
     }
 
@@ -1215,25 +1252,27 @@ if (!window.browser) {
         }
         const onkeyup = document.currentFocus.getAttribute("onkeyup");
         if (onkeyup) {
-            document.currentEvent = {
-                keyCode: k,
-                type: "keyup",
-                target: document.currentFocus,
-            } as BMLIntrinsicEvent;
-            try {
-                lockSyncEventQueue();
-                executeEventHandler(onkeyup);
-            } catch (e) {
-                if (e instanceof LongJump) {
-                    console.log("long jump");
-                } else {
-                    throw e;
+            queueAsyncEvent(async () => {
+                document.currentEvent = {
+                    keyCode: k,
+                    type: "keyup",
+                    target: document.currentFocus,
+                } as BMLIntrinsicEvent;
+                try {
+                    lockSyncEventQueue();
+                    await executeEventHandler(onkeyup);
+                } catch (e) {
+                    if (e instanceof LongJump) {
+                        console.log("long jump");
+                    } else {
+                        throw e;
+                    }
+                } finally {
+                    unlockSyncEventQueue();
                 }
-            } finally {
-                unlockSyncEventQueue();
-            }
-            document.currentEvent = null;
-            requestDispatchQueue();
+                document.currentEvent = null;
+            });
+            processEventQueue();
         }
     }
 

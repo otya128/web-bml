@@ -401,6 +401,19 @@ Interpreter.prototype.run = function() {
   return this.paused_;
 };
 
+Interpreter.prototype.runAsync = function(resolve) {
+  if (this.resolve) {
+    throw new Error("this.resolve");
+  }
+  this.resolve = resolve;
+  while (!this.paused_ && this.step()) {}
+  if (!this.paused_) {
+    resolve(false);
+    this.resolve = null;
+  }
+  return this.paused_;
+};
+
 /**
  * Initialize the global object with buitin properties and functions.
  * @param {!Interpreter.Object} globalObject Global object.
@@ -3710,6 +3723,11 @@ Interpreter.prototype['stepCallExpression'] = function(stack, state, node) {
       var callback = function(value) {
         state.value = value;
         thisInterpreter.paused_ = false;
+        if (thisInterpreter.resolve != null) {
+          const r = thisInterpreter.resolve;
+          thisInterpreter.resolve = null;
+          r(true);
+        }
       };
       // Force the argument lengths to match, then append the callback.
       var argLength = func.asyncFunc.length - 1;
