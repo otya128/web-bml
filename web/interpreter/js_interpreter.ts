@@ -303,7 +303,7 @@ export class JSInterpreter implements IInterpreter {
         this.reset();
     }
 
-    public addScript(script: string, src?: string): Promise<void> {
+    public addScript(script: string, src?: string): Promise<boolean> {
         const elem = document.createElement("arib-script");
         elem.textContent = script;//transpile(script);
         document.body.appendChild(elem);
@@ -317,7 +317,7 @@ export class JSInterpreter implements IInterpreter {
         });
     }
 
-    async runScript(): Promise<void> {
+    async runScript(): Promise<boolean> {
         if (this.isExecuting) {
             throw new Error("this.isExecuting");
         }
@@ -326,34 +326,30 @@ export class JSInterpreter implements IInterpreter {
             this._isExecuting = true;
             while (await this.runBlock()) {
                 if (context.currentContext !== prevContext) {
-                    throw new Error("context switched");
+                    return true;
                 }
             }
             if (context.currentContext !== prevContext) {
-                throw new Error("context switched");
+                return true;
             }
         } finally {
             if (context.currentContext !== prevContext) {
-                console.error("context switched");
+                return true;
             } else {
                 this._isExecuting = false;
                 this.interpreter.resolve = null;
-                const hs = this.executionFinishedHandlers.slice();
-                this.executionFinishedHandlers = [];
-                for (const h of hs) {
-                    await h();
-                }
             }
         }
+        return false;
     }
 
     public get isExecuting() {
         return this._isExecuting;
     }
 
-    public async runEventHandler(funcName: string): Promise<void> {
+    public async runEventHandler(funcName: string): Promise<boolean> {
         this.interpreter.appendCode(`___log(${funcName});${funcName}();`);
-        await this.runScript();
+        return await this.runScript();
     }
 
     public destroyStack(): void {
@@ -368,11 +364,5 @@ export class JSInterpreter implements IInterpreter {
         this.interpreter.stateStack[0] = state;
         this.interpreter.resolve = null;
         this._isExecuting = false;
-    }
-
-    executionFinishedHandlers: (() => void)[] = [];
-
-    public onceExecutionFinished(eventHandler: () => void): void {
-        this.executionFinishedHandlers.push(eventHandler);
     }
 }

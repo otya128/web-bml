@@ -380,11 +380,16 @@ export namespace BML {
         public get accessKey(): string {
             return this.node.accessKey;
         }
+        // 同じidであれば遷移時にも状態を保持する
         public get remain(): boolean {
-            throw new Error("BMLObjectElement.remain");
+            return this.node.getAttribute("remain") === "remain";
         }
         public set remain(value: boolean) {
-            throw new Error("BMLObjectElement.remain");
+            if (value) {
+                this.node.setAttribute("remain", "remain");
+            } else {
+                this.node.removeAttribute("remain");
+            }
         }
         public get streamPosition(): number {
             throw new Error("BMLObjectElement.streamPosition");

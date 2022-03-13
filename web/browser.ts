@@ -370,7 +370,7 @@ export const browser: Browser = {
     launchDocument(documentName: string, transitionStyle?: string): number {
         console.log("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
         documentLaunchDocument(documentName);
-        return 0;
+        throw new Error("unreachable!!");
     },
     reloadActiveDocument(): number {
         console.log("reloadActiveDocument");
@@ -502,7 +502,7 @@ export const browser: Browser = {
                 bmlClearInterval(handle);
             }
             queueAsyncEvent(async () => {
-                await executeEventHandler(evalCode)
+                return await executeEventHandler(evalCode);
             });
             processEventQueue();
         }, msec);

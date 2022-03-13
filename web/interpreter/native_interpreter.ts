@@ -24,31 +24,27 @@ export class NativeInterpreter implements IInterpreter {
         }
     }
 
-    public addScript(script: string, src?: string): Promise<void> {
+    public addScript(script: string, src?: string): Promise<boolean> {
         const elem = document.createElement("script");
         elem.textContent = transpile(script);
         document.body.appendChild(elem);
-        return Promise.resolve();
+        return Promise.resolve(false);
     }
 
     public get isExecuting() {
         return this._isExecuting;
     }
 
-    public runEventHandler(funcName: string): Promise<void> {
+    public runEventHandler(funcName: string): Promise<boolean> {
         if (this.isExecuting) {
             throw new Error("this.isExecuting");
         }
         try {
             this._isExecuting = true;
-            return Promise.resolve(new Function(funcName + "();")());
+            new Function(funcName + "();")();
+            return Promise.resolve(false);
         } finally {
             this._isExecuting = false;
-            const hs = this.executionFinishedHandlers.slice();
-            this.executionFinishedHandlers = [];
-            for (const h of hs) {
-                h();
-            }
         }
     }
 
@@ -58,11 +54,5 @@ export class NativeInterpreter implements IInterpreter {
 
     public resetStack(): void {
         this._isExecuting = false;
-    }
-
-    executionFinishedHandlers: (() => void)[] = [];
-
-    public onceExecutionFinished(eventHandler: () => void): void {
-        this.executionFinishedHandlers.push(eventHandler);
     }
 }

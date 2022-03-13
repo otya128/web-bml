@@ -27,12 +27,16 @@ function focusHelper(element?: HTMLElement | null) {
     }
 }
 
-async function loadDocument(file: CachedFile, documentName: string): Promise<void> {
+async function loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
     // スクリプトが呼ばれているときにさらにスクリプトが呼ばれることはないがonunloadだけ例外
     browserStatus.interpreter.resetStack();
     const onunload = document.body.getAttribute("arib-onunload");
     if (onunload != null) {
-        await executeEventHandler(onunload);
+        if (await executeEventHandler(onunload)) {
+            // readPersistentArray writePersistentArray unlockModuleOnMemoryEx unlockAllModulesOnMemoryしか呼び出せないので終了したらおかしい
+            console.error("onunload");
+            return true;
+        }
     }
     newContext({ from: activeDocument, to: documentName });
     resetEventQueue();
@@ -76,27 +80,35 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<voi
             if (src) {
                 const res = fetchLockedResource(src);
                 if (res !== null) {
-                    await browserStatus.interpreter.addScript(`// ${src}\n___log(\"${src} startA\");\n${decodeEUCJP(res.data)}\n___log(\"${src} end\");`, src ?? undefined);
+                    if (await browserStatus.interpreter.addScript(decodeEUCJP(res.data), src ?? undefined)) {
+                        return true;
+                    }
                 }
-            } else {
-                await browserStatus.interpreter.addScript(`// ${activeDocument}\n___log(\"${activeDocument} startB\");\n${x.textContent}\n___log(\"${activeDocument} end\");`, src ?? undefined);
+            } else if (x.textContent != null) {
+                if (await browserStatus.interpreter.addScript(x.textContent, activeDocument ?? "")) {
+                    return true;
+                }
             }
             x.remove();
             // document.body.appendChild(s);
         }
         const onload = document.body.getAttribute("arib-onload");
         if (onload != null) {
-            console.trace("START ONLOAD");
-            await executeEventHandler(onload);
-            console.trace("END ONLOAD");
+            console.debug("START ONLOAD");
+            if (await executeEventHandler(onload)) {
+                return true;
+            }
+            console.debug("END ONLOAD");
         }
     }
     finally {
         unlockSyncEventQueue();
     }
-    console.trace("START PROC EVQ");
-    await processEventQueue();
-    console.trace("END PROC EVQ");
+    console.debug("START PROC EVQ");
+    if (await processEventQueue()) {
+        return true;
+    }
+    console.debug("END PROC EVQ");
     // 雑だけど動きはする
     bmlSetInterval(() => {
         const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
@@ -126,6 +138,7 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<voi
         });
     }, 1000);
     browserStatus.interpreter.destroyStack();
+    return false;
 }
 
 export function launchDocument(documentName: string) {
@@ -373,7 +386,9 @@ export function processKeyDown(k: AribKeyCode) {
             });
             try {
                 lockSyncEventQueue();
-                await executeEventHandler(onkeydown);
+                if (await executeEventHandler(onkeydown)) {
+                    return true;
+                }
             } catch (e) {
                 if (e instanceof LongJump) {
                     console.log("long jump");
@@ -387,6 +402,7 @@ export function processKeyDown(k: AribKeyCode) {
             if (k == AribKeyCode.Enter && BML.document.currentFocus && BML.document.currentFocus["node"]) {
                 queueSyncEvent({ type: "click", target: BML.document.currentFocus["node"] });
             }
+            return false;
         });
         processEventQueue();
     }
@@ -426,7 +442,9 @@ export function processKeyUp(k: AribKeyCode) {
             });
             try {
                 lockSyncEventQueue();
-                await executeEventHandler(onkeyup);
+                if (await executeEventHandler(onkeyup)) {
+                    return true;
+                }
             } catch (e) {
                 if (e instanceof LongJump) {
                     console.log("long jump");
@@ -437,6 +455,7 @@ export function processKeyUp(k: AribKeyCode) {
                 unlockSyncEventQueue();
             }
             resetCurrentEvent();
+            return false;
         });
         processEventQueue();
     }

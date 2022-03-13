@@ -8,7 +8,6 @@ interface BMLEvent {
     target: HTMLElement | null;
 }
 
-
 type BMLObjectElement = HTMLObjectElement;
 
 interface BMLIntrinsicEvent extends BMLEvent {
@@ -31,7 +30,6 @@ interface BMLBeventEvent extends BMLEvent {
     segmentId: string | null;
 }
 
-type BMLElement = HTMLElement;
 const bmlDocument = BML.document;
 
 export function setCurrentEvent(a: BMLEvent) {
@@ -60,17 +58,18 @@ export function resetCurrentEvent() {
     bmlDocument._currentEvent = null;
 }
 
-export async function executeEventHandler(handler: string): Promise<void> {
+export async function executeEventHandler(handler: string): Promise<boolean> {
     if (/^\s*$/.exec(handler)) {
-        return;
+        return false;
     }
     const groups = /^\s*(?<funcName>[a-zA-Z_][0-9a-zA-Z_]*)\s*\(\s*\)\s*;?\s*$/.exec(handler)?.groups;
     if (!groups) {
         throw new Error("invalid event handler attribute " + handler);
     }
     console.debug("EXECUTE", handler);
-    await browserStatus.interpreter.runEventHandler(groups.funcName);
+    const result = await browserStatus.interpreter.runEventHandler(groups.funcName);
     console.debug("END", handler);
+    return result;
 }
 
 const timeoutHandles = new Set<number>();
@@ -126,8 +125,11 @@ export function eventQueueOnModuleLocked(module: string, isEx: boolean, status: 
                         object: null,
                         segmentId: null,
                     } as BMLBeventEvent);
-                    await executeEventHandler(onoccur);
+                    if (await executeEventHandler(onoccur)) {
+                        return true;
+                    }
                     resetCurrentEvent();
+                    return false;
                 });
                 processEventQueue();
             }
@@ -165,8 +167,11 @@ export function eventQueueOnModuleUpdated(module: string, status: number) {
                         object: null,
                         segmentId: null,
                     } as BMLBeventEvent);
-                    await executeEventHandler(onoccur);
+                    if (await executeEventHandler(onoccur)) {
+                        return true;
+                    }
                     resetCurrentEvent();
+                    return false;
                 });
                 processEventQueue();
             }
@@ -202,8 +207,11 @@ export function dispatchDataButtonPressed() {
                     object: null,
                     segmentId: null,
                 } as BMLBeventEvent);
-                await executeEventHandler(onoccur);
+                if (await executeEventHandler(onoccur)) {
+                    return true;
+                }
                 resetCurrentEvent();
+                return false;
             });
             processEventQueue();
         }
@@ -228,26 +236,32 @@ export type SyncClickEvent = {
 
 export type SyncEvent = SyncFocusEvent | SyncBlurEvent | SyncClickEvent;
 
-let asyncEventQueue: (() => Promise<void>)[] = [];
+let asyncEventQueue: (() => Promise<boolean>)[] = [];
 let syncEventQueue: SyncEvent[] = [];
 let syncEventQueueLockCount = 0;
 
 
-export async function processEventQueue(): Promise<void> {
+export async function processEventQueue(): Promise<boolean> {
     while (syncEventQueue.length || asyncEventQueue.length) {
         if (syncEventQueueLockCount) {
-            return;
+            return false;
         }
         if (syncEventQueue.length) {
             try {
                 lockSyncEventQueue();
                 const event = syncEventQueue.shift();
                 if (event?.type === "focus") {
-                    await dispatchFocus(event);
+                    if (await dispatchFocus(event)) {
+                        return true;
+                    }
                 } else if (event?.type === "blur") {
-                    await dispatchBlur(event);
+                    if (await dispatchBlur(event)) {
+                        return true;
+                    }
                 } else if (event?.type === "click") {
-                    await dispatchClick(event);
+                    if (await dispatchClick(event)) {
+                        return true;
+                    }
                 }
             } finally {
                 unlockSyncEventQueue();
@@ -259,20 +273,23 @@ export async function processEventQueue(): Promise<void> {
                 lockSyncEventQueue();
                 const cb = asyncEventQueue.shift();
                 if (cb) {
-                    await cb();
+                    if (await cb()) {
+                        return true;
+                    }
                 }
             } finally {
                 unlockSyncEventQueue();
             }
         }
     }
+    return false;
 }
 
 export function queueSyncEvent(event: SyncEvent) {
     syncEventQueue.push(event);
 }
 
-export async function queueAsyncEvent(callback: () => Promise<void>): Promise<void> {
+export function queueAsyncEvent(callback: () => Promise<boolean>) {
     asyncEventQueue.push(callback);
 }
 
@@ -287,40 +304,49 @@ export function unlockSyncEventQueue() {
     }
 }
 
-async function dispatchFocus(event: SyncFocusEvent): Promise<void> {
+async function dispatchFocus(event: SyncFocusEvent): Promise<boolean> {
     setCurrentEvent({
         type: "focus",
         target: event.target,
     } as BMLEvent);
     const handler = event.target.getAttribute("onfocus");
     if (handler) {
-        await executeEventHandler(handler);
+        if (await executeEventHandler(handler)) {
+            return true;
+        }
     }
     resetCurrentEvent();
+    return false;
 }
 
-async function dispatchBlur(event: SyncBlurEvent): Promise<void> {
+async function dispatchBlur(event: SyncBlurEvent): Promise<boolean> {
     setCurrentEvent({
         type: "blur",
         target: event.target,
     } as BMLEvent);
     const handler = event.target.getAttribute("onblur");
     if (handler) {
-        await executeEventHandler(handler);
+        if (await executeEventHandler(handler)) {
+            return true;
+        }
     }
     resetCurrentEvent();
+    return false;
 }
 
-async function dispatchClick(event: SyncClickEvent): Promise<void> {
+async function dispatchClick(event: SyncClickEvent): Promise<boolean> {
     setCurrentEvent({
         type: "click",
         target: event.target,
     } as BMLEvent);
     const handler = event.target.getAttribute("onclick");
     if (handler) {
-        await executeEventHandler(handler);
+        if (await executeEventHandler(handler)) {
+            return true;
+        }
     }
     resetCurrentEvent();
+    return false;
 }
 
 export function resetEventQueue() {   
