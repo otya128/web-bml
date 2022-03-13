@@ -1,11 +1,13 @@
 import { transpile } from "../../src/transpile_ecm";
+import { Browser } from "../browser";
 import { LongJump } from "../resource";
 import { IInterpreter } from "./interpreter";
 
 export class NativeInterpreter implements IInterpreter {
     _isExecuting: boolean;
     windowKeys: Set<string>;
-    public constructor() {
+    public constructor(browser: Browser) {
+        window.browser = browser;
         this._isExecuting = false;
         this.windowKeys = new Set<string>(Object.keys(window));
     }

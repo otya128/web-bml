@@ -112,7 +112,6 @@ export namespace BML {
         return new BMLCSS2Properties(window.getComputedStyle(node), node.style);
     }
     function focus(node: HTMLElement) {
-
     }
     function blur(node: HTMLElement) {
 
@@ -564,98 +563,98 @@ export namespace BML {
             return this.node.getAttribute("type") ?? "";
         }
         public get esRef(): DOMString {
-            return this.node.getAttribute("esRef") ?? "";
+            return this.node.getAttribute("es_ref") ?? "";
         }
         public set esRef(value: DOMString) {
-            this.node.setAttribute("esRef", value);
+            this.node.setAttribute("es_ref", value);
         }
         public get messageId(): number {
-            return attrToNumber(this.node.getAttribute("messageId")) ?? 0;
+            return attrToNumber(this.node.getAttribute("message_id")) ?? 0;
         }
         public set messageId(value: number) {
-            this.node.setAttribute("messageId", String(value));
+            this.node.setAttribute("message_id", String(value));
         }
         public get messageVersion(): number {
-            return attrToNumber(this.node.getAttribute("messageVersion")) ?? 0;
+            return attrToNumber(this.node.getAttribute("message_version")) ?? 0;
         }
         public set messageVersion(value: number) {
-            this.node.setAttribute("messageVersion", String(value));
+            this.node.setAttribute("message_version", String(value));
         }
         public get messageGroupId(): number {
-            return attrToNumber(this.node.getAttribute("messageGroupId")) ?? 0;
+            return attrToNumber(this.node.getAttribute("message_group_id")) ?? 0;
         }
         // public set messageGroupId(value: number) {
-        //     this.node.setAttribute("messageGroupId", String(value));
+        //     this.node.setAttribute("message_group_id", String(value));
         // }
         public get moduleRef(): DOMString {
-            return this.node.getAttribute("moduleRef") ?? "";
+            return this.node.getAttribute("module_ref") ?? "";
         }
         public set moduleRef(value: DOMString) {
-            this.node.setAttribute("moduleRef", value);
+            this.node.setAttribute("module_ref", value);
         }
         public get languageTag(): number {
-            return attrToNumber(this.node.getAttribute("languageTag")) ?? 0;
+            return attrToNumber(this.node.getAttribute("language_tag")) ?? 0;
         }
         public set languageTag(value: number) {
-            this.node.setAttribute("languageTag", String(value));
+            this.node.setAttribute("language_tag", String(value));
         }
         /*
         public get registerId(): number {
-            return attrToNumber(this.node.getAttribute("registerId")) ?? 0;
+            return attrToNumber(this.node.getAttribute("register_id")) ?? 0;
         }
         public set registerId(value: number) {
-            this.node.setAttribute("registerId", String(value));
+            this.node.setAttribute("register_id", String(value));
         }
         public get serviceId(): number {
-            return attrToNumber(this.node.getAttribute("serviceId")) ?? 0;
+            return attrToNumber(this.node.getAttribute("service_id")) ?? 0;
         }
         public set serviceId(value: number) {
-            this.node.setAttribute("serviceId", String(value));
+            this.node.setAttribute("service_id", String(value));
         }
         public get eventId(): number {
-            return attrToNumber(this.node.getAttribute("eventId")) ?? 0;
+            return attrToNumber(this.node.getAttribute("event_id")) ?? 0;
         }
         public set eventId(value: number) {
-            this.node.setAttribute("eventId", String(value));
+            this.node.setAttribute("event_id", String(value));
         }*/
         public get peripheralRef(): DOMString {
-            return this.node.getAttribute("peripheralRef") ?? "";
+            return this.node.getAttribute("peripheral_ref") ?? "";
         }
         public set peripheralRef(value: DOMString) {
-            this.node.setAttribute("peripheralRef", value);
+            this.node.setAttribute("peripheral_ref", value);
         }
         public get timeMode() {
-            return this.node.getAttribute("timeMode") ?? "";
+            return this.node.getAttribute("time_mode") ?? "";
         }
         // public set timeMode(value: DOMString) {
-        //     this.node.setAttribute("timeMode", value);
+        //     this.node.setAttribute("time_mode", value);
         // }
         public get timeValue() {
-            return this.node.getAttribute("timeValue") ?? "";
+            return this.node.getAttribute("time_value") ?? "";
         }
         public set timeValue(value: DOMString) {
-            this.node.setAttribute("timeValue", value);
+            this.node.setAttribute("time_value", value);
         }
         public get objectId() {
-            return this.node.getAttribute("objectId") ?? "";
+            return this.node.getAttribute("object_id") ?? "";
         }
         public set objectId(value: DOMString) {
-            this.node.setAttribute("objectId", value);
+            this.node.setAttribute("object_id", value);
         }
         public get segmentId(): DOMString {
-            return this.node.getAttribute("segmentId") ?? "";
+            return this.node.getAttribute("segment_id") ?? "";
         }
         public set segmentId(value: DOMString) {
-            this.node.setAttribute("segmentId", value);
+            this.node.setAttribute("segment_id", value);
         }
         public get subscribe(): boolean {
             return this.node.getAttribute("subscribe") === "subscribe";
         }
         public set subscribe(value: boolean) {
             if (value) {
-                this.node.removeAttribute("subscribe");
-            } else {
                 this.node.setAttribute("subscribe", "subscribe");
+            } else {
+                this.node.removeAttribute("subscribe");
             }
         }
     }

@@ -3,8 +3,7 @@ import * as resource from "./resource";
 import { activeDocument, fetchLockedResource, lockCachedModule, parseURLEx } from "./resource";
 import { Buffer } from "buffer";
 import * as drcs from "../src/drcs";
-// @ts-ignore
-import { JSInterpreter } from "./interpreter/js_interpreter";
+import { IInterpreter } from "./interpreter/interpreter";
 import { bmlClearInterval, bmlSetInterval, eventQueueOnModuleLocked, executeEventHandler, processEventQueue, queueAsyncEvent } from "./event";
 import { launchDocument as documentLaunchDocument } from "./document";
 import { ProgramInfoMessage, ResponseMessage } from "../src/ws_api";
@@ -183,9 +182,9 @@ export interface Browser {
     // オプション
 }
 
-export const browser: Partial<Browser> = {
-    Ureg: new Array(64).map(x => ""),
-    Greg: new Array(64).map(x => ""),
+export const browser: Browser = {
+    Ureg: [...new Array(64)].map(_ => ""),
+    Greg: [...new Array(64)].map(_ => ""),
     setCurrentDateMode(time_mode: number): number {
         console.log("setCurrentDateMode", time_mode);
         if (time_mode == 0) {
@@ -515,12 +514,12 @@ export const browser: Partial<Browser> = {
         bmlClearInterval(timerID);
         return 1;
     },
-};
+} as Browser;
 
 
 export const browserStatus = {
     currentDateMode: 0,
-    interpreter: new JSInterpreter(browser),
+    interpreter: null! as IInterpreter,
     currentProgramInfo: null as (ProgramInfoMessage | null),
 };
 

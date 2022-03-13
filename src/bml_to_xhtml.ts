@@ -129,6 +129,20 @@ export function bmlToXHTML(data: Uint8Array): string {
                 delete node[":@"]["@_data"];
             }
         }
+        if (node[":@"] && node[":@"]["@_onload"]) {
+            if (node[":@"] && node[":@"]["@_onload"]) {
+                const data = node[":@"]["@_onload"];
+                node[":@"]["@_arib-onload"] = data;
+                delete node[":@"]["@_onload"];
+            }
+        }
+        if (node[":@"] && node[":@"]["@_onunload"]) {
+            if (node[":@"] && node[":@"]["@_onunload"]) {
+                const data = node[":@"]["@_onunload"];
+                node[":@"]["@_arib-onunload"] = data;
+                delete node[":@"]["@_onunload"];
+            }
+        }
         /*
         // keyイベントは独自なのでエミュレートした方がよさそう
         const attrs = node[":@"] as any;
@@ -150,7 +164,7 @@ export function bmlToXHTML(data: Uint8Array): string {
             const code = c["__cdata"][0]["#text"];
             c["__cdata"][0]["#text"] = transpile(code);
         }*/
-        bodyChildren.push(s);
+        //bodyChildren.push(s);
     }
     //console.log(JSON.stringify(parsed, null, 4));
     return builder.build(htmlChildren);

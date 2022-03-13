@@ -2,7 +2,7 @@ import css from "css";
 import { bmlSetInterval, dispatchDataButtonPressed, eventQueueOnModuleUpdated, executeEventHandler, lockSyncEventQueue, processEventQueue, queueAsyncEvent, queueSyncEvent, resetCurrentEvent, resetEventQueue, setCurrentIntrinsicEvent, unlockSyncEventQueue } from "./event";
 import { activeDocument, CachedFile, fetchLockedResource, lockCachedModule, parseURL, parseURLEx, LongJump } from "./resource";
 import * as resource from "./resource";
-import { browserStatus } from "./browser";
+import { browser, browserStatus } from "./browser";
 import { bmlToXHTML } from "../src/bml_to_xhtml";
 // @ts-ignore
 import defaultCss from "./default.css";
@@ -12,20 +12,34 @@ import { defaultCLUT } from "../src/default_clut";
 import { readCLUT } from "../src/clut";
 import { transpileCSS } from "../src/transpile_css";
 import { Buffer } from "buffer";
+import { newContext } from "./context";
+import { BML } from "./interface/DOM";
 
 const videoContainer = document.getElementById("arib-video-container") as HTMLDivElement;
+
+function focusHelper(element?: HTMLElement | null) {
+    if (element == null) {
+        return;
+    }
+    const felem = BML.htmlElementToBMLHTMLElement(element);
+    if (felem && (felem as any).focus) {
+        (felem as any).focus();
+    }
+}
 
 async function loadDocument(file: CachedFile, documentName: string): Promise<void> {
     // スクリプトが呼ばれているときにさらにスクリプトが呼ばれることはないがonunloadだけ例外
     browserStatus.interpreter.resetStack();
-    const onunload = document.body.getAttribute("onunload");
+    const onunload = document.body.getAttribute("arib-onunload");
     if (onunload != null) {
         await executeEventHandler(onunload);
     }
+    newContext({ from: activeDocument, to: documentName });
     resetEventQueue();
+    browserStatus.interpreter.reset();
     resource.setActiveDocument(documentName);
     document.currentFocus = null;
-    browserStatus.interpreter.reset();
+    BML.document._currentFocus = null;
     resource.unlockAllModule();
     browserStatus.currentDateMode = 0;
     const documentElement = document.createElement("html");
@@ -56,36 +70,33 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<voi
     // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
     lockSyncEventQueue();
     try {
-        findNavIndex(0)?.focus();
-        for (const x of Array.from(document.querySelectorAll("script"))) {
-            const s = document.createElement("script");
-            x.remove();
+        focusHelper(findNavIndex(0));
+        for (const x of Array.from(document.querySelectorAll("arib-script"))) {
             const src = x.getAttribute("src");
             if (src) {
                 const res = fetchLockedResource(src);
                 if (res !== null) {
-                    // 非同期になってしまうのでこれは無し
-                    //const url = URL.createObjectURL(new Blob([res.data], {
-                    //    type: "text/javascript;encoding=euc-jp"
-                    //}));
-                    s.setAttribute("arib-src", src);
-                    s.textContent = "// " + src + "\n" + decodeEUCJP(res.data);
+                    await browserStatus.interpreter.addScript(`// ${src}\n___log(\"${src} startA\");\n${decodeEUCJP(res.data)}\n___log(\"${src} end\");`, src ?? undefined);
                 }
             } else {
-                s.textContent = "// " + activeDocument + "\n" + x.textContent;
+                await browserStatus.interpreter.addScript(`// ${activeDocument}\n___log(\"${activeDocument} startB\");\n${x.textContent}\n___log(\"${activeDocument} end\");`, src ?? undefined);
             }
-            await browserStatus.interpreter.addScript(s.textContent ?? "", src ?? undefined);
+            x.remove();
             // document.body.appendChild(s);
         }
-        const onload = document.body.getAttribute("onload");
+        const onload = document.body.getAttribute("arib-onload");
         if (onload != null) {
+            console.trace("START ONLOAD");
             await executeEventHandler(onload);
+            console.trace("END ONLOAD");
         }
     }
     finally {
         unlockSyncEventQueue();
     }
+    console.trace("START PROC EVQ");
     await processEventQueue();
+    console.trace("END PROC EVQ");
     // 雑だけど動きはする
     bmlSetInterval(() => {
         const moduleLocked = document.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
@@ -129,7 +140,7 @@ export function launchDocument(documentName: string) {
         console.error("FIXME");
         resource.launchRequest(documentName, () => {
             try {
-                window.browser.launchDocument(documentName);
+                browser.launchDocument!(documentName);
             } catch (e) {
                 if (e instanceof LongJump) {
                     console.log("long jump");
@@ -301,10 +312,11 @@ export function processKeyDown(k: AribKeyCode) {
         }
         return;
     }
-    if (!document.currentFocus) {
+    let focusElement = BML.document.currentFocus && BML.document.currentFocus["node"];
+    if (!focusElement) {
         return;
     }
-    const computedStyle = window.getComputedStyle(document.currentFocus);
+    const computedStyle = window.getComputedStyle(focusElement);
     let nextFocus = "";
     const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
     if (usedKeyList.length && usedKeyList[0] === "none") {
@@ -342,18 +354,22 @@ export function processKeyDown(k: AribKeyCode) {
                 if (nextFocusStyle.visibility === "hidden") {
                     continue;
                 }
-                next?.focus();
+                focusHelper(next);
             }
         }
         break;
     }
-    const onkeydown = document.currentFocus.getAttribute("onkeydown");
+    focusElement = BML.document.currentFocus && BML.document.currentFocus["node"];
+    if (!focusElement) {
+        return;
+    }
+    const onkeydown = focusElement.getAttribute("onkeydown");
     if (onkeydown) {
         queueAsyncEvent(async () => {
             setCurrentIntrinsicEvent({
                 keyCode: k as number,
                 type: "keydown",
-                target: document.currentFocus,
+                target: focusElement,
             });
             try {
                 lockSyncEventQueue();
@@ -368,8 +384,8 @@ export function processKeyDown(k: AribKeyCode) {
                 unlockSyncEventQueue();
             }
             resetCurrentEvent();
-            if (k == AribKeyCode.Enter && document.currentFocus) {
-                queueSyncEvent({ type: "click", target: document.currentFocus });
+            if (k == AribKeyCode.Enter && BML.document.currentFocus && BML.document.currentFocus["node"]) {
+                queueSyncEvent({ type: "click", target: BML.document.currentFocus["node"] });
             }
         });
         processEventQueue();
@@ -380,10 +396,11 @@ export function processKeyUp(k: AribKeyCode) {
     if (k === AribKeyCode.DataButton) {
         return;
     }
-    if (!document.currentFocus) {
+    const focusElement = BML.document.currentFocus && BML.document.currentFocus["node"];
+    if (!focusElement) {
         return;
     }
-    const computedStyle = window.getComputedStyle(document.currentFocus);
+    const computedStyle = window.getComputedStyle(focusElement);
     const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
     if (usedKeyList.length && usedKeyList[0] === "none") {
         return;
@@ -399,13 +416,13 @@ export function processKeyUp(k: AribKeyCode) {
     } else if (!usedKeyList.some(x => x === keyGroup)) {
         return;
     }
-    const onkeyup = document.currentFocus.getAttribute("onkeyup");
+    const onkeyup = focusElement.getAttribute("onkeyup");
     if (onkeyup) {
         queueAsyncEvent(async () => {
             setCurrentIntrinsicEvent({
                 keyCode: k,
                 type: "keyup",
-                target: document.currentFocus,
+                target: focusElement,
             });
             try {
                 lockSyncEventQueue();

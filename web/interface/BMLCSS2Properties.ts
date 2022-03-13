@@ -60,10 +60,10 @@ export class BMLCSS2Properties {
     public set borderRightColorIndex(value: DOMString) {
         this.setColorIndexVariable("border-right-color-index", "borderRightColor", value);
     }
-    public get borderrLeftColorIndex() {
+    public get borderLeftColorIndex() {
         return this.getColorIndexVariable("border-left-color-index", "borderLeftColor");
     }
-    public set borderrLeftColorIndex(value: DOMString) {
+    public set borderLeftColorIndex(value: DOMString) {
         this.setColorIndexVariable("border-left-color-index", "borderLeftColor", value);
     }
     public get borderBottomColorIndex() {

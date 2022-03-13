@@ -3,6 +3,7 @@ import { Interpreter } from "../../JS-Interpreter/interpreter";
 import { LongJump } from "../resource";
 import * as BT from "../binary_table";
 import { IInterpreter } from "./interpreter";
+import * as context from "../context";
 function sleep(ms: number, callback: () => void) {
     console.log("SLEEP ", ms);
     setTimeout(() => {
@@ -40,6 +41,7 @@ function sleep(ms: number, callback: () => void) {
 import { BML } from "../interface/DOM";
 import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
 import { Browser } from "../browser";
+import { queueSyncEvent } from "../event";
 
 export class JSInterpreter implements IInterpreter {
     interpreter: any;
@@ -93,7 +95,7 @@ export class JSInterpreter implements IInterpreter {
                     console.log("get", name, this.data);
                     const result = get.bind(this.data)();
                     console.log("=>", result);
-                    if (nativeProtoToPseudoObject.has(Object.getPrototypeOf(result))) {
+                    if (result != null && nativeProtoToPseudoObject.has(Object.getPrototypeOf(result))) {
                         return domObjectToPseudo(interpreter, result);
                     }
                     return result;
@@ -111,7 +113,7 @@ export class JSInterpreter implements IInterpreter {
                     console.log("call", name, value, this.data, args);
                     const result = value.bind(this.data)(...args);
                     console.log("=>", result);
-                    if (nativeProtoToPseudoObject.has(Object.getPrototypeOf(result))) {
+                    if (result != null && nativeProtoToPseudoObject.has(Object.getPrototypeOf(result))) {
                         return domObjectToPseudo(interpreter, result);
                     }
                     return result;
@@ -175,6 +177,26 @@ export class JSInterpreter implements IInterpreter {
         interpreter.setProperty(globalObject, "BMLBeventEvent", this.domClassToPseudo(interpreter, BML.BMLBeventEvent));
         interpreter.setProperty(globalObject, "DOMImplementation", this.domClassToPseudo(interpreter, BML.DOMImplementation));
         interpreter.setProperty(globalObject, "BMLCSS2Properties", this.domClassToPseudo(interpreter, BMLCSS2Properties));
+
+        function focus(this: BML.HTMLElement) {
+            const prevFocus = BML.document.currentFocus;
+            if (prevFocus === this) {
+                return;
+            }
+            if (window.getComputedStyle(this["node"]).visibility === "hidden") {
+                return;
+            }
+            BML.document._currentFocus = this;
+            queueSyncEvent({ type: "focus", target: this["node"] });
+            if (prevFocus != null) {
+                queueSyncEvent({ type: "blur", target: prevFocus["node"] });
+            }
+        };
+        BML.BMLSpanElement.prototype.focus = focus;
+        BML.BMLDivElement.prototype.focus = focus;
+        BML.BMLParagraphElement.prototype.focus = focus;
+        BML.BMLObjectElement.prototype.focus = focus;
+        BML.BMLInputElement.prototype.focus = focus;
     }
 
     public reset() {
@@ -299,17 +321,28 @@ export class JSInterpreter implements IInterpreter {
         if (this.isExecuting) {
             throw new Error("this.isExecuting");
         }
+        const prevContext = context.currentContext;
         try {
             this._isExecuting = true;
             while (await this.runBlock()) {
+                if (context.currentContext !== prevContext) {
+                    throw new Error("context switched");
+                }
+            }
+            if (context.currentContext !== prevContext) {
+                throw new Error("context switched");
             }
         } finally {
-            this._isExecuting = false;
-            this.interpreter.resolve = null;
-            const hs = this.executionFinishedHandlers.slice();
-            this.executionFinishedHandlers = [];
-            for (const h of hs) {
-                await h();
+            if (context.currentContext !== prevContext) {
+                console.error("context switched");
+            } else {
+                this._isExecuting = false;
+                this.interpreter.resolve = null;
+                const hs = this.executionFinishedHandlers.slice();
+                this.executionFinishedHandlers = [];
+                for (const h of hs) {
+                    await h();
+                }
             }
         }
     }

@@ -12,9 +12,8 @@ import { defaultCLUT } from "../src/default_clut";
 import { Buffer } from "buffer";
 // @ts-ignore
 import { JSInterpreter } from "./interpreter/js_interpreter";
-import { BML } from "./interface/DOM";
 import { queueSyncEvent } from "./event";
-import { browser } from "./browser";
+import { browser, browserStatus } from "./browser";
 
 interface BMLEvent {
     type: string;
@@ -270,9 +269,10 @@ if (!window.browser) {
     overrideNumber();
     overrideDate();
 
-    // const interpreter = new NativeInterpreter();
+    // const interpreter = new NativeInterpreter(browser);
     const interpreter = new JSInterpreter(browser);
+    browserStatus.interpreter = interpreter;
     resource.launchRequest("/40/0000/startup.bml", () => {
-        browser.launchDocument!("/40/0000/startup.bml");
+        browser.launchDocument("/40/0000/startup.bml");
     });
 }
