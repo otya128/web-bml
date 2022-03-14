@@ -20,6 +20,13 @@ function launchDocument(documentName: string, transitionStyle: string | undefine
     const r = documentLaunchDocument(documentName);
     callback(r, LAUNCH_DOCUMENT_CALLED);
 }
+
+function reloadActiveDocument(callback: (result: any, promiseValue: any) => void): void {
+    console.log("%creloadActiveDocument", "font-size: 4em");
+    const r = documentLaunchDocument(browser.getActiveDocument()!);
+    callback(r, LAUNCH_DOCUMENT_CALLED);
+}
+
 /*
  * Object
  * Function
@@ -49,7 +56,7 @@ function launchDocument(documentName: string, transitionStyle: string | undefine
 
 import { BML } from "../interface/DOM";
 import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
-import { Browser } from "../browser";
+import { browser, Browser } from "../browser";
 import { queueSyncEvent } from "../event";
 import { fetchResourceAsync } from "../resource";
 
@@ -245,6 +252,7 @@ export class JSInterpreter implements IInterpreter {
             interpreter.setProperty(globalObject, "browser", pseudoBrowser);
             interpreter.setProperty(pseudoBrowser, "sleep", interpreter.createAsyncFunction(sleep));
             interpreter.setProperty(pseudoBrowser, "launchDocument", interpreter.createAsyncFunction(launchDocument));
+            interpreter.setProperty(pseudoBrowser, "reloadActiveDocument", interpreter.createAsyncFunction(reloadActiveDocument));
             interpreter.setProperty(pseudoBrowser, "readPersistentArray", interpreter.createNativeFunction(function readPersistentArray(filename: string, structure: string): any[] | null {
                 return interpreter.arrayNativeToPseudo(browser.readPersistentArray(filename, structure));
             }));
@@ -326,16 +334,22 @@ export class JSInterpreter implements IInterpreter {
         return this.runScript();
     }
 
+    exe_num: number = 0;
+
     async runScript(): Promise<boolean> {
         if (this.isExecuting) {
             throw new Error("this.isExecuting");
         }
         const prevContext = context.currentContext;
         let exit = false;
+        const exe_num = this.exe_num++;
+        console.log("runScript()", exe_num, prevContext, context.currentContext);
         try {
             this._isExecuting = true;
             while (true) {
+                console.log("RUN SCRIPT", exe_num, prevContext, context.currentContext);
                 const r = await this.interpreter.runAsync();
+                console.log("RETURN RUN SCRIPT", exe_num, r, prevContext, context.currentContext);
                 if (r === true) {
                     continue;
                 }
@@ -343,16 +357,17 @@ export class JSInterpreter implements IInterpreter {
                     console.info("browser.launchDocument called.");
                     exit = true;
                 } else if (context.currentContext !== prevContext) {
-                    console.info("context switched");
+                    console.info("context switched", context.currentContext, prevContext);
                     exit = true;
                 }
                 break;
             }
             if (context.currentContext !== prevContext) {
-                console.info("context switched");
+                console.info("context switched", context.currentContext, prevContext);
                 exit = true;
             }
         } finally {
+            console.log("leave runScript()", exe_num, exit, prevContext, context.currentContext);
             if (exit) {
                 return true;
             } else {
