@@ -197,21 +197,26 @@ if (!window.browser) {
             }
             return aribData;
         },
-        set: function setObjectData(this: HTMLObjectElement, v: string | null) {
+        set: async function setObjectData(this: HTMLObjectElement, v: string | null): Promise<void> {
             if (v == null) {
                 this.removeAttribute("data");
                 this.removeAttribute("arib-data");
                 return;
             }
             const aribType = this.getAttribute("arib-type");
-            const type = this.getAttribute("type");
             this.setAttribute("arib-data", v);
             if (v == "") {
                 this.setAttribute("data", v);
                 return;
             }
-            const fetched = fetchLockedResource(v);
+            // 順序が逆転するのを防止
+            (this as any).__version = ((this as any).__version ?? 0) + 1;
+            const version: number = (this as any).__version;
+            const fetched = await resource.fetchResourceAsync(v);
             if (!fetched) {
+                return;
+            }
+            if ((this as any).__version !== version) {
                 return;
             }
 
@@ -222,7 +227,10 @@ if (!window.browser) {
                 this.type = "image/png";
                 const clutCss = document.defaultView?.getComputedStyle(this)?.getPropertyValue("--clut");
                 const clutUrl = clutCss == null ? null : parseCSSValue("http://localhost" + (resource.activeDocument ?? ""), clutCss);
-                const fetchedClut = clutUrl == null ? null : fetchLockedResource(clutUrl)?.data;
+                const fetchedClut = clutUrl == null ? null : (await resource.fetchResourceAsync(clutUrl))?.data;
+                if ((this as any).__version !== version) {
+                    return;
+                }
                 const cachedBlob = fetched.blobUrl.get(fetchedClut);
                 if (cachedBlob != null) {
                     this.setAttribute("data", cachedBlob);
@@ -264,7 +272,7 @@ if (!window.browser) {
     // const interpreter = new NativeInterpreter(browser);
     const interpreter = new JSInterpreter(browser);
     browserStatus.interpreter = interpreter;
-    resource.launchRequest("/40/0000/startup.bml", () => {
+    resource.fetchResourceAsync("/40/0000/startup.bml").then(() => {
         launchDocument("/40/0000/startup.bml");
     });
 }

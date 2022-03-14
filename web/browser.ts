@@ -370,6 +370,7 @@ export const browser: Browser = {
     launchDocument(documentName: string, transitionStyle?: string): number {
         console.log("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
         documentLaunchDocument(documentName);
+        browserStatus.interpreter.destroyStack();
         throw new Error("unreachable!!");
     },
     reloadActiveDocument(): number {

@@ -162,7 +162,6 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
             }
         });
     }, 1000);
-    browserStatus.interpreter.destroyStack();
     return false;
 }
 
@@ -173,21 +172,15 @@ export function launchDocument(documentName: string) {
     if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
         return NaN;
     }
-    resource.launchRequest(null, null);
     if (!lockCachedModule(componentId, moduleId, "system")) {
-        console.error("FIXME");
-        resource.launchRequest(documentName, () => {
-            try {
-                browser.launchDocument!(documentName);
-            } catch (e) {
-                if (e instanceof LongJump) {
-                    console.log("long jump");
-                } else {
-                    throw e;
-                }
+        resource.fetchResourceAsync(documentName).then((res) => {
+            if (res == null) {
+                console.error("document", documentName, "not found");
+                return;
             }
+            launchDocument(documentName);
         });
-        browserStatus.interpreter.destroyStack();
+        return NaN;
     }
     const res = fetchLockedResource(documentName);
     if (res == null) {
@@ -203,7 +196,6 @@ export function launchDocument(documentName: string) {
     }
     loadDocument(res, normalizedDocument);
     console.log("return ", ad, documentName);
-    browserStatus.interpreter.destroyStack();
     return NaN;
 }
 

@@ -398,10 +398,10 @@ export namespace BML {
             throw new Error("BMLObjectElement.streamPosition");
         }
         public get streamStatus(): DOMString {
-            throw new Error("BMLObjectElement.streamStatus");
+            return this.node.getAttribute("streamstatus") ?? ""; // "stop" | "play" | "pause"
         }
         public set streamStatus(value: DOMString) {
-            throw new Error("BMLObjectElement.streamStatus");
+            this.node.setAttribute("streamstatus", value);
         }
         public setMainAudioStream(autdio_ref: DOMString): boolean {
             throw new Error("BMLObjectElement.setMainAudioStream()");

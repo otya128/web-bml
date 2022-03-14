@@ -51,6 +51,7 @@ import { BML } from "../interface/DOM";
 import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
 import { Browser } from "../browser";
 import { queueSyncEvent } from "../event";
+import { fetchResourceAsync } from "../resource";
 
 export class JSInterpreter implements IInterpreter {
     interpreter: any;
@@ -254,15 +255,19 @@ export class JSInterpreter implements IInterpreter {
             this.registerDOMClasses(interpreter, globalObject);
             interpreter.setProperty(globalObject, "document", this.domObjectToPseudo(interpreter, BML.document));
 
-            const pseudoBinaryTable = interpreter.createNativeFunction(function BinaryTable(this: any, table_ref: string, structure: string) {
-                try {
-                    this.instance = new BT.BinaryTable(table_ref, structure);
-                } catch (e) {
-                    console.error("BT", e);
-                    return null;
-                }
-                return this;
-            }, true);
+            const pseudoBinaryTable = interpreter.createAsyncFunction(function BinaryTable(this: any, table_ref: string, structure: string, callback: (result: any, resolveValue: any) => void) {
+                fetchResourceAsync(table_ref).then(res => {
+                    if (!res) {
+                        console.debug("BinaryTable", table_ref, "not found");
+                        callback(null, undefined);
+                        return;
+                    }
+                    console.debug("new BinaryTable", table_ref);
+                    let buffer: Uint8Array = res.data;
+                    this.instance = new BT.BinaryTable(buffer, structure);
+                    callback(this, undefined);
+                });
+            });
             interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "close", function close(this: { instance: BT.BinaryTable }) {
                 return this.instance.close();
             });
@@ -367,7 +372,6 @@ export class JSInterpreter implements IInterpreter {
     }
 
     public destroyStack(): void {
-        this.resetStack();
     }
 
     public resetStack(): void {

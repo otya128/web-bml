@@ -400,17 +400,24 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint
 export class BinaryTable implements IBinaryTable {
     rows: any[][];
     fields: BinaryTableField[];
-    constructor(table_ref: string, structure: string) {
-        var xhr = new XMLHttpRequest();
-        if (table_ref.startsWith("~")) {
-            table_ref = ".." + table_ref.substring(1);
-        }
-        const res = fetchLockedResource(table_ref);
-        if (!res) {
-            throw new Error("FIXME");
-        }
-        let buffer: Uint8Array = res.data;
 
+    constructor(table_ref: string | Uint8Array, structure: string) {
+        let buffer: Uint8Array;
+        if (table_ref instanceof Uint8Array) {
+            buffer = table_ref;
+        } else {
+            const res = fetchLockedResource(table_ref);
+            if (!res) {
+                throw new Error("FIXME");
+            }
+            buffer = res.data;
+        }
+        const { rows, fields } = BinaryTable.constructBinaryTable(buffer, structure);
+        this.rows = rows;
+        this.fields = fields;
+    }
+
+    static constructBinaryTable(buffer: Uint8Array, structure: string): { rows: any[][], fields: BinaryTableField[] } {
         const sep = structure.split(",");
         if (sep.length < 2) {
             throw new Error("FIXME");
@@ -434,8 +441,7 @@ export class BinaryTable implements IBinaryTable {
             posBits += lengthByte ? length * 8 : read;
             rows.push(columns);
         }
-        this.rows = rows;
-        this.fields = fields;
+        return { rows, fields };
         //const regex = /^(?<lengthByte>[1-9][0-9]*|0)(,(?<type>[BUISZP]):(?<length>[1-9][0-9]*)(?<unit>[BbV]))+$/;
     }
 

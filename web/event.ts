@@ -255,12 +255,12 @@ export async function processEventQueue(): Promise<boolean> {
                     if (exit = await dispatchFocus(event)) {
                         return true;
                     }
-                } else if (exit = event?.type === "blur") {
-                    if (await dispatchBlur(event)) {
+                } else if (event?.type === "blur") {
+                    if (exit = await dispatchBlur(event)) {
                         return true;
                     }
-                } else if (exit = event?.type === "click") {
-                    if (await dispatchClick(event)) {
+                } else if (event?.type === "click") {
+                    if (exit = await dispatchClick(event)) {
                         return true;
                     }
                 }

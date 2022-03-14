@@ -94,6 +94,7 @@ const lockedComponents = new Map<number, LockedComponent>();
 
 // component id => PMT
 let pmtComponents = new Map<number, ComponentPMT>();
+let pmtRetrieved = false;
 
 function getCachedModule(componentId: number, moduleId: number): CachedModule | undefined {
     const cachedComponent = cachedComponents.get(componentId);
@@ -141,6 +142,7 @@ export function unlockModule(componentId: number, moduleId: number, isEx: boolea
     return false;
 }
 
+// FIXME
 export function moduleExistsInDownloadInfo(componentId: number, moduleId: number): boolean {
     return downloadComponents.get(componentId)?.modules?.has(moduleId) ?? false;
 }
@@ -154,11 +156,8 @@ type LockModuleRequest = {
 
 const lockModuleRequests: Map<string, LockModuleRequest> = new Map();
 
-let launchRequestDocument: string | null = null;
-let launchRequestDocumentCallback: (() => void) | null = null;
-export function launchRequest(document: string | null, cb: (() => void) | null) {
-    launchRequestDocument = document;
-    launchRequestDocumentCallback = cb;
+function moduleAndComponentToString(componentId: number, moduleId: number) {
+    return `${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
 }
 
 // うーん
@@ -205,23 +204,45 @@ ws.addEventListener("message", (ev) => {
                 onModuleLockedHandler(req.moduleRef, req.isEx, 0);
             }
         }
-        const url = `/${msg.componentId.toString(16).padStart(2, "0")}/${msg.moduleId.toString(16).padStart(4, "0")}`;
+        const str = moduleAndComponentToString(msg.componentId, msg.moduleId);
+        const creq = componentRequests.get(msg.componentId);
+        const callbacks = creq?.moduleRequests?.get(msg.moduleId);
+        if (creq != null && callbacks != null) {
+            creq.moduleRequests.delete(msg.componentId);
+            for (const cb of callbacks) {
+                if (cb.filename == null) {
+                    console.warn("async fetch done", str);
+                    cb.resolve(null);
+                } else {
+                    const file = cachedModule.files.get(cb.filename);
+                    console.warn("async fetch done", str, cb.filename);
+                    cb.resolve(file ?? null);
+                }
+            }
+        }
+        const url = "/" + str;
         if (currentProgramInfo == null) {
             return;
         }
-        if (launchRequestDocument?.toLowerCase()?.startsWith(url) === true) {
-            lockCachedModule(msg.componentId, msg.moduleId, "system");
-            const doc = launchRequestDocument;
-            launchRequestDocument = null;
-            const cb = launchRequestDocumentCallback;
-            launchRequestDocumentCallback = null;
-            cb!();
-        }
     } else if (msg.type === "moduleListUpdated") {
-        downloadComponents.set(msg.componentId, {
+        const component = {
             componentId: msg.componentId,
             modules: new Set(msg.modules)
-        });
+        };
+        downloadComponents.set(msg.componentId, component);
+        const creqs = componentRequests.get(msg.componentId);
+        if (creqs) {
+            for (const [moduleId, mreqs] of creqs.moduleRequests) {
+                if (!component.modules.has(moduleId)) {
+                    // DIIに存在しない
+                    for (const mreq of mreqs) {
+                        console.warn("async fetch done (failed)", moduleAndComponentToString(msg.componentId, moduleId));
+                        mreq.resolve(null);
+                    }
+                    mreqs.length = 0;
+                }
+            }
+        }
     } else if (msg.type === "pmt") {
         pmtComponents = new Map(msg.components.map(x => [x.componentId, x]));
         if (!documentLoaded()) {
@@ -233,18 +254,6 @@ ws.addEventListener("message", (ev) => {
             }
         }
     } else if (msg.type === "programInfo") {
-        if (currentProgramInfo == null && launchRequestDocument != null) {
-            currentProgramInfo = msg;
-            const { componentId, moduleId } = parseURLEx(launchRequestDocument);
-            if (componentId != null && moduleId != null && getCachedModule(componentId, moduleId)) {
-                const doc = launchRequestDocument;
-                launchRequestDocument = null;
-                const cb = launchRequestDocumentCallback;
-                launchRequestDocumentCallback = null;
-                cb!();
-            }
-            return;
-        }
         currentProgramInfo = msg;
     } else if (msg.type === "currentTime") {
         currentTime = msg;
@@ -321,6 +330,58 @@ export function fetchLockedResource(url: string): CachedFile | null {
     return cachedFile;
 }
 
+// `${componentId}/${moduleId}`がダウンロードされたらコールバックを実行する
+type ComponentRequest = {
+    moduleRequests: Map<number, ModuleRequest[]>
+};
+
+type ModuleRequest = {
+    filename: string | null,
+    resolve: (resolveValue: CachedFile | null) => void,
+};
+
+const componentRequests = new Map<number, ComponentRequest>();
+
+export function fetchResourceAsync(url: string): Promise<CachedFile | null> {
+    const res = fetchLockedResource(url);
+    if (res) {
+        return Promise.resolve(res);
+    }
+    const { componentId, moduleId, filename } = parseURLEx(url);
+    if (componentId == null || moduleId == null) {
+        return Promise.resolve(null);
+    }
+    if (pmtRetrieved) {
+        if (getCachedModule(componentId, moduleId)) {
+            return Promise.resolve(null);
+        }
+        if (!getPMTComponent(componentId)) {
+            return Promise.resolve(null);
+        }
+        const dcomponents = downloadComponents.get(componentId);
+        if (dcomponents != null && !dcomponents.modules.has(moduleId)) {
+            return Promise.resolve(null);
+        }
+    }
+    // PMTにcomponentが存在しかつDIIにmoduleが存在するまたはDIIが取得されていないときにコールバックを登録
+    // TODO: ModuleUpdated用にDII取得後に存在しないことが判明したときの処理が必要
+    console.warn("async fetch requested", url);
+    return new Promise((resolve, _) => {
+        const c = componentRequests.get(componentId);
+        const entry = { filename, resolve };
+        if (c == null) {
+            componentRequests.set(componentId, { moduleRequests: new Map<number, ModuleRequest[]>([[moduleId, [entry]]]) });
+        } else {
+            const m = c.moduleRequests.get(moduleId);
+            if (m == null) {
+                c.moduleRequests.set(moduleId, [entry]);
+            } else {
+                m.push(entry);
+            }
+        }
+    });
+}
+
 export function* getLockedModules() {
     for (const c of lockedComponents.values()) {
         for (const m of c.modules.values()) {
@@ -328,7 +389,7 @@ export function* getLockedModules() {
             if (m.lockedBy === "system") {
                 continue;
             }
-            yield { module: `/${c.componentId.toString(16).padStart(2, "0")}/${m.moduleId.toString(16).padStart(4, "0")}`, isEx: m.lockedBy === "lockModuleOnMemoryEx" };
+            yield { module: `/${moduleAndComponentToString(c.componentId, m.moduleId)}`, isEx: m.lockedBy === "lockModuleOnMemoryEx" };
         }
     }
 }
