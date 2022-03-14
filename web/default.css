@@ -214,6 +214,15 @@ object[type="image/X-arib-png"] {
     visibility: hidden !important;
 }
 
+/* 継承しない拡張特性の初期値 */
+:where(*) {
+    --used-key-list: basic data-button;
+    --border-left-color-index: 0;
+    --border-right-color-index: 0;
+    --border-top-color-index: 0;
+    --border-bottom-color-index: 0;
+}
+
 /* STD-B24 第二分冊(2/2) 第二編 付属2 4.4.8 */
 @font-face {
     font-family: "丸ゴシック";
