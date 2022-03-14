@@ -50,9 +50,9 @@ function loadDocumentToDOM(data: string) {
         }
         style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl }));
     });
-    
+
     document.documentElement.append(...Array.from(documentElement.children));
-    
+
     if (videoElementNew != null) {
         videoElementNew.appendChild(videoContainer);
     }
@@ -97,6 +97,7 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
     // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
     // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
     lockSyncEventQueue();
+    let exit = false;
     try {
         focusHelper(findNavIndex(0));
         for (const x of Array.from(document.querySelectorAll("arib-script"))) {
@@ -104,12 +105,12 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
             if (src) {
                 const res = fetchLockedResource(src);
                 if (res !== null) {
-                    if (await browserStatus.interpreter.addScript(decodeEUCJP(res.data), src ?? undefined)) {
+                    if (exit = await browserStatus.interpreter.addScript(decodeEUCJP(res.data), src ?? undefined)) {
                         return true;
                     }
                 }
             } else if (x.textContent != null) {
-                if (await browserStatus.interpreter.addScript(x.textContent, activeDocument ?? "")) {
+                if (exit = await browserStatus.interpreter.addScript(x.textContent, activeDocument ?? "")) {
                     return true;
                 }
             }
@@ -117,14 +118,16 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
         const onload = document.body.getAttribute("arib-onload");
         if (onload != null) {
             console.debug("START ONLOAD");
-            if (await executeEventHandler(onload)) {
+            if (exit = await executeEventHandler(onload)) {
                 return true;
             }
             console.debug("END ONLOAD");
         }
     }
     finally {
-        unlockSyncEventQueue();
+        if (!exit) {
+            unlockSyncEventQueue();
+        }
     }
     console.debug("START PROC EVQ");
     if (await processEventQueue()) {
@@ -407,19 +410,16 @@ export function processKeyDown(k: AribKeyCode) {
                 type: "keydown",
                 target: focusElement,
             });
+            let exit = false;
             try {
                 lockSyncEventQueue();
-                if (await executeEventHandler(onkeydown)) {
+                if (exit = await executeEventHandler(onkeydown)) {
                     return true;
                 }
-            } catch (e) {
-                if (e instanceof LongJump) {
-                    console.log("long jump");
-                } else {
-                    throw e;
-                }
             } finally {
-                unlockSyncEventQueue();
+                if (!exit) {
+                    unlockSyncEventQueue();
+                }
             }
             resetCurrentEvent();
             if (k == AribKeyCode.Enter && BML.document.currentFocus && BML.document.currentFocus["node"]) {
@@ -463,19 +463,16 @@ export function processKeyUp(k: AribKeyCode) {
                 type: "keyup",
                 target: focusElement,
             });
+            let exit = false;
             try {
                 lockSyncEventQueue();
-                if (await executeEventHandler(onkeyup)) {
+                if (exit = await executeEventHandler(onkeyup)) {
                     return true;
                 }
-            } catch (e) {
-                if (e instanceof LongJump) {
-                    console.log("long jump");
-                } else {
-                    throw e;
-                }
             } finally {
-                unlockSyncEventQueue();
+                if (!exit) {
+                    unlockSyncEventQueue();
+                }
             }
             resetCurrentEvent();
             return false;

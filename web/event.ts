@@ -247,38 +247,45 @@ export async function processEventQueue(): Promise<boolean> {
             return false;
         }
         if (syncEventQueue.length) {
+            let exit = false;
             try {
                 lockSyncEventQueue();
                 const event = syncEventQueue.shift();
                 if (event?.type === "focus") {
-                    if (await dispatchFocus(event)) {
+                    if (exit = await dispatchFocus(event)) {
                         return true;
                     }
-                } else if (event?.type === "blur") {
+                } else if (exit = event?.type === "blur") {
                     if (await dispatchBlur(event)) {
                         return true;
                     }
-                } else if (event?.type === "click") {
+                } else if (exit = event?.type === "click") {
                     if (await dispatchClick(event)) {
                         return true;
                     }
                 }
             } finally {
-                unlockSyncEventQueue();
+                if (!exit) {
+                    unlockSyncEventQueue();
+                }
             }
             continue;
         }
         if (asyncEventQueue.length) {
+            let exit = false;
             try {
                 lockSyncEventQueue();
                 const cb = asyncEventQueue.shift();
                 if (cb) {
-                    if (await cb()) {
+                    exit = await cb();
+                    if (exit) {
                         return true;
                     }
                 }
             } finally {
-                unlockSyncEventQueue();
+                if (!exit) {
+                    unlockSyncEventQueue();
+                }
             }
         }
     }
@@ -359,5 +366,6 @@ export function resetEventQueue() {
     for (const i of timeoutHandles.values()) {
         window.clearTimeout(i);
     }
+    syncEventQueueLockCount = 0;
     timeoutHandles.clear();
 }
