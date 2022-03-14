@@ -270,6 +270,15 @@ function registerDataBroadcastingStream(dbs: DataBroadcastingStream): boolean {
     return true;
 }
 
+function addProgramIdArgument(args: string[], serviceId?: number): string[] {
+    if (serviceId == null) {
+        return args;
+    }
+    const newArgs = args.slice();
+    newArgs[newArgs.indexOf("-map") + 1] = `0:p:${serviceId}`;
+    return newArgs;
+}
+
 router.get("/streams/:id.mp4", async (ctx) => {
     const dbs = streams.get(ctx.params.id);
     if (dbs == null) {
@@ -283,7 +292,7 @@ router.get("/streams/:id.mp4", async (ctx) => {
     ctx.status = 200;
 
     tsStream.unpipe();
-    dbs.liveStream = new LiveStream(ffmpeg, args, dbs.tsStream);
+    dbs.liveStream = new LiveStream(ffmpeg, addProgramIdArgument(args, dbs.serviceId), dbs.tsStream);
     tsStream.resume();
     try {
         await pipeAsync(dbs.liveStream.encoderProcess.stdout, ctx.res, { end: true });
@@ -306,7 +315,7 @@ router.get("/streams/:id.h264.m2ts", async (ctx) => {
     ctx.status = 200;
 
     tsStream.unpipe();
-    dbs.liveStream = new LiveStream(ffmpeg, mpegtsArgs, dbs.tsStream);
+    dbs.liveStream = new LiveStream(ffmpeg, addProgramIdArgument(mpegtsArgs, dbs.serviceId), dbs.tsStream);
     tsStream.resume();
     try {
         await pipeAsync(dbs.liveStream.encoderProcess.stdout, ctx.res, { end: true });
@@ -353,7 +362,7 @@ router.get("/streams/:id.m3u8", async (ctx) => {
         closeDataBroadcastingLiveStream(dbs);
     }
     tsStream.unpipe();
-    const hlsLiveStream = new HLSLiveStream(ffmpeg, getHLSArguments(path.join(hlsDir, dbs.id + "-%09d.ts"), path.join(hlsDir, dbs.id + ".m3u8")), dbs.tsStream);
+    const hlsLiveStream = new HLSLiveStream(ffmpeg, addProgramIdArgument(getHLSArguments(path.join(hlsDir, dbs.id + "-%09d.ts"), path.join(hlsDir, dbs.id + ".m3u8")), dbs.serviceId), dbs.tsStream);
     tsStream.resume();
     dbs.liveStream = hlsLiveStream;
     const pollingTime = 100;
@@ -420,16 +429,21 @@ router.get('/api/ws', async (ctx) => {
     let readStream: stream.Readable;
     let size = 0;
     let source: string;
+    let serviceId: number | undefined;
     // とりあえず手動validate
     if (typeof ctx.query.param === "string") {
         const query: any = JSON.parse(ctx.query.param);
         if (query != null && typeof query === "object") {
+            if (typeof query.demultiplexServiceId == "number") {
+                serviceId = (query as wsApi.Param).demultiplexServiceId;
+            }
             if (query.type === "mirakLive" && typeof query.channelType === "string" && typeof query.channel === "string" && (query.serviceId == null || typeof query.serviceId == "number")) {
                 const q = query as wsApi.MirakLiveParam;
                 if (q.serviceId == null) {
                     source = mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/stream`;
                 } else {
                     source = mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/services/${q.serviceId}/stream`;
+                    serviceId = undefined;
                 }
                 const res = await httpGetAsync(source);
                 readStream = res;
@@ -470,6 +484,7 @@ router.get('/api/ws', async (ctx) => {
         size,
         ws,
         source,
+        serviceId,
     };
     if (!registerDataBroadcastingStream(dbs)) {
         const msg = {

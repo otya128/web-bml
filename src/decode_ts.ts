@@ -127,6 +127,30 @@ export function decodeTS(dbs: DataBroadcastingStream) {
         }
     });
 
+    // program_number = service_id
+    let pidToProgramNumber = new Map<number, number>();
+    let programNumber: number | null = null;
+
+    tsStream.on("pat", (_pid: any, data: any) => {
+        const programs: { program_number: number, network_PID?: number, program_map_PID?: number }[] = data.programs;
+        const pat = new Map<number, number>();
+        programNumber = null;
+        for (const program of programs) {
+            if (program.program_map_PID != null) {
+                // 多重化されていればとりあえず一番小さいprogram_number使っておく
+                programNumber = Math.min(programNumber ?? Number.MAX_VALUE, program.program_number);
+                pat.set(program.program_map_PID, program.program_number);
+            }
+        }
+        if (pat.size !== pidToProgramNumber.size ||  [...pidToProgramNumber.keys()].some((x) => !pat.has(x))) {
+            console.log("PAT changed", pat);
+            if (dbs.serviceId != null && pat.size !== 1) {
+                console.warn("multiplexed!");
+            }
+        }
+        pidToProgramNumber = pat;
+    });
+
 
     function decodeAdditionalAribBXMLInfo(additional_data_component_info: Buffer): AdditionalAribBXMLInfo {
         let off = 0;
@@ -244,6 +268,12 @@ export function decodeTS(dbs: DataBroadcastingStream) {
     }
 
     tsStream.on("pmt", (pid: any, data: any) => {
+        // 多重化されている
+        if (pidToProgramNumber.size >= 2) {
+            if (pidToProgramNumber.get(pid) !== (dbs.serviceId ?? programNumber)) {
+                return;
+            }
+        }
         const ptc = new Map<number, ComponentPMT>();
         const ctp = new Map<number, ComponentPMT>();
         for (const stream of data.streams) {

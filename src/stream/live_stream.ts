@@ -12,6 +12,8 @@ export type DataBroadcastingStream = {
     ws: WebSocket,
     liveStream?: LiveStream,
     source: string,
+    // 多重化されているストリームを入力する際のserviceId
+    serviceId?: number,
 };
 
 export class LiveStream {

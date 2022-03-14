@@ -15,7 +15,7 @@ export type EPGStationRecordedParam = {
     videoFileId: number,
 };
 
-export type Param = MirakLiveParam | EPGStationRecordedParam;
+export type Param = (MirakLiveParam | EPGStationRecordedParam) & { demultiplexServiceId?: number };
 
 export type ModuleLockRequestMessage = {
     type: "moduleLockRequest",
