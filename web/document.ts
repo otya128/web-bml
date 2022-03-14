@@ -3,7 +3,6 @@ import { bmlSetInterval, dispatchDataButtonPressed, eventQueueOnModuleUpdated, e
 import { activeDocument, CachedFile, fetchLockedResource, lockCachedModule, parseURL, parseURLEx, LongJump } from "./resource";
 import * as resource from "./resource";
 import { browser, browserStatus } from "./browser";
-import { bmlToXHTML } from "../src/bml_to_xhtml";
 // @ts-ignore
 import defaultCss from "./default.css";
 import { setRemoteControllerMessage } from "./remote_controller_client";
@@ -14,8 +13,53 @@ import { transpileCSS } from "../src/transpile_css";
 import { Buffer } from "buffer";
 import { newContext } from "./context";
 import { BML } from "./interface/DOM";
+import { bmlToXHTML } from "./bml_to_xhtml";
 
 const videoContainer = document.getElementById("arib-video-container") as HTMLDivElement;
+
+function loadDocumentToDOM(data: string) {
+    const documentElement = document.createElement("html");
+    const newDocument = bmlToXHTML(data);
+    // Element->HTMLElementにする手っ取り早い方法
+    documentElement.innerHTML = newDocument.documentElement.innerHTML;
+    const p = Array.from(document.documentElement.childNodes).filter(x => x.nodeName === "body" || x.nodeName === "head");
+    const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
+    // document.documentElement.append(...Array.from(newDocument.documentElement.children));
+    documentElement.querySelectorAll("arib-style, arib-link").forEach(style => {
+        if (style.nodeName === "arib-link") {
+            const href = style.getAttribute("href");
+            if (href != null) {
+                const newStyle = document.createElement("style");
+                const res = fetchLockedResource(href);
+                if (res != null) {
+                    newStyle.textContent = transpileCSS(decodeEUCJP(res.data), { inline: false, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl });
+                    style.parentElement?.appendChild(newStyle);
+                }
+            }
+        } else if (style.textContent) {
+            const newStyle = document.createElement("style");
+            newStyle.textContent = transpileCSS(style.textContent, { inline: false, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl });
+            style.parentElement?.appendChild(newStyle);
+        }
+    });
+
+    documentElement.querySelectorAll("[style]").forEach(style => {
+        const styleAttribute = style.getAttribute("style");
+        if (!styleAttribute) {
+            return;
+        }
+        style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl }));
+    });
+    
+    document.documentElement.append(...Array.from(documentElement.children));
+    
+    if (videoElementNew != null) {
+        videoElementNew.appendChild(videoContainer);
+    }
+    for (const n of p) {
+        n.remove();
+    }
+}
 
 function focusHelper(element?: HTMLElement | null) {
     if (element == null) {
@@ -46,27 +90,7 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
     BML.document._currentFocus = null;
     resource.unlockAllModule();
     browserStatus.currentDateMode = 0;
-    const documentElement = document.createElement("html");
-    try {
-        documentElement.innerHTML = bmlToXHTML(file.data);
-    } catch (e) {
-        console.error(e);
-    }
-    const p = Array.from(document.documentElement.childNodes).filter(x => x.nodeName === "body" || x.nodeName === "head");
-    const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
-    document.documentElement.append(...Array.from(documentElement.children));
-    if (videoElementNew != null) {
-        videoElementNew.appendChild(videoContainer);
-    }
-    for (const n of p) {
-        n.remove();
-    }
-
-    if (defaultCss != null) {
-        const defaultStylesheet = document.createElement("style");
-        defaultStylesheet.textContent = defaultCss;
-        document.head.prepend(defaultStylesheet);
-    }
+    loadDocumentToDOM(decodeEUCJP(file.data));
     setRemoteControllerMessage(activeDocument + "\n" + (resource.currentProgramInfo?.eventName ?? ""));
     init();
     (document.body as any).invisible = (document.body as any).invisible;
@@ -89,8 +113,6 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
                     return true;
                 }
             }
-            x.remove();
-            // document.body.appendChild(s);
         }
         const onload = document.body.getAttribute("arib-onload");
         if (onload != null) {
@@ -179,6 +201,7 @@ export function launchDocument(documentName: string) {
     loadDocument(res, normalizedDocument);
     console.log("return ", ad, documentName);
     browserStatus.interpreter.destroyStack();
+    return NaN;
 }
 
 export enum AribKeyCode {
@@ -485,65 +508,40 @@ function reloadObjectElement(obj: HTMLObjectElement) {
     dummy.remove();
 }
 
+function clutToDecls(table: number[][]): css.Declaration[] {
+    const ret = [];
+    let i = 0;
+    for (const t of table) {
+        const decl: css.Declaration = {
+            type: "declaration",
+            property: "--clut-color-" + i,
+            value: `rgba(${t[0]},${t[1]},${t[2]},${t[3] / 255})`,
+        };
+        ret.push(decl);
+        i++;
+    }
+    return ret;
+}
+
+function getCLUT(clutUrl: string): css.Declaration[] {
+    const res = fetchLockedResource(clutUrl);
+    let clut = defaultCLUT;
+    if (res?.data) {
+        clut = readCLUT(Buffer.from(res.data));
+    }
+    return clutToDecls(clut);
+}
+
+function convertCSSUrl(url: string): string {
+    const res = fetchLockedResource(url);
+    if (!res) {
+        return url;
+    }
+    return resource.getCachedFileBlobUrl(res);
+}
+
 function init() {
-    function clutToDecls(table: number[][]): css.Declaration[] {
-        const ret = [];
-        let i = 0;
-        for (const t of table) {
-            const decl: css.Declaration = {
-                type: "declaration",
-                property: "--clut-color-" + i,
-                value: `rgba(${t[0]},${t[1]},${t[2]},${t[3] / 255})`,
-            };
-            ret.push(decl);
-            i++;
-        }
-        return ret;
-    }
-
-    function getCLUT(clutUrl: string): css.Declaration[] {
-        const res = fetchLockedResource(clutUrl);
-        let clut = defaultCLUT;
-        if (res?.data) {
-            clut = readCLUT(Buffer.from(res.data));
-        }
-        return clutToDecls(clut);
-    }
-
-    function convertCSSUrl(url: string): string {
-        const res = fetchLockedResource(url);
-        if (!res) {
-            return url;
-        }
-        return resource.getCachedFileBlobUrl(res);
-    }
-
     //observer.observe(document.body, config);
-    document.querySelectorAll("arib-style, arib-link").forEach(style => {
-        if (style.nodeName === "arib-link") {
-            const href = style.getAttribute("href");
-            if (href != null) {
-                const newStyle = document.createElement("style");
-                const res = fetchLockedResource(href);
-                if (res != null) {
-                    newStyle.textContent = transpileCSS(decodeEUCJP(res.data), { inline: false, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl });
-                    style.parentElement?.appendChild(newStyle);
-                }
-            }
-        } else if (style.textContent) {
-            const newStyle = document.createElement("style");
-            newStyle.textContent = transpileCSS(style.textContent, { inline: false, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl });
-            style.parentElement?.appendChild(newStyle);
-        }
-    });
-
-    document.querySelectorAll("[style]").forEach(style => {
-        const styleAttribute = style.getAttribute("style");
-        if (!styleAttribute) {
-            return;
-        }
-        style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + activeDocument, clutReader: getCLUT, convertUrl: convertCSSUrl }));
-    });
     document.querySelectorAll("object").forEach(obj => {
         const adata = obj.getAttribute("arib-data");
         if (adata != null) {
