@@ -4,11 +4,11 @@ import { LongJump } from "../resource";
 import * as BT from "../binary_table";
 import { IInterpreter } from "./interpreter";
 import * as context from "../context";
-function sleep(ms: number, callback: () => void) {
+function sleep(ms: number, callback: (result: any, resolveValue: any) => void) {
     console.log("SLEEP ", ms);
     setTimeout(() => {
         console.log("END SLEEP ", ms);
-        callback();
+        callback(1, true);
     }, ms);
 }
 /*
@@ -92,9 +92,9 @@ export class JSInterpreter implements IInterpreter {
             const { get, set, value } = desc;
             if (get) {
                 pseudoDesc.get = interpreter.createNativeFunction(function wrap(this: { data: any }) {
-                    console.log("get", name, this.data);
+                    console.debug("get", name, this.data);
                     const result = get.bind(this.data)();
-                    console.log("=>", result);
+                    console.debug("=>", result);
                     if (result != null && nativeProtoToPseudoObject.has(Object.getPrototypeOf(result))) {
                         return domObjectToPseudo(interpreter, result);
                     }
@@ -103,16 +103,16 @@ export class JSInterpreter implements IInterpreter {
             }
             if (set) {
                 pseudoDesc.set = interpreter.createNativeFunction(function wrap(this: { data: any }, value: any) {
-                    console.log("set", name, value, this.data);
+                    console.debug("set", name, value, this.data);
                     set.bind(this.data)(value);
                 });
             }
 
             if (typeof value === "function") {
                 pseudoDesc.value = interpreter.createNativeFunction(function wrap(this: { data: any }, ...args: any[]) {
-                    console.log("call", name, value, this.data, args);
+                    console.debug("call", name, value, this.data, args);
                     const result = value.bind(this.data)(...args);
-                    console.log("=>", result);
+                    console.debug("=>", result);
                     if (result != null && nativeProtoToPseudoObject.has(Object.getPrototypeOf(result))) {
                         return domObjectToPseudo(interpreter, result);
                     }
@@ -312,9 +312,7 @@ export class JSInterpreter implements IInterpreter {
     }
 
     runBlock(): Promise<boolean> {
-        return new Promise<boolean>((resolve, _) => {
-            this.interpreter.runAsync(resolve);
-        });
+        return this.interpreter.runAsync();
     }
 
     async runScript(): Promise<boolean> {

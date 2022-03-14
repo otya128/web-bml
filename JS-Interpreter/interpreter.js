@@ -376,6 +376,9 @@ Interpreter.prototype.step = function() {
       }
     }
     if (nextState) {
+      if (nextState instanceof Promise) {
+        return nextState;
+      }
       stack.push(nextState);
     }
     if (this.getterStep_) {
@@ -401,17 +404,17 @@ Interpreter.prototype.run = function() {
   return this.paused_;
 };
 
-Interpreter.prototype.runAsync = function(resolve) {
-  if (this.resolve) {
-    throw new Error("this.resolve");
+Interpreter.prototype.runAsync = function() {
+  while (!this.paused_) {
+    var promise = this.step();
+    if (promise instanceof Promise) {
+      return promise;
+    }
+    if (!promise) {
+      break;
+    }
   }
-  this.resolve = resolve;
-  while (!this.paused_ && this.step()) {}
-  if (!this.paused_) {
-    resolve(false);
-    this.resolve = null;
-  }
-  return this.paused_;
+  return Promise.resolve(this.paused_);
 };
 
 /**
@@ -3722,26 +3725,25 @@ Interpreter.prototype['stepCallExpression'] = function(stack, state, node) {
       state.value = func.nativeFunc.apply(state.funcThis_, state.arguments_);
     } else if (func.asyncFunc) {
       var thisInterpreter = this;
-      var callback = function(value) {
-        state.value = value;
-        thisInterpreter.paused_ = false;
-        if (thisInterpreter.resolve != null) {
-          const r = thisInterpreter.resolve;
-          thisInterpreter.resolve = null;
-          r(true);
+      // Promise executor will be called immediately. (ref. ECMA spec.)
+      const promise = new Promise(function (resolve, _reject) {
+        var callback = function(value, resolveValue) {
+          state.value = value;
+          thisInterpreter.paused_ = false;
+          resolve(resolveValue ?? true);
+        };
+        // Force the argument lengths to match, then append the callback.
+        var argLength = func.asyncFunc.length - 1;
+        var argsWithCallback = state.arguments_.concat(
+            new Array(argLength)).slice(0, argLength);
+        argsWithCallback.push(callback);
+        thisInterpreter.paused_ = true;
+        if (!state.scope.strict) {
+          state.funcThis_ = thisInterpreter.boxThis_(state.funcThis_);
         }
-      };
-      // Force the argument lengths to match, then append the callback.
-      var argLength = func.asyncFunc.length - 1;
-      var argsWithCallback = state.arguments_.concat(
-          new Array(argLength)).slice(0, argLength);
-      argsWithCallback.push(callback);
-      this.paused_ = true;
-      if (!state.scope.strict) {
-        state.funcThis_ = this.boxThis_(state.funcThis_);
-      }
-      func.asyncFunc.apply(state.funcThis_, argsWithCallback);
-      return;
+        func.asyncFunc.apply(state.funcThis_, argsWithCallback);
+      });
+      return promise;
     } else {
       /* A child of a function is a function but is not callable.  For example:
       var F = function() {};
