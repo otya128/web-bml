@@ -1,15 +1,24 @@
 // @ts-ignore
 import { Interpreter } from "../../JS-Interpreter/interpreter";
-import { LongJump } from "../resource";
 import * as BT from "../binary_table";
 import { IInterpreter } from "./interpreter";
 import * as context from "../context";
+import { launchDocument as documentLaunchDocument } from "../document";
+
 function sleep(ms: number, callback: (result: any, resolveValue: any) => void) {
     console.log("SLEEP ", ms);
     setTimeout(() => {
         console.log("END SLEEP ", ms);
         callback(1, true);
     }, ms);
+}
+
+const LAUNCH_DOCUMENT_CALLED = {};
+
+function launchDocument(documentName: string, transitionStyle: string | undefined, callback: (result: any, promiseValue: any) => void): void {
+    console.log("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
+    const r = documentLaunchDocument(documentName);
+    callback(r, LAUNCH_DOCUMENT_CALLED);
 }
 /*
  * Object
@@ -234,6 +243,7 @@ export class JSInterpreter implements IInterpreter {
 
             interpreter.setProperty(globalObject, "browser", pseudoBrowser);
             interpreter.setProperty(pseudoBrowser, "sleep", interpreter.createAsyncFunction(sleep));
+            interpreter.setProperty(pseudoBrowser, "launchDocument", interpreter.createAsyncFunction(launchDocument));
             interpreter.setProperty(pseudoBrowser, "readPersistentArray", interpreter.createNativeFunction(function readPersistentArray(filename: string, structure: string): any[] | null {
                 return interpreter.arrayNativeToPseudo(browser.readPersistentArray(filename, structure));
             }));
@@ -311,31 +321,37 @@ export class JSInterpreter implements IInterpreter {
         return this.runScript();
     }
 
-    runBlock(): Promise<boolean> {
-        return this.interpreter.runAsync();
-    }
-
     async runScript(): Promise<boolean> {
         if (this.isExecuting) {
             throw new Error("this.isExecuting");
         }
         const prevContext = context.currentContext;
+        let exit = false;
         try {
             this._isExecuting = true;
-            while (await this.runBlock()) {
-                if (context.currentContext !== prevContext) {
-                    return true;
+            while (true) {
+                const r = await this.interpreter.runAsync();
+                if (r === true) {
+                    continue;
                 }
+                if (r === LAUNCH_DOCUMENT_CALLED) {
+                    console.info("browser.launchDocument called.");
+                    exit = true;
+                } else if (context.currentContext !== prevContext) {
+                    console.info("context switched");
+                    exit = true;
+                }
+                break;
             }
             if (context.currentContext !== prevContext) {
-                return true;
+                console.info("context switched");
+                exit = true;
             }
         } finally {
-            if (context.currentContext !== prevContext) {
+            if (exit) {
                 return true;
             } else {
                 this._isExecuting = false;
-                this.interpreter.resolve = null;
             }
         }
         return false;
@@ -352,7 +368,6 @@ export class JSInterpreter implements IInterpreter {
 
     public destroyStack(): void {
         this.resetStack();
-        throw new LongJump("long jump");
     }
 
     public resetStack(): void {
@@ -360,7 +375,6 @@ export class JSInterpreter implements IInterpreter {
         state.done = false;
         this.interpreter.stateStack.length = 0;
         this.interpreter.stateStack[0] = state;
-        this.interpreter.resolve = null;
         this._isExecuting = false;
     }
 }
