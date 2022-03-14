@@ -136,10 +136,10 @@ if (!window.browser) {
             return;
         }
         document.currentFocus = this as BMLElement;
-        queueSyncEvent({ type: "focus", target: this });
         if (prevFocus != null) {
             queueSyncEvent({ type: "blur", target: prevFocus });
         }
+        queueSyncEvent({ type: "focus", target: this });
     };
 
     Object.defineProperty(Document.prototype, "currentFocus", {

@@ -197,10 +197,10 @@ export class JSInterpreter implements IInterpreter {
                 return;
             }
             BML.document._currentFocus = this;
-            queueSyncEvent({ type: "focus", target: this["node"] });
             if (prevFocus != null) {
                 queueSyncEvent({ type: "blur", target: prevFocus["node"] });
             }
+            queueSyncEvent({ type: "focus", target: this["node"] });
         };
         BML.BMLSpanElement.prototype.focus = focus;
         BML.BMLDivElement.prototype.focus = focus;
