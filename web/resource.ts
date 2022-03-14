@@ -244,6 +244,7 @@ ws.addEventListener("message", (ev) => {
             }
         }
     } else if (msg.type === "pmt") {
+        pmtRetrieved = true;
         pmtComponents = new Map(msg.components.map(x => [x.componentId, x]));
         if (!documentLoaded()) {
             for (const component of msg.components) {
