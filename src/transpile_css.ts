@@ -44,8 +44,8 @@ const bmlCssPropertyToBmlJsProperty: Map<string, string> = new Map(Object.entrie
 
 const bmlJsPropertyToBmlCssProperty: Map<string, string> = new Map(Array.from(bmlCssPropertyToBmlJsProperty).map(([k, v]) => [v, k]));
 
-function parseCSSValue(href: string, value: string): string | null {
-    const uriMatch = /url\(["']?(?<uri>.+?)['"]?\)/.exec(value);
+export function parseCSSValue(href: string, value: string): string | null {
+    const uriMatch = /url\(\s*["']?(?<uri>.+?)['"]?\s*\)/.exec(value);
     if (uriMatch?.groups == null) {
         return null;
     }

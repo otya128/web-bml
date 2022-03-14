@@ -1,5 +1,5 @@
 export { };
-import { convertCSSPropertyToGet, convertCSSPropertyToSet } from "../src/transpile_css";
+import { convertCSSPropertyToGet, convertCSSPropertyToSet, parseCSSValue } from "../src/transpile_css";
 import { BinaryTable, BinaryTableConstructor } from "./binary_table";
 import { overrideString } from "./string"
 import { overrideNumber } from "./number"
@@ -14,6 +14,7 @@ import { Buffer } from "buffer";
 import { JSInterpreter } from "./interpreter/js_interpreter";
 import { queueSyncEvent } from "./event";
 import { browser, browserStatus } from "./browser";
+import { launchDocument } from "./document";
 
 interface BMLEvent {
     type: string;
@@ -126,15 +127,6 @@ if (!window.browser) {
         },
     });
 
-    function parseCSSValue(value: string): string | null {
-        const uriMatch = /url\("?(?<uri>.+?)"?\)/.exec(value);
-        if (uriMatch?.groups == null) {
-            return null;
-        }
-        const uri = uriMatch.groups["uri"].replace(/\\/g, "");
-        return new URL(uri, "http://localhost" + resource.activeDocument).pathname;
-    }
-
     HTMLElement.prototype.focus = function focus(options?: FocusOptions) {
         const prevFocus = document.currentFocus;
         if (prevFocus === this as BMLElement) {
@@ -229,7 +221,7 @@ if (!window.browser) {
                 }
                 this.type = "image/png";
                 const clutCss = document.defaultView?.getComputedStyle(this)?.getPropertyValue("--clut");
-                const clutUrl = clutCss == null ? null : parseCSSValue(clutCss);
+                const clutUrl = clutCss == null ? null : parseCSSValue("http://localhost" + (resource.activeDocument ?? ""), clutCss);
                 const fetchedClut = clutUrl == null ? null : fetchLockedResource(clutUrl)?.data;
                 const cachedBlob = fetched.blobUrl.get(fetchedClut);
                 if (cachedBlob != null) {
@@ -273,6 +265,6 @@ if (!window.browser) {
     const interpreter = new JSInterpreter(browser);
     browserStatus.interpreter = interpreter;
     resource.launchRequest("/40/0000/startup.bml", () => {
-        browser.launchDocument("/40/0000/startup.bml");
+        launchDocument("/40/0000/startup.bml");
     });
 }
