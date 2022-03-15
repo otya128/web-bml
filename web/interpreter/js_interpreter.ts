@@ -27,6 +27,12 @@ function reloadActiveDocument(callback: (result: any, promiseValue: any) => void
     callback(r, LAUNCH_DOCUMENT_CALLED);
 }
 
+function unlockScreen(callback: (result: any, promiseValue: any) => void) {  
+    requestAnimationFrame(() => {
+        callback(1, undefined);
+    });
+}
+
 /*
  * Object
  * Function
@@ -253,6 +259,7 @@ export class JSInterpreter implements IInterpreter {
             interpreter.setProperty(pseudoBrowser, "sleep", interpreter.createAsyncFunction(sleep));
             interpreter.setProperty(pseudoBrowser, "launchDocument", interpreter.createAsyncFunction(launchDocument));
             interpreter.setProperty(pseudoBrowser, "reloadActiveDocument", interpreter.createAsyncFunction(reloadActiveDocument));
+            interpreter.setProperty(pseudoBrowser, "unlockScreen", interpreter.createAsyncFunction(unlockScreen));
             interpreter.setProperty(pseudoBrowser, "readPersistentArray", interpreter.createNativeFunction(function readPersistentArray(filename: string, structure: string): any[] | null {
                 return interpreter.arrayNativeToPseudo(browser.readPersistentArray(filename, structure));
             }));
