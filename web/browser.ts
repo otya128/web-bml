@@ -296,14 +296,14 @@ export const browser: Browser = {
         if (!resource.moduleExistsInDownloadInfo(componentId, moduleId)) {
             console.error("lockModuleOnMemoryEx: component does not exist in DII", module);
             eventQueueOnModuleLocked(module, true, -2);
-            return 0;
+            return 1;
         }
         const cachedModule = lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
         if (!cachedModule) {
             console.error("lockModuleOnMemoryEx: module not cached", module);
             resource.requestLockModule(module, componentId, moduleId, true);
             // OnModuleLockedのstatusで返ってくる
-            return 0;
+            return 1;
         }
         // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
         eventQueueOnModuleLocked(module, true, 0);
