@@ -193,7 +193,7 @@ if (!window.browser) {
         get: function getObjectData(this: HTMLObjectElement) {
             const aribData = this.getAttribute("arib-data");
             if (aribData == null || aribData == "") {
-                return this.getAttribute("data");
+                return this.getAttribute("data") ?? "";
             }
             return aribData;
         },

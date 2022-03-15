@@ -449,6 +449,9 @@ export namespace BML {
         public get invisible(): boolean {
             return this.node.getAttribute("invisible") === "invisible";
         }
+        public set invisible(v: boolean) {
+            (this.node as any).invisible = v;
+        }
         public get normalStyle(): BMLCSS2Properties {
             return getNormalStyle(this.node);
         }
