@@ -395,8 +395,11 @@ export function processKeyDown(k: AribKeyCode) {
         return;
     }
     const onkeydown = focusElement.getAttribute("onkeydown");
-    if (onkeydown) {
-        queueAsyncEvent(async () => {
+    if (!onkeydown && k != AribKeyCode.Enter) {
+        return;
+    }
+    queueAsyncEvent(async () => {
+        if (onkeydown) {
             setCurrentIntrinsicEvent({
                 keyCode: k as number,
                 type: "keydown",
@@ -414,13 +417,13 @@ export function processKeyDown(k: AribKeyCode) {
                 }
             }
             resetCurrentEvent();
-            if (k == AribKeyCode.Enter && BML.document.currentFocus && BML.document.currentFocus["node"]) {
-                queueSyncEvent({ type: "click", target: BML.document.currentFocus["node"] });
-            }
-            return false;
-        });
-        processEventQueue();
-    }
+        }
+        if (k == AribKeyCode.Enter && focusElement) {
+            queueSyncEvent({ type: "click", target: focusElement });
+        }
+        return false;
+    });
+    processEventQueue();
 }
 
 export function processKeyUp(k: AribKeyCode) {
