@@ -7,6 +7,7 @@ import { IInterpreter } from "./interpreter/interpreter";
 import { bmlClearInterval, bmlSetInterval, eventQueueOnModuleLocked, executeEventHandler, processEventQueue, queueAsyncEvent } from "./event";
 import { launchDocument as documentLaunchDocument } from "./document";
 import { ProgramInfoMessage, ResponseMessage } from "../src/ws_api";
+import { playRomSound } from "./romsound";
 // browser疑似オブジェクト
 
 export type LockedModuleInfo = [moduleName: string, func: number, status: number];
@@ -476,6 +477,10 @@ export const browser: Browser = {
     },
     playRomSound(soundID: string): number {
         console.log("playRomSound", soundID);
+        const groups = /romsound:\/\/(?<soundID>\d+)/.exec(soundID)?.groups;
+        if (groups != null) {
+            playRomSound(Number.parseInt(groups.soundID));
+        }
         return 1;
     },
     getBrowserVersion(): string[] {
