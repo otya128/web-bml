@@ -4,11 +4,17 @@ import * as BT from "../binary_table";
 import { IInterpreter } from "./interpreter";
 import * as context from "../context";
 import { launchDocument as documentLaunchDocument } from "../document";
+import { getTrace, getLog } from "../util/trace";
+
+const domTrace = getTrace("js-interpreter.dom");
+const eventTrace = getTrace("js-interpreter.event");
+const browserLog = getLog("js-interpreter.browser");
+const interpreterTrace = getTrace("js-interpreter");
 
 function sleep(ms: number, callback: (result: any, resolveValue: any) => void) {
-    console.log("SLEEP ", ms);
+    browserLog("SLEEP ", ms);
     setTimeout(() => {
-        console.log("END SLEEP ", ms);
+        browserLog("END SLEEP ", ms);
         callback(1, true);
     }, ms);
 }
@@ -16,13 +22,13 @@ function sleep(ms: number, callback: (result: any, resolveValue: any) => void) {
 const LAUNCH_DOCUMENT_CALLED = {};
 
 function launchDocument(documentName: string, transitionStyle: string | undefined, callback: (result: any, promiseValue: any) => void): void {
-    console.log("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
+    browserLog("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
     const r = documentLaunchDocument(documentName);
     callback(r, LAUNCH_DOCUMENT_CALLED);
 }
 
 function reloadActiveDocument(callback: (result: any, promiseValue: any) => void): void {
-    console.log("%creloadActiveDocument", "font-size: 4em");
+    browserLog("%creloadActiveDocument", "font-size: 4em");
     const r = documentLaunchDocument(browser.getActiveDocument()!);
     callback(r, LAUNCH_DOCUMENT_CALLED);
 }
@@ -115,9 +121,9 @@ export class JSInterpreter implements IInterpreter {
             const { get, set, value } = desc;
             if (get) {
                 pseudoDesc.get = interpreter.createNativeFunction(function wrap(this: { data: any }) {
-                    console.debug("get", name, this.data);
+                    domTrace("get", name, this.data);
                     const result = get.bind(this.data)();
-                    console.debug("=>", result);
+                    domTrace("=>", result);
                     if (result != null && nativeProtoToPseudoObject.has(Object.getPrototypeOf(result))) {
                         return domObjectToPseudo(interpreter, result);
                     }
@@ -126,16 +132,16 @@ export class JSInterpreter implements IInterpreter {
             }
             if (set) {
                 pseudoDesc.set = interpreter.createNativeFunction(function wrap(this: { data: any }, value: any) {
-                    console.debug("set", name, value, this.data);
+                    domTrace("set", name, value, this.data);
                     set.bind(this.data)(value);
                 });
             }
 
             if (typeof value === "function") {
                 pseudoDesc.value = interpreter.createNativeFunction(function wrap(this: { data: any }, ...args: any[]) {
-                    console.debug("call", name, value, this.data, args);
+                    domTrace("call", name, value, this.data, args);
                     const result = value.bind(this.data)(...args);
-                    console.debug("=>", result);
+                    domTrace("=>", result);
                     if (result != null && nativeProtoToPseudoObject.has(Object.getPrototypeOf(result))) {
                         return domObjectToPseudo(interpreter, result);
                     }
@@ -226,7 +232,7 @@ export class JSInterpreter implements IInterpreter {
         const browser = this.browser;
         this.interpreter = new Interpreter("", (interpreter: any, globalObject: any) => {
             interpreter.setProperty(globalObject, "___log", interpreter.createNativeFunction(function log(log: string) {
-                console.log(log);
+                eventTrace(log);
             }));
             const pseudoBrowser = interpreter.nativeToPseudo(browser);
             for (let i = 0; i < 64; i++) {
@@ -273,11 +279,11 @@ export class JSInterpreter implements IInterpreter {
             const pseudoBinaryTable = interpreter.createAsyncFunction(function BinaryTable(this: any, table_ref: string, structure: string, callback: (result: any, resolveValue: any) => void) {
                 fetchResourceAsync(table_ref).then(res => {
                     if (!res) {
-                        console.debug("BinaryTable", table_ref, "not found");
+                        browserLog("BinaryTable", table_ref, "not found");
                         callback(null, undefined);
                         return;
                     }
-                    console.debug("new BinaryTable", table_ref);
+                    browserLog("new BinaryTable", table_ref);
                     let buffer: Uint8Array = res.data;
                     this.instance = new BT.BinaryTable(buffer, structure);
                     callback(this, undefined);
@@ -341,7 +347,7 @@ export class JSInterpreter implements IInterpreter {
         return this.runScript();
     }
 
-    exe_num: number = 0;
+    exeNum: number = 0;
 
     async runScript(): Promise<boolean> {
         if (this.isExecuting) {
@@ -349,32 +355,32 @@ export class JSInterpreter implements IInterpreter {
         }
         const prevContext = context.currentContext;
         let exit = false;
-        const exe_num = this.exe_num++;
-        console.log("runScript()", exe_num, prevContext, context.currentContext);
+        const exeNum = this.exeNum++;
+        interpreterTrace("runScript()", exeNum, prevContext, context.currentContext);
         try {
             this._isExecuting = true;
             while (true) {
-                console.log("RUN SCRIPT", exe_num, prevContext, context.currentContext);
+                interpreterTrace("RUN SCRIPT", exeNum, prevContext, context.currentContext);
                 const r = await this.interpreter.runAsync();
-                console.log("RETURN RUN SCRIPT", exe_num, r, prevContext, context.currentContext);
+                interpreterTrace("RETURN RUN SCRIPT", exeNum, r, prevContext, context.currentContext);
                 if (r === true) {
                     continue;
                 }
                 if (r === LAUNCH_DOCUMENT_CALLED) {
-                    console.info("browser.launchDocument called.");
+                    interpreterTrace("browser.launchDocument called.");
                     exit = true;
                 } else if (context.currentContext !== prevContext) {
-                    console.info("context switched", context.currentContext, prevContext);
+                    console.error("context switched", context.currentContext, prevContext);
                     exit = true;
                 }
                 break;
             }
-            if (context.currentContext !== prevContext) {
-                console.info("context switched", context.currentContext, prevContext);
+            if (!exit && context.currentContext !== prevContext) {
+                console.error("context switched", context.currentContext, prevContext);
                 exit = true;
             }
         } finally {
-            console.log("leave runScript()", exe_num, exit, prevContext, context.currentContext);
+            interpreterTrace("leave runScript()", exeNum, exit, prevContext, context.currentContext);
             if (exit) {
                 return true;
             } else {
