@@ -376,7 +376,7 @@ export const browser: Browser = {
     },
     reloadActiveDocument(): number {
         console.log("reloadActiveDocument");
-        return browser.launchDocument!(browser.getActiveDocument!()!);
+        return browser.launchDocument(browser.getActiveDocument()!);
     },
     readPersistentArray(filename: string, structure: string): any[] | null {
         console.log("readPersistentArray", filename, structure);

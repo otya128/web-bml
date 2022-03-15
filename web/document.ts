@@ -13,17 +13,30 @@ import { transpileCSS } from "../src/transpile_css";
 import { Buffer } from "buffer";
 import { newContext } from "./context";
 import { BML } from "./interface/DOM";
-import { bmlToXHTML } from "./bml_to_xhtml";
+import { bmlToXHTML, bmlToXHTMLFXP } from "./bml_to_xhtml";
 
 const videoContainer = document.getElementById("arib-video-container") as HTMLDivElement;
 
+function requestAnimationFrameAsync(): Promise<void> {
+    return new Promise<void>((resolve, _) => {
+        requestAnimationFrame((_time) => resolve());
+    });
+}
+
 function loadDocumentToDOM(data: string) {
     const documentElement = document.createElement("html");
+    /*
     const newDocument = bmlToXHTML(data);
     // Element->HTMLElementにする手っ取り早い方法
     documentElement.innerHTML = newDocument.documentElement.innerHTML;
+    //*/
+    documentElement.innerHTML = bmlToXHTMLFXP(data);
     const p = Array.from(document.documentElement.childNodes).filter(x => x.nodeName === "body" || x.nodeName === "head");
     const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
+    const prevBody = document.body;
+    const newBody = documentElement.querySelector("body")!;
+    prevBody.setAttribute("arib-loading", "arib-loading");
+    newBody.setAttribute("arib-loading", "arib-loading");
     // document.documentElement.append(...Array.from(newDocument.documentElement.children));
     documentElement.querySelectorAll("arib-style, arib-link").forEach(style => {
         if (style.nodeName === "arib-link") {
@@ -56,6 +69,7 @@ function loadDocumentToDOM(data: string) {
     if (videoElementNew != null) {
         videoElementNew.appendChild(videoContainer);
     }
+    newBody.removeAttribute("arib-loading");
     for (const n of p) {
         n.remove();
     }
@@ -90,8 +104,8 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
     BML.document._currentFocus = null;
     resource.unlockAllModule();
     browserStatus.currentDateMode = 0;
+    await requestAnimationFrameAsync();
     loadDocumentToDOM(decodeEUCJP(file.data));
-    setRemoteControllerMessage(activeDocument + "\n" + (resource.currentProgramInfo?.eventName ?? ""));
     init();
     (document.body as any).invisible = (document.body as any).invisible;
     // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
@@ -162,6 +176,7 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
             }
         });
     }, 1000);
+    setRemoteControllerMessage(activeDocument + "\n" + (resource.currentProgramInfo?.eventName ?? ""));
     return false;
 }
 
@@ -172,6 +187,13 @@ export function launchDocument(documentName: string) {
     if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
         return NaN;
     }
+    let normalizedDocument;
+    if (filename != null) {
+        normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}/${filename}`;
+    } else {
+        normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
+    }
+    setRemoteControllerMessage(normalizedDocument + "を読み込み中...\n" + (resource.currentProgramInfo?.eventName ?? ""));
     if (!lockCachedModule(componentId, moduleId, "system")) {
         resource.fetchResourceAsync(documentName).then((res) => {
             if (res == null) {
@@ -188,12 +210,6 @@ export function launchDocument(documentName: string) {
         return NaN;
     }
     const ad = activeDocument;
-    let normalizedDocument;
-    if (filename != null) {
-        normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}/${filename}`;
-    } else {
-        normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
-    }
     loadDocument(res, normalizedDocument);
     console.log("return ", ad, documentName);
     return NaN;
@@ -533,12 +549,10 @@ function convertCSSUrl(url: string): string {
 }
 
 function init() {
-    //observer.observe(document.body, config);
     document.querySelectorAll("object").forEach(obj => {
         const adata = obj.getAttribute("arib-data");
         if (adata != null) {
             obj.data = adata;
-            reloadObjectElement(obj);
         }
     });
 }
