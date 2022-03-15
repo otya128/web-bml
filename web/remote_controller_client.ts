@@ -43,6 +43,11 @@ window.addEventListener("message", (ev) => {
             if (videoElement != null) {
                 videoElement.play();
             }
+        } else if (remoteController.type === "cc") {
+        } else if (remoteController.type === "disable-cc") {
+        } else if (remoteController.type === "zoom-100") {
+        } else if (remoteController.type === "zoom-150") {
+        } else if (remoteController.type === "zoom-200") {
         } else if (remoteController.type === "button") {
             processKeyDown(remoteController.keyCode as AribKeyCode);
             processKeyUp(remoteController.keyCode as AribKeyCode);

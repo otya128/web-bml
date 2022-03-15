@@ -16,7 +16,7 @@ document.body.addEventListener("keyup", e => {
 
 document.querySelectorAll("button").forEach(x => {
     x.addEventListener("click", () => {
-        if (x.id === "unmute" || x.id === "mute" || x.id === "play" || x.id === "pause") {
+        if (x.id === "unmute" || x.id === "mute" || x.id === "play" || x.id === "pause" || x.id === "cc" || x.id === "disable-cc" || x.id === "zoom-100" || x.id === "zoom-150" || x.id === "zoom-200") {
             postMessage({ type: x.id });
         } else {
             postMessage({ type: "button", keyCode: Number.parseInt(x.id.split("key")[1]) });
