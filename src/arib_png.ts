@@ -27,40 +27,36 @@ function prepareTRNS(clut: number[][]): Buffer {
     return trns;
 }
 
-// FIXME: PLTEは無視するとTR-B14で定められているのでこの実装は間違い
-function isPLTEMissing(png: Buffer): boolean {
-    let off = 8;
-    // IHDR
-    const type = png[off + 0x11];
-    // palette
-    if (type !== 3) {
-        return false;
-    }
-    off += png.readUInt32BE(off) + 4 * 3;
-    while (true) {
-        let chunkLength = png.readUInt32BE(off);
-        let chunkType = png.toString("ascii", off + 4, off + 8);
-        if (chunkType === "IDAT" || chunkType === "IEND") {
-            return true;
+function replacePLTE(png: Buffer, plte: Buffer, trns: Buffer): Buffer {
+    const output = Buffer.alloc(png.length + plte.length + trns.length);
+    let inOff = 0, outOff = 0;
+    // header
+    png.copy(output, outOff, inOff, 8);
+    inOff += 8;
+    outOff += 8;
+    while (inOff < png.byteLength) {
+        let chunkLength = png.readUInt32BE(inOff);
+        let chunkType = png.toString("ascii", inOff + 4, inOff + 8);
+        if (chunkType === "PLTE" || chunkType == "tRNS") {
+            // PLTEとtRNSは削除
+        } else {
+            outOff += png.copy(output, outOff, inOff, inOff + chunkLength + 4 + 4 + 4);
+            if (chunkType === "IHDR") {
+                // type = 3 (パレット) 以外は運用されない
+                if (png[inOff + 0x11] != 3) {
+                    return png;
+                }
+                outOff += plte.copy(output, outOff);
+                outOff += trns.copy(output, outOff);
+            }
         }
-        if (chunkType === "PLTE") {
-            return false;
-        }
-        off += chunkLength + 4 * 3;
+        inOff += chunkLength + 4 + 4 + 4;
     }
+    return output.subarray(0, outOff);
 }
 
 export function aribPNGToPNG(png: Buffer, clut: number[][]): Buffer {
-    if (!isPLTEMissing(png)) {
-        return png;
-    }
     const plte = preparePLTE(clut);
     const trns = prepareTRNS(clut);
-    const output = Buffer.alloc(png.length + plte.length + trns.length);
-    let off = 0;
-    off += png.copy(output, off, 0, 33);
-    off += plte.copy(output, off);
-    off += trns.copy(output, off);
-    off += png.copy(output, off, 33);
-    return output;
+    return replacePLTE(png, plte, trns);
 }
