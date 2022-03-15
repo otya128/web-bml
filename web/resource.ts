@@ -144,7 +144,11 @@ export function unlockModule(componentId: number, moduleId: number, isEx: boolea
 
 // FIXME
 export function moduleExistsInDownloadInfo(componentId: number, moduleId: number): boolean {
-    return downloadComponents.get(componentId)?.modules?.has(moduleId) ?? false;
+    const dcomp = downloadComponents.get(componentId);
+    if (!dcomp) {
+        return true;
+    }
+    return dcomp.modules.has(moduleId);
 }
 
 type LockModuleRequest = {
