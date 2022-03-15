@@ -122,7 +122,7 @@ export function bmlToXHTMLFXP(data: string): string {
         ignoreAttributes: false,
         attributeNamePrefix: "@_",
         preserveOrder: true,
-        cdataPropName: "__cdata",
+        cdataPropName: "#cdata",
         trimValues: false,
         parseTagValue: false,
     };
