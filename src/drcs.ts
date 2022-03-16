@@ -328,13 +328,13 @@ function writeHEAD(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt32BE(0); // checkSumAdjustment
     writer.writeUInt32BE(0x5F0F3CF5); // magicNumber
     writer.writeUInt16BE(0); // flags
-    writer.writeUInt16BE(2048); // unitsPerEm
+    writer.writeUInt16BE(1024); // unitsPerEm
     writer.writeInt64BE(0); // created
     writer.writeInt64BE(0); // modified
     writer.writeInt16BE(0); // xMin
-    writer.writeInt16BE(-500); // yMin
-    writer.writeInt16BE(2550); // xMax
-    writer.writeInt16BE(1900); // yMax
+    writer.writeInt16BE(-123); // yMin
+    writer.writeInt16BE(1024); // xMax
+    writer.writeInt16BE(901); // yMax
     writer.writeUInt16BE(0); // macStyle
     writer.writeUInt16BE(8); // lowestRecPPEM
     writer.writeUInt16BE(2); // fontDirectionHint
@@ -345,13 +345,13 @@ function writeHEAD(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
 function writeHHEA(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(1); // majorVersion
     writer.writeUInt16BE(0); // minorVersion
-    writer.writeInt16BE(1900); // ascender
-    writer.writeInt16BE(-500); // descender
+    writer.writeInt16BE(901); // yAscender
+    writer.writeInt16BE(-123); // yDescender
     writer.writeInt16BE(0); // lineGap
-    writer.writeUInt16BE(2550); // advanceWidthMax
+    writer.writeUInt16BE(1024); // advanceWidthMax
     writer.writeInt16BE(0); // minLeftSideBearing
     writer.writeInt16BE(0); // minRightSideBearing
-    writer.writeInt16BE(2550); // xMaxExtent
+    writer.writeInt16BE(1024); // xMaxExtent
     writer.writeInt16BE(1); // caretSlopeRise
     writer.writeInt16BE(0); // caretSlopeRun
     writer.writeInt16BE(0); // caretOffset
@@ -367,7 +367,7 @@ function writeHMTX(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     for (let i = 0; i <= glyphs.length; i++) {
         // SVGグリフで文字間に間が空くので適当に縮める
         // どのみち拡大すると破綻する
-        writer.writeUInt16BE(2048 - 80);//2550);
+        writer.writeUInt16BE(1024);//2550);
         writer.writeInt16BE(0);
     }
 }
@@ -412,20 +412,20 @@ function writeNAME(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
 
 function writeOS2(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(1); // version
-    writer.writeInt16BE(2550); // xAvgCharWidth
+    writer.writeInt16BE(1013); // xAvgCharWidth
     writer.writeUInt16BE(400); // usWeightClass
     writer.writeUInt16BE(5); // usWidthClass
     writer.writeUInt16BE(0); // fsType
-    writer.writeInt16BE(1331); // ySubscriptXSize
-    writer.writeInt16BE(1433); // ySubscriptYSize
+    writer.writeInt16BE(666); // ySubscriptXSize
+    writer.writeInt16BE(614); // ySubscriptYSize
     writer.writeInt16BE(0); // ySubscriptXOffset
-    writer.writeInt16BE(286); // ySubscriptYOffset
-    writer.writeInt16BE(1331); // ySuperscriptXSize
-    writer.writeInt16BE(1433); // ySuperscriptYSize
+    writer.writeInt16BE(77); // ySubscriptYOffset
+    writer.writeInt16BE(666); // ySuperscriptXSize
+    writer.writeInt16BE(614); // ySuperscriptYSize
     writer.writeInt16BE(0); // ySuperscriptXOffset
-    writer.writeInt16BE(983); // ySuperscriptYOffset
-    writer.writeInt16BE(102); // yStrikeoutSize
-    writer.writeInt16BE(530); // yStrikeoutPosition
+    writer.writeInt16BE(358); // ySuperscriptYOffset
+    writer.writeInt16BE(38); // yStrikeoutSize
+    writer.writeInt16BE(408); // yStrikeoutPosition
     writer.writeInt16BE(0); // sFamilyClass
     for (let i = 0; i < 10; i++) {
         writer.writeInt8(0); // panose
@@ -438,11 +438,11 @@ function writeOS2(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     writer.writeUInt16BE(0x40); // fsSelection
     writer.writeUInt16BE(0x0000); // usFirstCharIndex
     writer.writeUInt16BE(0xffff); // usLastCharIndex
-    writer.writeInt16BE(1900); // sTypoAscender
-    writer.writeInt16BE(-500); // sTypoDescender
+    writer.writeInt16BE(901); // sTypoAscender
+    writer.writeInt16BE(-123); // sTypoDescender
     writer.writeInt16BE(0); // sTypoLineGap
-    writer.writeUInt16BE(1900); // usWinAscent
-    writer.writeUInt16BE(500); // usWinDescent
+    writer.writeUInt16BE(901); // usWinAscent
+    writer.writeUInt16BE(123); // usWinDescent
     writer.writeUInt32BE(0); // ulCodePageRange1
     writer.writeUInt32BE(0); // ulCodePageRange2
 }
@@ -506,8 +506,8 @@ function writeCBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
         writer.writeUInt32BE(0); // colorRef
         // hori
         {
-            writer.writeInt8(strike.width); // ascender
-            writer.writeInt8(0); // descender
+            writer.writeInt8(Math.round(strike.width * 901 / 1024)); // ascender
+            writer.writeInt8(Math.round(-strike.width * 123 / 1024)); // descender
             writer.writeUInt8(strike.width); // widthMax
             writer.writeInt8(0); // caretSlopeNumerator
             writer.writeInt8(0); // caretSlopeDenominator
@@ -521,8 +521,8 @@ function writeCBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
         }
         // vert
         {
-            writer.writeInt8(strike.height); // ascender
-            writer.writeInt8(0); // descender
+            writer.writeInt8(Math.round(strike.width * 901 / 1024)); // ascender
+            writer.writeInt8(Math.round(-strike.width * 123 / 1024)); // descender
             writer.writeUInt8(strike.height); // widthMax
             writer.writeInt8(0); // caretSlopeNumerator
             writer.writeInt8(0); // caretSlopeDenominator
@@ -596,28 +596,32 @@ function writeCBDT(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
             writer.writeUInt8(g.height);
             writer.writeUInt8(g.width);
             writer.writeUInt8(0); // bearingX
-            writer.writeUInt8(g.height); // bearingY
+            writer.writeUInt8(g.height + Math.round(-g.width * 123 / 1024)); // bearingY
             writer.writeUInt8(g.width); // advance
             for (let y = 0; y < g.height; y++) {
                 for (let x = 0; x < g.width; x++) {
-                    writer.writeUInt8(Math.floor(g.bitmap[x + y * g.width] / (g.depth - 1) * 255));
+                    writer.writeUInt8(Math.round(g.bitmap[x + y * g.width] / (g.depth - 1) * 255));
                 }
             }
         }
     }
 }
 
-function writeGLYF(_glyphs: DRCSGlyphs[], writer: BinaryWriter) {
-    writer.writeUInt16BE(0);
-    writer.writeInt16BE(408);
-    writer.writeInt16BE(285);
-    writer.writeInt16BE(616);
-    writer.writeInt16BE(493);
+function writeGLYF(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
+    for (let i = 0; i <= glyphs.length; i++) {
+        writer.writeUInt16BE(0); // numberOfContours
+        writer.writeInt16BE(0); // xMin
+        writer.writeInt16BE(-123); // yMin
+        writer.writeInt16BE(1024); // xMax
+        writer.writeInt16BE(901); // yMax
+        writer.writeUInt16BE(0); // InstructionLength
+    }
 }
 
 function writeLOCA(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
-    for (let i = 0; i <= glyphs.length + 1; i++) {
-        writer.writeUInt32BE(0);
+    writer.writeUInt32BE(2 * 6 * 1);
+    for (let i = 1; i <= glyphs.length + 1; i++) {
+        writer.writeUInt32BE(2 * 6 * i);
     }
 }
 
@@ -695,14 +699,13 @@ function writeSVG(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     for (let glyphId = 1; glyphId <= glyphs.length; glyphId++) {
         const glyph = glyphs[glyphId - 1].glyphs.slice().sort((a, b) => (b.width * b.height) - (a.width * a.height))[0];
         const png = encodePNG(glyph);
-        let unitsPerEm = 2048;
-        let svg = `<svg id="glyph${glyphId}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${unitsPerEm / 2}" height="${unitsPerEm / 2}">
+        let svg = `<svg id="glyph${glyphId}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 ${glyph.height} ${glyph.width} ${glyph.height}">
 <defs>
 <mask id="mask">
-<image x="0" y="${-unitsPerEm}" width="${unitsPerEm}" height="${unitsPerEm}" xlink:href="data:image/png;base64,${png.toString("base64")}"/>
+<image x="0" y="${-Math.round(-glyph.width * 123 / 1024)}" width="${glyph.width + 1}" height="${glyph.height + 1}" xlink:href="data:image/png;base64,${png.toString("base64")}"/>
 </mask>
 </defs>
-<rect x="0" y="${-unitsPerEm}" width="${unitsPerEm}" height="${unitsPerEm}" mask="url(#mask)" />
+<rect x="0" y="${-Math.round(-glyph.width * 123 / 1024)}" width="${glyph.width + 1}" height="${glyph.height + 1}" mask="url(#mask)" />
 </svg>`;
         offsets.push({ glyphId, offset: writer.writeASCII(svg), size: svg.length });
     }
