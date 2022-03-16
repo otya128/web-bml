@@ -260,6 +260,11 @@ ws.addEventListener("message", (ev) => {
         }
     } else if (msg.type === "programInfo") {
         currentProgramInfo = msg;
+        const callbacks = programInfoCallbacks.slice();
+        programInfoCallbacks.length = 0;
+        for (const cb of callbacks) {
+            cb(msg);
+        }
     } else if (msg.type === "currentTime") {
         currentTime = msg;
     } else if (msg.type === "videoStreamUrl") {
@@ -397,4 +402,15 @@ export function* getLockedModules() {
             yield { module: `/${moduleAndComponentToString(c.componentId, m.moduleId)}`, isEx: m.lockedBy === "lockModuleOnMemoryEx" };
         }
     }
+}
+
+const programInfoCallbacks: ((msg: ProgramInfoMessage) => void)[] = []
+
+export function getProgramInfoAsync(): Promise<ProgramInfoMessage> {
+    if (currentProgramInfo != null) {
+        return Promise.resolve(currentProgramInfo);
+    }
+    return new Promise<ProgramInfoMessage>((resolve, _) => {
+        programInfoCallbacks.push(resolve);
+    });
 }

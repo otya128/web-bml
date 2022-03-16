@@ -5,6 +5,7 @@ import { IInterpreter } from "./interpreter";
 import * as context from "../context";
 import { launchDocument as documentLaunchDocument } from "../document";
 import { getTrace, getLog } from "../util/trace";
+import * as resource from "../resource";
 
 const domTrace = getTrace("js-interpreter.dom");
 const eventTrace = getTrace("js-interpreter.event");
@@ -33,7 +34,7 @@ function reloadActiveDocument(callback: (result: any, promiseValue: any) => void
     callback(r, LAUNCH_DOCUMENT_CALLED);
 }
 
-function unlockScreen(callback: (result: any, promiseValue: any) => void) {  
+function unlockScreen(callback: (result: any, promiseValue: any) => void) {
     requestAnimationFrame(() => {
         callback(1, undefined);
     });
@@ -271,6 +272,14 @@ export class JSInterpreter implements IInterpreter {
             }));
             interpreter.setProperty(pseudoBrowser, "writePersistentArray", interpreter.createNativeFunction(function writePersistentArray(filename: string, structure: string, data: any[], period?: Date): number {
                 return browser.writePersistentArray(filename, structure, interpreter.arrayPseudoToNative(data), period);
+            }));
+            interpreter.setProperty(pseudoBrowser, "getProgramID", interpreter.createAsyncFunction(function getProgramID(type: number, callback: (result: any, promiseValue: any) => void) {
+                resource.getProgramInfoAsync().then(_ => {
+                    const pid = browser.getProgramID(type);
+                    if (pid != null) {
+                        callback(pid, undefined);
+                    }
+                });
             }));
 
             this.registerDOMClasses(interpreter, globalObject);
