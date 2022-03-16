@@ -18,14 +18,15 @@ interface BMLBeventEvent extends BMLEvent {
     status: number;
     privateData: string;
     esRef: string;
-    messageId: string;
-    messageVersion: string;
-    messageGroupId: string;
+    messageId: number;
+    messageVersion: number;
+    messageGroupId: number;
     moduleRef: string;
     languageTag: number;
     registerId: number;
-    serviceId: string;
-    eventId: string;
+    serviceId: number;
+    eventId: number;
+    peripheralRef: string;
     object: BMLObjectElement | null;
     segmentId: string | null;
 }
@@ -113,14 +114,14 @@ export function eventQueueOnModuleLocked(module: string, isEx: boolean, status: 
                         status,
                         privateData: "",
                         esRef: "",
-                        messageId: "0",
-                        messageVersion: "0",
-                        messageGroupId: "0",
+                        messageId: 0,
+                        messageVersion: 0,
+                        messageGroupId: 0,
                         moduleRef: module,
                         languageTag: 0,//?
                         registerId: 0,
-                        serviceId: "0",
-                        eventId: "0",
+                        serviceId: 0,
+                        eventId: 0,
                         peripheralRef: "",
                         object: null,
                         segmentId: null,
@@ -155,14 +156,14 @@ export function eventQueueOnModuleUpdated(module: string, status: number) {
                         status,
                         privateData: "",
                         esRef: "",
-                        messageId: "0",
-                        messageVersion: "0",
-                        messageGroupId: "0",
+                        messageId: 0,
+                        messageVersion: 0,
+                        messageGroupId: 0,
                         moduleRef: module,
                         languageTag: 0,//?
                         registerId: 0,
-                        serviceId: "0",
-                        eventId: "0",
+                        serviceId: 0,
+                        eventId: 0,
                         peripheralRef: "",
                         object: null,
                         segmentId: null,
@@ -195,14 +196,14 @@ export function dispatchDataButtonPressed() {
                     status: 0,
                     privateData: "",
                     esRef: "",
-                    messageId: "0",
-                    messageVersion: "0",
-                    messageGroupId: "0",
+                    messageId: 0,
+                    messageVersion: 0,
+                    messageGroupId: 0,
                     moduleRef: "",
-                    languageTag: 0,//?
+                    languageTag: 0,
                     registerId: 0,
-                    serviceId: "0",
-                    eventId: "0",
+                    serviceId: 0,
+                    eventId: 0,
                     peripheralRef: "",
                     object: null,
                     segmentId: null,

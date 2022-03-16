@@ -87,6 +87,31 @@ export type ModuleListUpdatedMessage = {
     modules: number[],
 };
 
+export type ESEvent = ESImmediateEvent | ESNPTEvent;
+
+export type ESImmediateEvent = {
+    event_msg_group_id: number,
+    time_mode: 0,
+    event_msg_type: number,
+    event_msg_id: number,
+    private_data_byte: number[],
+};
+
+export type ESNPTEvent = {
+    event_msg_group_id: number,
+    time_mode: 2,
+    event_msg_NPT: number,
+    event_msg_type: number,
+    event_msg_id: number,
+    private_data_byte: number[],
+};
+
+export type ESEventUpdatedMessage = {
+    type: "esEventUpdated",
+    componentId: number,
+    events: ESEvent[],
+}
+
 export type ModuleLockResponseMessage = {
     type: "moduleLockResponse",
     componentId: number,
@@ -119,4 +144,4 @@ export type ErrorMessage = {
     type: "error",
     message: string,
 };
-export type ResponseMessage = PMTMessage | ModuleDownloadedMessage | ModuleListUpdatedMessage | ModuleLockResponseMessage | ProgramInfoMessage | CurrentTime | VideoStreamUrlMessage | ErrorMessage;
+export type ResponseMessage = PMTMessage | ModuleDownloadedMessage | ModuleListUpdatedMessage | ModuleLockResponseMessage | ProgramInfoMessage | CurrentTime | VideoStreamUrlMessage | ErrorMessage | ESEventUpdatedMessage;

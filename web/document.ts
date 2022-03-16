@@ -1,5 +1,5 @@
 import css from "css";
-import { bmlSetInterval, dispatchDataButtonPressed, eventQueueOnModuleUpdated, executeEventHandler, lockSyncEventQueue, processEventQueue, queueAsyncEvent, queueSyncEvent, resetCurrentEvent, resetEventQueue, setCurrentIntrinsicEvent, unlockSyncEventQueue } from "./event";
+import { bmlSetInterval, dispatchDataButtonPressed, eventQueueOnModuleUpdated, executeEventHandler, lockSyncEventQueue, processEventQueue, queueAsyncEvent, queueSyncEvent, resetCurrentEvent, resetEventQueue, setCurrentBeventEvent, setCurrentIntrinsicEvent, unlockSyncEventQueue } from "./event";
 import { activeDocument, CachedFile, fetchLockedResource, lockCachedModule, parseURL, parseURLEx, LongJump } from "./resource";
 import * as resource from "./resource";
 import { browser, browserStatus } from "./browser";
@@ -14,6 +14,7 @@ import { Buffer } from "buffer";
 import { newContext } from "./context";
 import { BML } from "./interface/DOM";
 import { bmlToXHTML, bmlToXHTMLFXP } from "./bml_to_xhtml";
+import { ResponseMessage } from "../src/ws_api";
 
 const videoContainer = document.getElementById("arib-video-container") as HTMLDivElement;
 
@@ -556,3 +557,80 @@ function init() {
         }
     });
 }
+
+resource.resourceEventTarget.addEventListener("message", ((event: CustomEvent) => {
+    const msg = event.detail as ResponseMessage;
+    if (msg.type === "esEventUpdated") {
+        const eventMessageFired = document.querySelectorAll("beitem[type=\"EventMessageFired\"][subscribe=\"subscribe\"]");
+        const activeDocument = browser.getActiveDocument();
+        if (activeDocument == null) {
+            return;
+        }
+        const { componentId: activeComponentId } = resource.parseURLEx(activeDocument!);
+        if (activeComponentId == null) {
+            return;
+        }
+        eventMessageFired.forEach((beitem) => {
+            const es_ref = beitem.getAttribute("es_ref");
+            // message_group_idは0のみ運用される
+            const message_group_id = Number.parseInt(beitem.getAttribute("message_group_id") ?? "0");
+            const message_id = Number.parseInt(beitem.getAttribute("message_id") ?? "255");
+            const message_version = Number.parseInt(beitem.getAttribute("message_version") ?? "255");
+            const onoccur = beitem.getAttribute("onoccur");
+            if (!onoccur) {
+                return;
+            }
+            let componentId = activeComponentId;
+            if (es_ref != null) {
+                const esRefComponentId = parseURLEx(es_ref)?.componentId;
+                if (esRefComponentId != null) {
+                    componentId = esRefComponentId;
+                }
+            }
+            for (const event of msg.events) {
+                // 即時イベントのみ実装
+                if (event.time_mode !== 0) {
+                    continue;
+                }
+                const eventMessageId = event.event_msg_id >> 8;
+                const eventMessageVersion = event.event_msg_id & 0xff;
+                if (message_id === 255 || message_id === eventMessageId) {
+                    if (message_version === 255 || message_version === eventMessageVersion) {
+                        if ((beitem as any).__prevVersion === eventMessageVersion) {
+                            continue;
+                        }
+                        (beitem as any).__prevVersion = eventMessageVersion;
+                        const privateData = decodeEUCJP(Uint8Array.from(event.private_data_byte));
+                        console.log("EventMessageFired", eventMessageId, eventMessageVersion, privateData);
+                        queueAsyncEvent(async () => {
+                            setCurrentBeventEvent({
+                                type: "EventMessageFired",
+                                target: beitem as HTMLElement,
+                                status: 0,
+                                privateData,
+                                esRef: "/" + componentId.toString(16).padStart(2, "0"),
+                                messageId: eventMessageId,
+                                messageVersion: eventMessageVersion,
+                                messageGroupId: event.event_msg_group_id,
+                                moduleRef: "",
+                                languageTag: 0,//?
+                                registerId: 0,
+                                serviceId: 0,
+                                eventId: 0,
+                                peripheralRef: "",
+                                object: null,
+                                segmentId: null,
+                            });
+                            if (await executeEventHandler(onoccur)) {
+                                return true;
+                            }
+                            resetCurrentEvent();
+                            return false;
+                        });
+                    }
+                }
+            }
+            processEventQueue();
+        });
+    }
+}) as EventListener);

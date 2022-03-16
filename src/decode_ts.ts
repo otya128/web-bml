@@ -318,10 +318,11 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             ptc.set(pid, componentPMT);
             ctp.set(componentPMT.componentId, componentPMT);
         }
+        pcr_pid = data.PCR_PID;
         pidToComponent = ptc;
         if (componentToPid.size !== ctp.size || [...componentToPid.keys()].some((x) => !ctp.has(x))) {
             // PMTが変更された
-            console.log("PMT changed");
+            // console.log("PMT changed");
             componentToPid = ctp;
             const msg: wsApi.PMTMessage = {
                 type: "pmt",
@@ -329,6 +330,16 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             };
             unicast(ws, msg);
         }
+    });
+
+
+    tsStream.on("packet", (pid, data) => {
+        if (pid !== pcr_pid) {
+            return;
+        }
+        const program_clock_reference_base = data.adaptation_field.program_clock_reference_base;
+        const program_clock_reference_extension = data.adaptation_field.program_clock_reference_extension;
+        // console.log(program_clock_reference_base);
     });
 
     tsStream.on("eit", (pid, data) => {
@@ -340,7 +351,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                 ids = {
                     onid: tsUtil.getOriginalNetworkId(),
                     tsid: tsUtil.getTransportStreamId(),
-                    sid: tsUtil.getServiceIds()[0]
+                    sid: dbs.serviceId ?? tsUtil.getServiceIds()[0]
                 };
             } else {
                 return;
@@ -414,7 +425,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             const downloadId: number = message.downloadId;
             // downloadIdの下位28ビットは常に1で運用される
             const data_event_id = (downloadId >> 28) & 15;
-            console.log(`componentId: ${componentId.toString(16).padStart(2, "0")} downloadId: ${downloadId}`)
+            // console.log(`componentId: ${componentId.toString(16).padStart(2, "0")} downloadId: ${downloadId}`)
             // blockSizeは常に4066
             const blockSize: number = message.blockSize;
             // windowSize, ackPeriod, tCDownloadWindowは常に0
@@ -435,7 +446,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                     downloadedBlockCount: 0,
                 };
                 modules.set(moduleId, moduleInfo);
-                console.log(`   moduleId: ${moduleId.toString(16).padStart(4, "0")} moduleVersion: ${moduleVersion}`)
+                // console.log(`   moduleId: ${moduleId.toString(16).padStart(4, "0")} moduleVersion: ${moduleVersion}`)
                 for (const info of module.moduleInfo) {
                     // Type記述子, ダウンロード推定時間記述子, Compression Type記述子のみ運用される(TR-B14 第三分冊 4.2.4 表4-4参照)
                     if (info.descriptor_tag === 0x01) { // Type記述子 STD-B24 第三分冊 第三編 6.2.3.1
@@ -510,7 +521,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                     // 更新されていない
                     return;
                 }
-                console.info(`component ${componentId.toString(16).padStart(2, "0")} module ${moduleId.toString(16).padStart(4, "0")}updated`);
+                // console.info(`component ${componentId.toString(16).padStart(2, "0")} module ${moduleId.toString(16).padStart(4, "0")}updated`);
                 if (moduleInfo.contentType == null || moduleInfo.contentType.toLowerCase().startsWith("multipart/mixed")) { // FIXME
                     const parser = new EntityParser(moduleData);
                     const mod = parser.readEntity();
@@ -535,7 +546,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                                 continue;
                             }
                             const locationString = entityHeaderToString(location);
-                            console.log("    ", locationString, entityHeaderToString(contentType));
+                            // console.log("    ", locationString, entityHeaderToString(contentType));
                             files.set(locationString, {
                                 contentLocation: locationString,
                                 contentType: mediaType,
@@ -560,8 +571,79 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                 cachedComponent.modules.set(moduleInfo.moduleId, cachedModule);
                 cachedComponents.set(componentId, cachedComponent);
             }
-        } else if (data.table_id === 0x3e) {
+        } else if (data.table_id === 0x3d) {
             // ストリーム記述子
+            const stream_descriptor: Buffer = data.stream_descriptor;
+            const events: wsApi.ESEvent[] = [];
+            for (let i = 0; i + 1 < stream_descriptor.length; i++) {
+                const descriptor_tag = stream_descriptor.readUInt8(i);
+                i++;
+                const descriptor_length = stream_descriptor.readUInt8(i);
+                i++;
+                const descriptor = stream_descriptor.subarray(i, i + descriptor_length);
+                i += descriptor_length;
+                if (descriptor.length !== descriptor_length) {
+                    break;
+                }
+                if (descriptor_tag === 0x17) { // NPT参照記述子 NPTReferenceDescriptor
+                    if (descriptor_length < 18) {
+                        continue;
+                    }
+                    const postDiscontinuityIndicator = descriptor[0] >> 7;
+                    const dsm_contentId = descriptor[0] & 127;
+                    // 7bit reserved
+                    const STC_Reference = descriptor.readUInt32BE(2) + ((descriptor[1] & 1) * 0x100000000);
+                    // 31bit reserved
+                    const NPT_Reference = descriptor.readUInt32BE(10) + ((descriptor[9] & 1) * 0x100000000);
+                    const scaleNumerator = descriptor.readUInt16BE(14);
+                    const scaleDenominator = descriptor.readUInt16BE(16);
+                    // console.log(STC_Reference, NPT_Reference);
+                } else if (descriptor_tag === 0x40) { // 汎用イベントメッセージ記述子 General_event_descriptor
+                    if (descriptor_length < 11) {
+                        continue;
+                    }
+                    const event_msg_group_id = descriptor.readUInt16BE(0) & 0b1111_1111_1111;
+                    // 4bit reserved_future_use
+                    const time_mode = descriptor.readUInt8(2);
+
+                    const event_msg_type = descriptor.readUInt8(8);
+                    const event_msg_id = descriptor.readUInt16BE(9);
+                    const private_data_byte = descriptor.subarray(11);
+                    // 0x00と0x02のみが運用される(TR-B14, TR-B15)
+                    if (time_mode === 0) {
+                        // 40bit reserved_future_use
+                        events.push({
+                            event_msg_type,
+                            event_msg_group_id,
+                            event_msg_id,
+                            private_data_byte: Array.from(private_data_byte),
+                            time_mode
+                        });
+                    } else if (time_mode === 0x01 || time_mode === 0x05) {
+                        // event_msg_MJD_JST_time
+                    } else if (time_mode === 0x02) {
+                        // 7bit reserved_future_use
+                        // event_msg_NPT
+                        const NPT = descriptor.readUInt32BE(4) | ((descriptor[3] & 1) * 0x100000000);
+                        events.push({
+                            event_msg_type,
+                            event_msg_NPT: NPT,
+                            event_msg_group_id,
+                            event_msg_id,
+                            private_data_byte: Array.from(private_data_byte),
+                            time_mode
+                        });
+                    } else if (time_mode === 0x03) {
+                        // 4bit reserved_future_use
+                        // 36bit event_msg_relativeTime
+                    }
+                }
+            }
+            unicast(ws, {
+                type: "esEventUpdated",
+                events,
+                componentId,
+            });
         }
     });
 }

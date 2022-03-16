@@ -681,14 +681,15 @@ export namespace BML {
         status: number;
         privateData: string;
         esRef: string;
-        messageId: string;
-        messageVersion: string;
-        messageGroupId: string;
+        messageId: number;
+        messageVersion: number;
+        messageGroupId: number;
         moduleRef: string;
         languageTag: number;
         registerId: number;
-        serviceId: string;
-        eventId: string;
+        serviceId: number;
+        eventId: number;
+        peripheralRef: string;
         object: BMLObjectElement | null;
         segmentId: string | null;
     }
@@ -723,14 +724,15 @@ export namespace BML {
         public get status(): number { return this._data.status; }
         public get privateData(): string { return this._data.privateData; }
         public get esRef(): string { return this._data.esRef; }
-        public get messageId(): string { return this._data.messageId; }
-        public get messageVersion(): string { return this._data.messageVersion; }
-        public get messageGroupId(): string { return this._data.messageGroupId; }
+        public get messageId(): number { return this._data.messageId; }
+        public get messageVersion(): number { return this._data.messageVersion; }
+        public get messageGroupId(): number { return this._data.messageGroupId; }
         public get moduleRef(): string { return this._data.moduleRef; }
         public get languageTag(): number { return this._data.languageTag; }
         // public get registerId(): number { return this.registerId; }
         // public get serviceId(): string { return this.serviceId; }
         // public get eventId(): string { return this.eventId; }
+        public get peripheralRef(): string { return this.peripheralRef; }
         public get object(): BMLObjectElement | null { return this._data.object; }
         public get segmentId(): string | null { return this._data.segmentId; }
     }
