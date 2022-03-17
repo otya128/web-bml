@@ -16,6 +16,11 @@ import { decodeTS } from './decode_ts';
 import { downloadFonts } from './font';
 downloadFonts();
 
+let port = Number.parseInt(process.env.PORT ?? "");
+if (Number.isNaN(port)) {
+    port = 23234;
+}
+const host = process.env.HOST ?? "localhost";
 const ffmpeg = process.env.FFMPEG ?? "ffmpeg";
 const hlsDir = process.env.HLS_DIR ?? "./hls";
 // 40772はLinuxのエフェメラルポート
@@ -406,8 +411,8 @@ router.get("/streams/:id.m3u8", async (ctx) => {
     const pollingTime = 100;
     let limitTime = 60 * 1000;
     while (limitTime > 0) {
-        if (fs.existsSync(path.join("./hls", dbs.id + ".m3u8"))) {
-            ctx.body = await readFileAsync(path.join("./hls", dbs.id + ".m3u8"));
+        if (fs.existsSync(path.join(hlsDir, dbs.id + ".m3u8"))) {
+            ctx.body = await readFileAsync(path.join(hlsDir, dbs.id + ".m3u8"));
             return;
         }
         await delayAsync(pollingTime);
@@ -581,9 +586,10 @@ router.get('/api/ws', async (ctx) => {
     });
 });
 
-console.log("OK");
 app
     .use(router.routes())
     .use(router.allowedMethods());
 
-app.listen(23234);
+app.listen(port, host);
+
+console.log(`listening on ${host}:${port}`);
