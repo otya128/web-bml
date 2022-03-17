@@ -1,10 +1,10 @@
 import { queueSyncEvent } from "../event";
 import { BMLCSS2Properties } from "./BMLCSS2Properties";
 import * as resource from "../resource";
-import { aribPNGToPNG } from "../../src/arib_png";
-import { readCLUT } from "../../src/clut";
-import { defaultCLUT } from "../../src/default_clut";
-import { parseCSSValue } from "../../src/transpile_css";
+import { aribPNGToPNG } from "../../server/arib_png";
+import { readCLUT } from "../../server/clut";
+import { defaultCLUT } from "../../server/default_clut";
+import { parseCSSValue } from "../../server/transpile_css";
 import { Buffer } from "buffer";
 
 export namespace BML {

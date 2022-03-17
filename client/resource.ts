@@ -1,4 +1,4 @@
-import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage, Param, MirakLiveParam, EPGStationRecordedParam } from "../src/ws_api";
+import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage, Param, MirakLiveParam, EPGStationRecordedParam } from "../server/ws_api";
 
 import { play as playMP4 } from "./player/mp4";
 import { play as playMPEGTS } from "./player/mpegts";

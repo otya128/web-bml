@@ -6,15 +6,15 @@ import { browser, browserStatus } from "./browser";
 // @ts-ignore
 import defaultCss from "./default.css";
 import { setRemoteControllerMessage } from "./remote_controller_client";
-import { decodeEUCJP } from "../src/euc_jp";
-import { defaultCLUT } from "../src/default_clut";
-import { readCLUT } from "../src/clut";
-import { transpileCSS } from "../src/transpile_css";
+import { decodeEUCJP } from "../server/euc_jp";
+import { defaultCLUT } from "../server/default_clut";
+import { readCLUT } from "../server/clut";
+import { transpileCSS } from "../server/transpile_css";
 import { Buffer } from "buffer";
 import { newContext } from "./context";
 import { BML } from "./interface/DOM";
 import { bmlToXHTML, bmlToXHTMLFXP } from "./bml_to_xhtml";
-import { ResponseMessage } from "../src/ws_api";
+import { ResponseMessage } from "../server/ws_api";
 
 const videoContainer = document.getElementById("arib-video-container") as HTMLDivElement;
 

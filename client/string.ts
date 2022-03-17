@@ -1,8 +1,8 @@
 // STD-B24 第二編 付属2 5.4.3.4で定められている挙動をするようにする
 // charCodeAtとfromCharCodeを上書きするのでやばい
 // 比較もEUC-JPベースでやる必要はある
-import { unicodeToJISMap } from "../src/unicode_to_jis_map";
-import { jisToUnicodeMap } from "../src/jis_to_unicode_map";
+import { unicodeToJISMap } from "../server/unicode_to_jis_map";
+import { jisToUnicodeMap } from "../server/jis_to_unicode_map";
 export const originalCharCodeAt = String.prototype.charCodeAt;
 export const originalFromCharCode = String.fromCharCode;
 

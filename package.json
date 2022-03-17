@@ -1,7 +1,7 @@
 {
   "name": "web-bml",
   "version": "1.0.0",
-  "main": "src/index.ts",
+  "main": "server/index.ts",
   "license": "MIT",
   "dependencies": {
     "@babel/generator": "^7.17.3",
@@ -31,7 +31,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "build": "tsc",
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node server/index.ts"
   },
   "devDependencies": {
     "@types/babel__generator": "^7.6.4",

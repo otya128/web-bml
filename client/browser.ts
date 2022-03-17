@@ -2,11 +2,11 @@ import { readPersistentArray, writePersistentArray } from "./nvram";
 import * as resource from "./resource";
 import { activeDocument, fetchLockedResource, lockCachedModule, parseURLEx } from "./resource";
 import { Buffer } from "buffer";
-import * as drcs from "../src/drcs";
+import * as drcs from "../server/drcs";
 import { IInterpreter } from "./interpreter/interpreter";
 import { bmlClearInterval, bmlSetInterval, eventQueueOnModuleLocked, executeEventHandler, processEventQueue, queueAsyncEvent } from "./event";
 import { launchDocument as documentLaunchDocument } from "./document";
-import { ProgramInfoMessage, ResponseMessage } from "../src/ws_api";
+import { ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
 // browser疑似オブジェクト
 

@@ -1,4 +1,4 @@
-import { transpile } from "../../src/transpile_ecm";
+import { transpile } from "../../server/transpile_ecm";
 import { Browser } from "../browser";
 import * as bmlDate from "../date";
 import * as bmlNumber from "../number";

@@ -1,4 +1,4 @@
-import { colorIndexToVar, varToColorIndex } from "../../src/transpile_css";
+import { colorIndexToVar, varToColorIndex } from "../../server/transpile_css";
 
 type DOMString = string;
 
