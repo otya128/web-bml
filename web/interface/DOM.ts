@@ -9,7 +9,32 @@ import { Buffer } from "buffer";
 
 export namespace BML {
     type DOMString = string;
-
+    export function nodeToBMLNode(node: globalThis.HTMLInputElement): BMLInputElement;
+    export function nodeToBMLNode(node: globalThis.HTMLBRElement): BMLBRElement;
+    export function nodeToBMLNode(node: globalThis.HTMLAnchorElement): BMLAnchorElement;
+    export function nodeToBMLNode(node: globalThis.HTMLHtmlElement): BMLBmlElement;
+    export function nodeToBMLNode(node: globalThis.HTMLScriptElement): HTMLScriptElement;
+    export function nodeToBMLNode(node: globalThis.HTMLObjectElement): BMLObjectElement;
+    export function nodeToBMLNode(node: globalThis.HTMLHeadElement): HTMLHeadElement;
+    export function nodeToBMLNode(node: globalThis.HTMLTitleElement): HTMLTitleElement;
+    export function nodeToBMLNode(node: globalThis.HTMLSpanElement): BMLSpanElement;
+    export function nodeToBMLNode(node: globalThis.HTMLMetaElement): HTMLMetaElement;
+    export function nodeToBMLNode(node: globalThis.HTMLStyleElement): HTMLStyleElement;
+    export function nodeToBMLNode(node: globalThis.HTMLElement): HTMLElement | BMLBeventElement | BMLBeitemElement;
+    export function nodeToBMLNode(node: globalThis.HTMLBodyElement): BMLBodyElement;
+    export function nodeToBMLNode(node: globalThis.HTMLParagraphElement): BMLParagraphElement;
+    export function nodeToBMLNode(node: globalThis.HTMLDivElement): BMLDivElement;
+    export function nodeToBMLNode(node: globalThis.HTMLHtmlElement): BMLBmlElement;
+    export function nodeToBMLNode(node: globalThis.HTMLElement): HTMLElement;
+    export function nodeToBMLNode(node: globalThis.Element): Element;
+    export function nodeToBMLNode(node: globalThis.CDATASection): CDATASection;
+    export function nodeToBMLNode(node: globalThis.Text): Text;
+    export function nodeToBMLNode(node: globalThis.CharacterData): CharacterData;
+    export function nodeToBMLNode(node: globalThis.HTMLAnchorElement): BMLAnchorElement;
+    export function nodeToBMLNode(node: globalThis.HTMLDocument): BMLDocument;
+    export function nodeToBMLNode(node: globalThis.Document): BMLDocument;
+    export function nodeToBMLNode(node: globalThis.Node): Node;
+    export function nodeToBMLNode(node: null): null;
     export function nodeToBMLNode(node: globalThis.Node | null): Node | null {
         return node == null ? null : wrapNodeNonNull(node);
     }
@@ -64,8 +89,6 @@ export namespace BML {
             return BMLObjectElement;
         } else if (node instanceof globalThis.HTMLHeadElement) {
             return HTMLHeadElement;
-        } else if (node instanceof globalThis.HTMLInputElement) {
-            return BMLInputElement;
         } else if (node instanceof globalThis.HTMLTitleElement) {
             return HTMLTitleElement;
         } else if (node instanceof globalThis.HTMLSpanElement) {
@@ -835,5 +858,5 @@ export namespace BML {
             return feature.toUpperCase() === "BML" && version === "1.0";
         }
     }
-    export const document = wrapNodeNonNull(window.document) as BMLDocument;
+    export const document = nodeToBMLNode(window.document);
 }

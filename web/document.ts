@@ -557,7 +557,7 @@ function init() {
     document.querySelectorAll("object").forEach(obj => {
         const adata = obj.getAttribute("arib-data");
         if (adata != null) {
-            (BML.nodeToBMLNode(obj) as BML.BMLObjectElement).data = adata;
+            BML.nodeToBMLNode(obj).data = adata;
         }
     });
 }
