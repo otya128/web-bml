@@ -30,7 +30,7 @@ export function readCLUT(clut: Buffer): number[][] {
             endIndex = clut[index] & 15;
             index++;
         } else if (depth == 1) {
-            // start_indexは128のみが運用される
+            // start_indexは17のみが運用される
             startIndex = clut[index++];
             // end_ndexは223のみが運用される
             endIndex = clut[index++];

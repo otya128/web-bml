@@ -22,6 +22,9 @@ export class LiveStream {
         this.encoderProcess = spawn(ffmpeg, args);
         tsStream.unpipe();
         tsStream.pipe(this.encoderProcess.stdin);
+        this.encoderProcess.stdin.on("error", (err) => {
+            console.error("enc stdin err", err);
+        });
         tsStream.resume();
         this.encoderProcess.stderr.on("data", (data) => process.stderr.write(data));
     }

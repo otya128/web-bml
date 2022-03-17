@@ -234,15 +234,21 @@ const streams = new Map<string, DataBroadcastingStream>();
 const max_number_of_streams = 4;
 
 function closeDataBroadcastingLiveStream(dbs: DataBroadcastingStream) {
+    if (!streams.has(dbs.id)) {
+        return;
+    }
     console.log("close live stream ", dbs.id);
-    dbs.liveStream?.destroy();
     dbs.tsStream.unpipe();
+    dbs.liveStream?.destroy();
     dbs.liveStream = undefined;
 }
 
 function closeDataBroadcastingStream(dbs: DataBroadcastingStream) {
+    if (!streams.has(dbs.id)) {
+        return;
+    }
     closeDataBroadcastingLiveStream(dbs);
-    console.log("close ", dbs.id);
+    console.log("close", dbs.id);
     // readStream->transformStream->tsStream->ffmpeg->response
     dbs.transformStream?.unpipe();
     dbs.readStream.unpipe();
@@ -293,7 +299,22 @@ router.get("/streams/:id.mp4", async (ctx) => {
 
     tsStream.unpipe();
     dbs.liveStream = new LiveStream(ffmpeg, addProgramIdArgument(args, dbs.serviceId), dbs.tsStream);
+    const ls = dbs.liveStream;
+    dbs.liveStream.encoderProcess.on("error", (err) => {
+        console.error("encoder proc err", err);
+        tsStream.unpipe(ls.encoderProcess.stdin);
+        ls.encoderProcess.stdout.unpipe();
+    });
+    ls.encoderProcess.on("close", (err) => {
+        console.error("close proc err", err);
+        tsStream.unpipe(ls.encoderProcess.stdin);
+        ls.encoderProcess.stdout.unpipe();
+    });
     tsStream.resume();
+    ctx.res.on("error", (err) => {
+        console.log("error res", dbs.id, dbs.source, err);
+        closeDataBroadcastingLiveStream(dbs);
+    });
     try {
         await pipeAsync(dbs.liveStream.encoderProcess.stdout, ctx.res, { end: true });
     } catch {
@@ -316,7 +337,22 @@ router.get("/streams/:id.h264.m2ts", async (ctx) => {
 
     tsStream.unpipe();
     dbs.liveStream = new LiveStream(ffmpeg, addProgramIdArgument(mpegtsArgs, dbs.serviceId), dbs.tsStream);
+    const ls = dbs.liveStream;
+    dbs.liveStream.encoderProcess.on("error", (err) => {
+        console.error("encoder proc err", err);
+        tsStream.unpipe(ls.encoderProcess.stdin);
+        ls.encoderProcess.stdout.unpipe();
+    });
+    ls.encoderProcess.on("close", (err) => {
+        console.error("close proc err", err);
+        tsStream.unpipe(ls.encoderProcess.stdin);
+        ls.encoderProcess.stdout.unpipe();
+    });
     tsStream.resume();
+    ctx.res.on("error", (err) => {
+        console.log("error res", dbs.id, dbs.source, err);
+        closeDataBroadcastingLiveStream(dbs);
+    });
     try {
         await pipeAsync(dbs.liveStream.encoderProcess.stdout, ctx.res, { end: true });
     } catch {
@@ -509,12 +545,27 @@ router.get('/api/ws', async (ctx) => {
         closeDataBroadcastingStream(dbs);
         return;
     }
-    // TODO: readStreamを読み終わった時もちゃんと閉じた方がよさそう
+
+    readStream.on("error", (err) => {
+        console.error("err readStream", dbs.id, dbs.source);
+        closeDataBroadcastingStream(dbs);
+    });
+
+    readStream.on("close", () => {
+        console.error("close readStream", dbs.id, dbs.source);
+        closeDataBroadcastingStream(dbs);
+    });
 
     tsStream.pause();
     decodeTS(dbs);
 
+    ws.on("error", (_code: number, _reason: Buffer) => {
+        console.error("err ws", dbs.id, dbs.source);
+        closeDataBroadcastingStream(dbs);
+    });
+
     ws.on("close", (_code: number, _reason: Buffer) => {
+        console.error("close ws", dbs.id, dbs.source);
         closeDataBroadcastingStream(dbs);
     });
 

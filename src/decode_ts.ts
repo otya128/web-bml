@@ -63,12 +63,12 @@ export function decodeTS(dbs: DataBroadcastingStream) {
     const transformStream = new stream.Transform({
         transform: function (chunk, _encoding, done) {
             bytesRead += chunk.length;
-            process.stderr.write(`\r ${tsUtil.getTime()} ${bytesRead} of ${size} [${Math.floor(bytesRead / size * 100)}%]`);
+            //process.stderr.write(`\r ${tsUtil.getTime()} ${bytesRead} of ${size} [${Math.floor(bytesRead / size * 100)}%]`);
             this.push(chunk);
             done();
         },
         flush: function (done) {
-            process.stderr.write(`${bytesRead} of ${size} [${Math.floor(bytesRead / size * 100)}%]\n`);
+            //process.stderr.write(`${bytesRead} of ${size} [${Math.floor(bytesRead / size * 100)}%]\n`);
 
             done();
         }
