@@ -29,8 +29,8 @@
     "react-dom": "^17.0.2"
   },
   "scripts": {
-    "start": "node dist/index.js",
-    "build": "tsc",
+    "start": "node build/server/index.js",
+    "build": "webpack && tsc",
     "dev": "ts-node server/index.ts"
   },
   "devDependencies": {
