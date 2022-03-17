@@ -1,7 +1,6 @@
+import { browserStatus } from "./browser";
 import { AribKeyCode, keyCodeToAribKey, processKeyDown, processKeyUp } from "./document";
 import { RemoteControllerMessage } from "./remote_controller";
-
-const videoElement = document.querySelector("video") as HTMLVideoElement;
 
 let currentRemoteControllerMessage: string | null = null;
 
@@ -28,23 +27,17 @@ window.addEventListener("message", (ev) => {
     const remoteController = ev.data?.remoteController as (RemoteControllerMessage | undefined);
     if (remoteController != null) {
         if (remoteController.type === "unmute") {
-            if (videoElement != null) {
-                videoElement.muted = false;
-            }
+            browserStatus.player?.unmute();
         } else if (remoteController.type === "mute") {
-            if (videoElement != null) {
-                videoElement.muted = true;
-            }
+            browserStatus.player?.mute();
         } else if (remoteController.type === "pause") {
-            if (videoElement != null) {
-                videoElement.pause();
-            }
+            browserStatus.player?.pause();
         } else if (remoteController.type === "play") {
-            if (videoElement != null) {
-                videoElement.play();
-            }
+            browserStatus.player?.play();
         } else if (remoteController.type === "cc") {
+            browserStatus.player?.showCC();
         } else if (remoteController.type === "disable-cc") {
+            browserStatus.player?.hideCC();
         } else if (remoteController.type === "zoom-100") {
         } else if (remoteController.type === "zoom-150") {
         } else if (remoteController.type === "zoom-200") {

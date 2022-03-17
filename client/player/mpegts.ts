@@ -17,62 +17,100 @@ function parseMalformedPES(data: any): any {
     let payload = data.subarray(payload_start_index, payload_start_index + payload_length);
     return payload;
 }
+import { VideoPlayer } from "./video_player";
 
-export function play(videoStreamUrl: string, videoElement: HTMLVideoElement) {
-    if (Mpegts.getFeatureList().mseLivePlayback) {
-        var player = Mpegts.createPlayer({
-            type: "mse",
-            isLive: true,
-            url: new URL(videoStreamUrl + ".h264.m2ts", location.href).toString(),
-        }, {
-            enableWorker: true,
-            liveBufferLatencyChasing: true,
-            liveBufferLatencyMinRemain: 1.0,
-            liveBufferLatencyMaxLatency: 2.0,
-        });
-        player.attachMediaElement(videoElement);
-        player.load();
-        player.play();
-
-        // 字幕対応
-        const captionOption: RendererOption = {
-            normalFont: "丸ゴシック",
-            forceStrokeColor: "black",
-        };
-        captionOption.data_identifier = 0x80;
-        const captionRenderer = new aribb24js.CanvasRenderer(captionOption);
-        const superimposeOption: RendererOption = {
-            normalFont: "丸ゴシック",
-            forceStrokeColor: "black",
-        };
-        superimposeOption.data_identifier = 0x81;
-        const superimposeRenderer = new aribb24js.CanvasRenderer(superimposeOption);
-        captionRenderer.attachMedia(videoElement);
-        superimposeRenderer.attachMedia(videoElement);
-        captionRenderer.show();
-        superimposeRenderer.show();
-        /**
-         * 字幕スーパー用の処理
-         * 元のソースは下記参照
-         * https://twitter.com/magicxqq/status/1381813912539066373
-         * https://github.com/l3tnun/EPGStation/commit/352bf9a69fdd0848295afb91859e1a402b623212#commitcomment-50407815
-         */
-        player.on(Mpegts.Events.PES_PRIVATE_DATA_ARRIVED, data => {
-            if (data.stream_id === 0xbd && data.data[0] === 0x80 && captionRenderer !== null) {
-                // private_stream_1, caption
-                captionRenderer.pushData(data.pid, data.data, data.pts / 1000);
-            } else if (data.stream_id === 0xbf && superimposeRenderer !== null) {
-                // private_stream_2, superimpose
-                let payload = data.data;
-                if (payload[0] !== 0x81) {
-                    payload = parseMalformedPES(data.data);
+export class MPEGTSVideoPlayer extends VideoPlayer {
+    captionRenderer: aribb24js.CanvasRenderer | null = null;
+    superimposeRenderer: aribb24js.CanvasRenderer | null = null;
+    resizeObserver?: ResizeObserver;;
+    public setSource(source: string): void {
+        if (Mpegts.getFeatureList().mseLivePlayback) {
+            var player = Mpegts.createPlayer({
+                type: "mse",
+                isLive: true,
+                url: new URL(source + ".h264.m2ts", location.href).toString(),
+            }, {
+                enableWorker: true,
+                liveBufferLatencyChasing: true,
+                liveBufferLatencyMinRemain: 1.0,
+                liveBufferLatencyMaxLatency: 2.0,
+            });
+            player.attachMediaElement(this.video);
+            player.load();
+            player.play();
+    
+            // 字幕対応
+            const captionOption: RendererOption = {
+                normalFont: "丸ゴシック",
+                forceStrokeColor: "black",
+            };
+            captionOption.data_identifier = 0x80;
+            const captionRenderer = new aribb24js.CanvasRenderer(captionOption);
+            const superimposeOption: RendererOption = {
+                normalFont: "丸ゴシック",
+                forceStrokeColor: "black",
+            };
+            superimposeOption.data_identifier = 0x81;
+            const superimposeRenderer = new aribb24js.CanvasRenderer(superimposeOption);
+            this.captionRenderer = captionRenderer;
+            this.superimposeRenderer = superimposeRenderer;
+            captionRenderer.attachMedia(this.video);
+            superimposeRenderer.attachMedia(this.video);
+            this.container.appendChild(captionRenderer.getViewCanvas()!);
+            this.container.appendChild(superimposeRenderer.getViewCanvas()!);
+            // 字幕は小さい動画の上ではなく画面全体に表示される
+            this.resizeObserver = new ResizeObserver(() => {
+                this.resizeCanvas();
+            });
+            this.resizeObserver.observe(this.video);
+            /**
+             * 字幕スーパー用の処理
+             * 元のソースは下記参照
+             * https://twitter.com/magicxqq/status/1381813912539066373
+             * https://github.com/l3tnun/EPGStation/commit/352bf9a69fdd0848295afb91859e1a402b623212#commitcomment-50407815
+             */
+            player.on(Mpegts.Events.PES_PRIVATE_DATA_ARRIVED, data => {
+                if (data.stream_id === 0xbd && data.data[0] === 0x80 && captionRenderer !== null) {
+                    // private_stream_1, caption
+                    captionRenderer.pushData(data.pid, data.data, data.pts / 1000);
+                } else if (data.stream_id === 0xbf && superimposeRenderer !== null) {
+                    // private_stream_2, superimpose
+                    let payload = data.data;
+                    if (payload[0] !== 0x81) {
+                        payload = parseMalformedPES(data.data);
+                    }
+                    if (payload[0] !== 0x81) {
+                        return;
+                    }
+                    superimposeRenderer.pushData(data.pid, payload, data.nearest_pts / 1000);
                 }
-                if (payload[0] !== 0x81) {
-                    return;
-                }
-                superimposeRenderer.pushData(data.pid, payload, data.nearest_pts / 1000);
-            }
-        });
-
+            });
+        }
+    }
+    resizeCanvas = () => {
+        const vc = this.captionRenderer?.getViewCanvas();
+        if (vc) {
+            vc.width = 960;
+            vc.height = 540;
+        }
+        const vc2 = this.superimposeRenderer?.getViewCanvas();
+        if (vc2) {
+            vc2.width = 960;
+            vc2.height = 540;
+        }
+    };
+    public showCC(): void {
+        this.captionRenderer?.show();
+        this.superimposeRenderer?.show();
+        this.container.style.display = "";
+        this.container.style.setProperty("z-index", "1000", "important");
+        this.resizeCanvas();
+    }
+    public hideCC(): void {
+        this.captionRenderer?.hide();
+        this.superimposeRenderer?.hide();
+        this.container.style.display = "none";
+        this.container.style.setProperty("z-index", "-1", "important");
+        this.resizeCanvas();
     }
 }

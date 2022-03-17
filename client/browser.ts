@@ -8,6 +8,7 @@ import { bmlClearInterval, bmlSetInterval, eventQueueOnModuleLocked, executeEven
 import { launchDocument as documentLaunchDocument } from "./document";
 import { ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
+import { VideoPlayer } from "./player/video_player";
 // browser疑似オブジェクト
 
 export type LockedModuleInfo = [moduleName: string, func: number, status: number];
@@ -528,6 +529,7 @@ export const browserStatus = {
     currentDateMode: 0,
     interpreter: null! as IInterpreter,
     currentProgramInfo: null as (ProgramInfoMessage | null),
+    player: null as (VideoPlayer | null),
 };
 
 resource.resourceEventTarget.addEventListener("message", ((event: CustomEvent) => {

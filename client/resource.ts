@@ -1,10 +1,5 @@
 import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage, Param, MirakLiveParam, EPGStationRecordedParam } from "../server/ws_api";
 
-import { play as playMP4 } from "./player/mp4";
-import { play as playMPEGTS } from "./player/mpegts";
-import { play as playHLS } from "./player/hls";
-import { play as playNull } from "./player/null";
-
 export class LongJump extends Error { }
 function getParametersFromUrl(url: string): Param | {} {
     const pathname = new URL(url).pathname;
@@ -275,10 +270,6 @@ ws.addEventListener("message", (ev) => {
         }
     } else if (msg.type === "currentTime") {
         currentTime = msg;
-    } else if (msg.type === "videoStreamUrl") {
-        const videoElement = document.querySelector("video") as HTMLVideoElement; // a
-        playMPEGTS(msg.videoStreamUrl, videoElement);
-        videoElement.style.display = "";
     } else if (msg.type === "error") {
         console.error(msg);
     }
