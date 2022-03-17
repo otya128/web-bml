@@ -5,9 +5,3 @@ export function toString(this: Date): string {
         this.getHours().toString().padStart(2, "0") + ":" + this.getMinutes().toString().padStart(2, "0") + ":" + this.getSeconds().toString().padStart(2, "0")
     );
 };
-
-export function overrideDate() {
-    Date.prototype.toString = toString;
-    Date.prototype.toLocaleString = Date.prototype.toString;
-    Date.prototype.toUTCString = Date.prototype.toString;
-}

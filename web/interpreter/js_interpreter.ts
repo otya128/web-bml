@@ -72,6 +72,9 @@ import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
 import { browser, Browser } from "../browser";
 import { queueSyncEvent } from "../event";
 import { fetchResourceAsync } from "../resource";
+import * as bmlDate from "../date";
+import * as bmlNumber from "../number";
+import * as bmlString from "../string";
 
 function initDate(interpreter: any, globalObject: any) {
     var thisInterpreter = interpreter;
@@ -142,6 +145,49 @@ function initDate(interpreter: any, globalObject: any) {
         })(functions[i]);
         interpreter.setNativeFunctionPrototype(interpreter.DATE, functions[i], wrapper);
     }
+    interpreter.setNativeFunctionPrototype(interpreter.DATE, "toString", function (this: { data: Date }) {
+        return bmlDate.toString.call(this.data);
+    });
+    interpreter.setNativeFunctionPrototype(interpreter.DATE, "toLocaleString", function (this: { data: Date }) {
+        return bmlDate.toString.call(this.data);
+    });
+    interpreter.setNativeFunctionPrototype(interpreter.DATE, "toUTCString", function (this: { data: Date }) {
+        return bmlDate.toString.call(this.data);
+    });
+}
+
+function initNumber(interpreter: any, globalObject: any) {
+    var thisInterpreter = interpreter;
+    var wrapper;
+    // Number constructor.
+    wrapper = function Number(this: { data: number }, value: any) {
+        value = arguments.length ? Interpreter.nativeGlobal.Number(value) : 0;
+        if (thisInterpreter.calledWithNew()) {
+            // Called as `new Number()`.
+            this.data = value;
+            return this;
+        } else {
+            // Called as `Number()`.
+            return value;
+        }
+    };
+    interpreter.NUMBER = interpreter.createNativeFunction(wrapper, true);
+    interpreter.setProperty(globalObject, 'Number', interpreter.NUMBER,
+        Interpreter.NONENUMERABLE_DESCRIPTOR);
+
+    interpreter.setProperty(interpreter.NUMBER, "MAX_VALUE", bmlNumber.MAX_VALUE, Interpreter.NONCONFIGURABLE_READONLY_NONENUMERABLE_DESCRIPTOR);
+    interpreter.setProperty(interpreter.NUMBER, "MIN_VALUE", bmlNumber.MIN_VALUE, Interpreter.NONCONFIGURABLE_READONLY_NONENUMERABLE_DESCRIPTOR);
+    interpreter.setProperty(interpreter.NUMBER, "NaN", Number.NaN, Interpreter.NONCONFIGURABLE_READONLY_NONENUMERABLE_DESCRIPTOR);
+
+    wrapper = function toString(this: number, radix: number) {
+        try {
+            return Number(this).toString(radix);
+        } catch (e: any) {
+            // Throws if radix isn't within 2-36.
+            thisInterpreter.throwException(thisInterpreter.ERROR, e.message);
+        }
+    };
+    interpreter.setNativeFunctionPrototype(interpreter.NUMBER, 'toString', wrapper);
 }
 
 export class JSInterpreter implements IInterpreter {
@@ -408,6 +454,9 @@ export class JSInterpreter implements IInterpreter {
             });
             interpreter.setProperty(globalObject, "BinaryTable", pseudoBinaryTable);
             initDate(interpreter, globalObject);
+            interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.eucJPFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
+            interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.eucJPCharCodeAt);
+            initNumber(interpreter, globalObject);
         });
         this.resetStack();
     }

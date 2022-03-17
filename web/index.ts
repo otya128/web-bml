@@ -1,11 +1,7 @@
 export { };
 import { convertCSSPropertyToGet, convertCSSPropertyToSet, parseCSSValue } from "../src/transpile_css";
 import { BinaryTable, BinaryTableConstructor } from "./binary_table";
-import { overrideString } from "./string"
-import { overrideNumber } from "./number"
-import { overrideDate } from "./date";
 import * as resource from "./resource";
-import { fetchLockedResource } from "./resource";
 import { aribPNGToPNG } from "../src/arib_png";
 import { readCLUT } from "../src/clut";
 import { defaultCLUT } from "../src/default_clut";
@@ -28,8 +24,6 @@ declare global {
         browser: any;
         dummy: any;
         BinaryTable: BinaryTableConstructor;
-        newBinaryTable: any;
-        __newBT: any;
     }
     interface Document {
         currentEvent: BMLEvent | null;
@@ -42,25 +36,6 @@ if (!window.browser) {
     const videoContainer = document.getElementById("arib-video-container") as HTMLDivElement;
     window.dummy = undefined;
     window.browser = {};
-    window.__newBT = function __newBT(klass: any, ...args: any[]) {
-        if (klass === BinaryTable) {
-            try {
-                return new klass(...args);
-            } catch {
-                return null;
-            }
-        } else if (klass === Date) {
-            if (args.length === 0 && resource.currentTime?.timeUnixMillis != null) {
-                // currentDateMode=1ならtimeUnixMillisを取得した時間からオフセット追加とかが理想かもしれない
-                return new Date(resource.currentTime?.timeUnixMillis);
-            }
-            return new klass(...args);
-        } else {
-            return new klass(...args);
-        }
-    }
-
-    window.BinaryTable = BinaryTable;
     function defineAttributeProperty(propertyName: string, attrName: string, nodeName: string, readable: boolean, writable: boolean, defaultValue?: string) {
         Object.defineProperty(HTMLElement.prototype, propertyName, {
             get: readable ? function (this: HTMLElement): string | undefined | null {
@@ -250,24 +225,6 @@ if (!window.browser) {
             }
         }
     });
-
-    // status, historyは存在しない
-    // @ts-ignore
-    delete window.status;
-    // とりあえずsetter用意
-    const _originalHistory = window.history;
-    (window as any)["_history"] = window.history;
-    Object.defineProperty(window, "history", {
-        get(this: any) {
-            return this["_history"];
-        },
-        set(this: any, v) {
-            this["_history"] = v;
-        }
-    });
-    overrideString();
-    overrideNumber();
-    overrideDate();
 
     // const interpreter = new NativeInterpreter(browser);
     const interpreter = new JSInterpreter(browser);
