@@ -154,12 +154,12 @@ router.get('/remote_controller.js.map', async ctx => {
 });
 
 router.get("/remote_controller.html", async ctx => {
-    ctx.body = fs.createReadStream("web/remote_controller.html");
+    ctx.body = fs.createReadStream("client/remote_controller.html");
     ctx.set("Content-Type", "text/html; charset=utf-8");
 });
 
 router.get('/default.css', async ctx => {
-    ctx.body = fs.createReadStream("web/default.css");
+    ctx.body = fs.createReadStream("client/default.css");
     ctx.set('Content-Type', 'text/css; charset=utf-8')
 });
 
@@ -196,22 +196,22 @@ router.get('/video_list.js.map', async ctx => {
 });
 
 router.get("/", async ctx => {
-    ctx.body = fs.createReadStream("web/video_list.html");
+    ctx.body = fs.createReadStream("client/video_list.html");
     ctx.set("Content-Type", "text/html; charset=utf-8");
 });
 
 router.get("/channels/:channelType/:channel/stream", async ctx => {
-    ctx.body = fs.createReadStream("web/index.html");
+    ctx.body = fs.createReadStream("client/index.html");
     ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
 });
 
 router.get("/channels/:channelType/:channel/services/:id/stream", async ctx => {
-    ctx.body = fs.createReadStream("web/index.html");
+    ctx.body = fs.createReadStream("client/index.html");
     ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
 });
 
 router.get("/videos/:videoFileId", async ctx => {
-    ctx.body = fs.createReadStream("web/index.html");
+    ctx.body = fs.createReadStream("client/index.html");
     ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
 });
 
