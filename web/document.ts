@@ -105,9 +105,14 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
     BML.document._currentFocus = null;
     resource.unlockAllModule();
     browserStatus.currentDateMode = 0;
-    await requestAnimationFrameAsync();
-    loadDocumentToDOM(decodeEUCJP(file.data));
-    init();
+    try {
+        lockSyncEventQueue();
+        await requestAnimationFrameAsync();
+        loadDocumentToDOM(decodeEUCJP(file.data));
+        init();
+    } finally {
+        resetEventQueue();
+    }
     (document.body as any).invisible = (document.body as any).invisible;
     // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
     // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
