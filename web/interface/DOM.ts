@@ -407,7 +407,7 @@ export namespace BML {
                 if (!fetched) {
                     return;
                 }
-                if ((this as any).__version !== version) {
+                if (this.__version !== version) {
                     return;
                 }
 
@@ -419,7 +419,7 @@ export namespace BML {
                     const clutCss = window.getComputedStyle(this.node).getPropertyValue("--clut");
                     const clutUrl = clutCss == null ? null : parseCSSValue("http://localhost" + (resource.activeDocument ?? ""), clutCss);
                     const fetchedClut = clutUrl == null ? null : (await resource.fetchResourceAsync(clutUrl))?.data;
-                    if ((this as any).__version !== version) {
+                    if (this.__version !== version) {
                         return;
                     }
                     const cachedBlob = fetched.blobUrl.get(fetchedClut);

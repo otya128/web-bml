@@ -112,7 +112,7 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
     } finally {
         resetEventQueue();
     }
-    (document.body as any).invisible = (document.body as any).invisible;
+    (BML.nodeToBMLNode(document.body) as BML.BMLBodyElement).invisible = (BML.nodeToBMLNode(document.body) as BML.BMLBodyElement).invisible;
     // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
     // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
     lockSyncEventQueue();
@@ -557,7 +557,7 @@ function init() {
     document.querySelectorAll("object").forEach(obj => {
         const adata = obj.getAttribute("arib-data");
         if (adata != null) {
-            obj.data = adata;
+            (BML.nodeToBMLNode(obj) as BML.BMLObjectElement).data = adata;
         }
     });
 }
