@@ -1,9 +1,12 @@
 import { decodeEUCJP } from "../src/euc_jp";
 import { fetchLockedResource } from "./resource";
 import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
+import { eucJPCharCodeAt } from "./string";
+
 export interface BinaryTableConstructor {
     new(table_ref: string, structure: string): IBinaryTable;// | null;
 }
+
 export interface IBinaryTable {
     nrow: number;
     ncolumn: number;
@@ -19,7 +22,7 @@ function encodeEUCJP(input: string): Uint8Array {
     const buf = new Uint8Array(input.length * 2);
     let off = 0;
     for (let i = 0; i < input.length; i++) {
-        const c = input.charCodeAt(i);
+        const c = eucJPCharCodeAt.call(input, i);
         if (c >= 0x100) {
             buf[off++] = c >> 8;
             buf[off++] = c & 0xff;
