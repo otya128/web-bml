@@ -2,7 +2,7 @@ import { readPersistentArray, writePersistentArray } from "./nvram";
 import * as resource from "./resource";
 import { activeDocument, fetchLockedResource, lockCachedModule, parseURLEx } from "./resource";
 import { Buffer } from "buffer";
-import * as drcs from "../server/drcs";
+import * as drcs from "./drcs";
 import { IInterpreter } from "./interpreter/interpreter";
 import { bmlClearInterval, bmlSetInterval, eventQueueOnModuleLocked, executeEventHandler, processEventQueue, queueAsyncEvent } from "./event";
 import { launchDocument as documentLaunchDocument } from "./document";

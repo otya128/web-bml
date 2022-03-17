@@ -1,4 +1,4 @@
-import { decodeEUCJP } from "../server/euc_jp";
+import { decodeEUCJP } from "./euc_jp";
 import { fetchLockedResource } from "./resource";
 import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
 import { eucJPCharCodeAt } from "./string";

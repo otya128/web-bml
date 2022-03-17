@@ -6,10 +6,10 @@ import { browser, browserStatus } from "./browser";
 // @ts-ignore
 import defaultCss from "./default.css";
 import { setRemoteControllerMessage } from "./remote_controller_client";
-import { decodeEUCJP } from "../server/euc_jp";
-import { defaultCLUT } from "../server/default_clut";
-import { readCLUT } from "../server/clut";
-import { transpileCSS } from "../server/transpile_css";
+import { decodeEUCJP } from "./euc_jp";
+import { defaultCLUT } from "./default_clut";
+import { readCLUT } from "./clut";
+import { transpileCSS } from "./transpile_css";
 import { Buffer } from "buffer";
 import { newContext } from "./context";
 import { BML } from "./interface/DOM";
