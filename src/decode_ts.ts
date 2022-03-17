@@ -130,6 +130,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
     // program_number = service_id
     let pidToProgramNumber = new Map<number, number>();
     let programNumber: number | null = null;
+    let pcr_pid: number | null = null;
 
     tsStream.on("pat", (_pid: any, data: any) => {
         const programs: { program_number: number, network_PID?: number, program_map_PID?: number }[] = data.programs;

@@ -198,6 +198,7 @@ export const browser: Browser = {
         return 1; // 成功
     },
     getProgramRelativeTime(): number {
+        console.log("getProgramRelativeTime");
         return 10; // 秒
     },
     subDate(target: Date, base: Date, unit: number) {

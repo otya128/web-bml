@@ -3,10 +3,16 @@ import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessa
 import { play as playMP4 } from "./player/mp4";
 import { play as playMPEGTS } from "./player/mpegts";
 import { play as playHLS } from "./player/hls";
+import { play as playNull } from "./player/null";
 
 export class LongJump extends Error { }
 function getParametersFromUrl(url: string): Param | {} {
     const pathname = new URL(url).pathname;
+    const demultiplexServiceId = Number.parseInt(new URL(url).searchParams.get("demultiplexServiceId") ?? "");
+    const baseParam = { demultiplexServiceId: undefined as (number | undefined) };
+    if (Number.isInteger(demultiplexServiceId)) {
+        baseParam.demultiplexServiceId = demultiplexServiceId;
+    }
     const mirakGroups = /^\/channels\/(?<type>.+?)\/(?<channel>.+?)\/(services\/(?<serviceId>.+?)\/)?stream\/*$/.exec(pathname)?.groups;
     if (mirakGroups != null) {
         const type = decodeURIComponent(mirakGroups.type);
@@ -17,6 +23,7 @@ function getParametersFromUrl(url: string): Param | {} {
             channel,
             channelType: type,
             serviceId: Number.isNaN(serviceId) ? undefined : serviceId,
+            ...baseParam
         } as MirakLiveParam;
     } else {
         const epgGroups = /^\/videos\/(?<videoId>.+?)\/*$/.exec(pathname)?.groups;
@@ -26,6 +33,7 @@ function getParametersFromUrl(url: string): Param | {} {
                 return {
                     type: "epgStationRecorded",
                     videoFileId,
+                    ...baseParam
                 } as EPGStationRecordedParam;
             }
         }
@@ -290,7 +298,7 @@ export function parseURL(url: string): { component: string | null, module: strin
     if (components.length > 4) {
         return { component: null, module: null, filename: null };
     }
-    return { component: components[1] ?? null, module: components[2] ?? null, filename: components[3] ?? null };
+    return { component: components[1] ?? null, module: components[2] ?? null, filename: components[3] == null ? null : decodeURI(components[3]) };
 }
 
 export function parseURLEx(url: string): { componentId: number | null, moduleId: number | null, filename: string | null } {
@@ -303,7 +311,7 @@ export function parseURLEx(url: string): { componentId: number | null, moduleId:
     if (!Number.isInteger(moduleId)) {
         return { componentId, moduleId: null, filename: null };
     }
-    return { componentId, moduleId, filename };
+    return { componentId, moduleId, filename: filename == null ? null : filename };
 }
 
 export function fetchLockedResource(url: string): CachedFile | null {

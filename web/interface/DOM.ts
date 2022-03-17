@@ -90,21 +90,17 @@ export namespace BML {
             console.error(node);
             return HTMLElement;
         } else if (node instanceof globalThis.Element) {
-            console.error(node);
             return Element;
         } else if (node instanceof globalThis.CDATASection) {
             return CDATASection;
         } else if (node instanceof globalThis.Text) {
-            console.error(node);
             return Text;
             // CharcterDataは誤植
         } else if (node instanceof globalThis.CharacterData) {
-            console.error(node);
             return CharacterData;
         } else if (node instanceof globalThis.HTMLDocument) {
             return BMLDocument;
         } else if (node instanceof globalThis.Document) {
-            console.error(node);
             return BMLDocument;
         } else if (node instanceof globalThis.Node) {
             console.error(node);

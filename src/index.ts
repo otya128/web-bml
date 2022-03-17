@@ -378,6 +378,20 @@ router.get("/streams/:id.m3u8", async (ctx) => {
 });
 
 
+
+router.get("/streams/:id.null", async (ctx) => {
+    const dbs = streams.get(ctx.params.id);
+    if (dbs == null) {
+        return;
+    }
+    const { tsStream } = dbs;
+    if (dbs.liveStream) {
+        closeDataBroadcastingLiveStream(dbs);
+    }
+    tsStream.unpipe();
+    tsStream.resume();
+});
+
 async function streamToString(stream: stream.Readable) {
     const chunks: Buffer[] = [];
     for await (const chunk of stream) {
