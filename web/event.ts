@@ -34,28 +34,24 @@ interface BMLBeventEvent extends BMLEvent {
 const bmlDocument = BML.document;
 
 export function setCurrentEvent(a: BMLEvent) {
-    document.currentEvent = a;
     const { target: _, ...b } = a;
     const c = { target: BML.htmlElementToBMLHTMLElement(a.target), ...b }
     bmlDocument._currentEvent = new BML.BMLEvent(c);
 }
 
 export function setCurrentIntrinsicEvent(a: BMLIntrinsicEvent) {
-    document.currentEvent = a;
     const { target: _, ...b } = a;
     const c = { target: BML.htmlElementToBMLHTMLElement(a.target), ...b }
     bmlDocument._currentEvent = new BML.BMLIntrinsicEvent(c);
 }
 
 export function setCurrentBeventEvent(a: BMLBeventEvent) {
-    document.currentEvent = a;
     const { target: _1, object: _2, ...b } = a;
     const c = { target: BML.htmlElementToBMLHTMLElement(a.target), object: BML.htmlElementToBMLHTMLElement(a.object) as (BML.BMLObjectElement | null), ...b }
     bmlDocument._currentEvent = new BML.BMLBeventEvent(c);
 }
 
 export function resetCurrentEvent() {
-    document.currentEvent = null;
     bmlDocument._currentEvent = null;
 }
 
