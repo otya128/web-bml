@@ -1,9 +1,21 @@
+import { queueSyncEvent } from "../event";
 import { BMLCSS2Properties } from "./BMLCSS2Properties";
+import * as resource from "../resource";
+import { aribPNGToPNG } from "../../src/arib_png";
+import { readCLUT } from "../../src/clut";
+import { defaultCLUT } from "../../src/default_clut";
+import { parseCSSValue } from "../../src/transpile_css";
+import { Buffer } from "buffer";
+
 export namespace BML {
     type DOMString = string;
 
     export function nodeToBMLNode(node: globalThis.Node | null): Node | null {
         return node == null ? null : wrapNodeNonNull(node);
+    }
+
+    export function bmlNodeToNode(node: Node | null): globalThis.Node | null {
+        return node == null ? null : node["node"];
     }
 
     export function htmlElementToBMLHTMLElement(node: globalThis.HTMLElement | null): HTMLElement | null {
@@ -112,6 +124,18 @@ export namespace BML {
         return new BMLCSS2Properties(window.getComputedStyle(node), node.style);
     }
     function focus(node: HTMLElement) {
+        const prevFocus = document.currentFocus;
+        if (prevFocus === node) {
+            return;
+        }
+        if (window.getComputedStyle(node["node"]).visibility === "hidden") {
+            return;
+        }
+        document._currentFocus = node;
+        if (prevFocus != null) {
+            queueSyncEvent({ type: "blur", target: prevFocus["node"] });
+        }
+        queueSyncEvent({ type: "focus", target: node["node"] });
     }
     function blur(node: HTMLElement) {
 
@@ -356,10 +380,63 @@ export namespace BML {
             this.node = node;
         }
         public get data(): string {
-            return this.node.data;
+            const aribData = this.node.getAttribute("arib-data");
+            if (aribData == null || aribData == "") {
+                return this.node.getAttribute("data") ?? "";
+            }
+            return aribData;
         }
+        private __version: number = 0;
         public set data(value: string) {
-            this.node.data = value;
+            (async () => {
+                if (value == null) {
+                    this.node.removeAttribute("data");
+                    this.node.removeAttribute("arib-data");
+                    return;
+                }
+                const aribType = this.node.getAttribute("arib-type");
+                this.node.setAttribute("arib-data", value);
+                if (value == "") {
+                    this.node.setAttribute("data", value);
+                    return;
+                }
+                // 順序が逆転するのを防止
+                this.__version = this.__version + 1;
+                const version: number = (this as any).__version;
+                const fetched = await resource.fetchResourceAsync(value);
+                if (!fetched) {
+                    return;
+                }
+                if ((this as any).__version !== version) {
+                    return;
+                }
+
+                if ((aribType ?? this.type).match(/image\/X-arib-png/i)) {
+                    if (!aribType) {
+                        this.node.setAttribute("arib-type", this.type);
+                    }
+                    this.node.type = "image/png";
+                    const clutCss = window.getComputedStyle(this.node).getPropertyValue("--clut");
+                    const clutUrl = clutCss == null ? null : parseCSSValue("http://localhost" + (resource.activeDocument ?? ""), clutCss);
+                    const fetchedClut = clutUrl == null ? null : (await resource.fetchResourceAsync(clutUrl))?.data;
+                    if ((this as any).__version !== version) {
+                        return;
+                    }
+                    const cachedBlob = fetched.blobUrl.get(fetchedClut);
+                    if (cachedBlob != null) {
+                        this.node.setAttribute("data", cachedBlob);
+                    } else {
+                        const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
+                        const png = aribPNGToPNG(Buffer.from(fetched.data), clut);
+                        const blob = new Blob([png], { type: "image/png" });
+                        const b = URL.createObjectURL(blob);
+                        this.node.setAttribute("data", b);
+                        fetched.blobUrl.set(fetchedClut, b);
+                    }
+                } else {
+                    this.node.setAttribute("data", resource.getCachedFileBlobUrl(fetched));
+                }
+            })();
         }
         public get type(): string {
             return this.node.type;
@@ -450,7 +527,26 @@ export namespace BML {
             return this.node.getAttribute("invisible") === "invisible";
         }
         public set invisible(v: boolean) {
-            (this.node as any).invisible = v;
+            const videoContainer = globalThis.document.getElementById("arib-video-container") as globalThis.HTMLDivElement;
+            const s = globalThis.document.getElementById("arib-video-invisible-container")?.style;
+            if (v) {
+                if (s) {
+                    s.setProperty("display", "", "important");
+                    s.setProperty("z-index", "999", "important");
+                }
+                globalThis.document.getElementById("arib-video-invisible-container")?.appendChild(videoContainer);
+                this.node.setAttribute("invisible", "invisible");
+            } else {
+                if (s) {
+                    s.setProperty("display", "none", "important");
+                    s.setProperty("z-index", "-1", "important");
+                }
+                const obj = globalThis.document.body.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
+                if (obj != null) {
+                    obj.appendChild(videoContainer);
+                }
+                this.node.removeAttribute("invisible");
+            }
         }
         public get normalStyle(): BMLCSS2Properties {
             return getNormalStyle(this.node);

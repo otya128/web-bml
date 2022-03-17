@@ -101,7 +101,6 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
     resetEventQueue();
     browserStatus.interpreter.reset();
     resource.setActiveDocument(documentName);
-    document.currentFocus = null;
     BML.document._currentFocus = null;
     resource.unlockAllModule();
     browserStatus.currentDateMode = 0;

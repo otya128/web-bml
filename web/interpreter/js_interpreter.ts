@@ -324,26 +324,6 @@ export class JSInterpreter implements IInterpreter {
         interpreter.setProperty(globalObject, "BMLBeventEvent", this.domClassToPseudo(interpreter, BML.BMLBeventEvent));
         interpreter.setProperty(globalObject, "DOMImplementation", this.domClassToPseudo(interpreter, BML.DOMImplementation));
         interpreter.setProperty(globalObject, "BMLCSS2Properties", this.domClassToPseudo(interpreter, BMLCSS2Properties));
-
-        function focus(this: BML.HTMLElement) {
-            const prevFocus = BML.document.currentFocus;
-            if (prevFocus === this) {
-                return;
-            }
-            if (window.getComputedStyle(this["node"]).visibility === "hidden") {
-                return;
-            }
-            BML.document._currentFocus = this;
-            if (prevFocus != null) {
-                queueSyncEvent({ type: "blur", target: prevFocus["node"] });
-            }
-            queueSyncEvent({ type: "focus", target: this["node"] });
-        };
-        BML.BMLSpanElement.prototype.focus = focus;
-        BML.BMLDivElement.prototype.focus = focus;
-        BML.BMLParagraphElement.prototype.focus = focus;
-        BML.BMLObjectElement.prototype.focus = focus;
-        BML.BMLInputElement.prototype.focus = focus;
     }
 
     public reset() {

@@ -55,6 +55,10 @@ export function bmlToXHTML(data: string): Document {
                 node.setAttribute("arib-type", node.getAttribute("type")!);
                 node.setAttribute("type", "unknown/unknown");
             }
+            if (node.getAttribute("type")?.toLowerCase() === "image/x-arib-png") {
+                node.setAttribute("arib-type", node.getAttribute("type")!);
+                node.setAttribute("type", "image/png");
+            }
             if (node.getAttribute("data") != null) {
                 node.setAttribute("arib-data", node.getAttribute("data")!);
                 node.removeAttribute("data");
@@ -168,6 +172,10 @@ export function bmlToXHTMLFXP(data: string): string {
             if (node[":@"] && node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "video/x-arib-mpeg2") {
                 node[":@"]["@_arib-type"] = node[":@"]["@_type"];
                 node[":@"]["@_type"] = "unknown/unknwon";
+            }
+            if (node[":@"] && node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "image/x-arib-png") {
+                node[":@"]["@_arib-type"] = node[":@"]["@_type"];
+                node[":@"]["@_type"] = "image/png";
             }
             if (node[":@"] && node[":@"]["@_data"]) {
                 const data = node[":@"]["@_data"];

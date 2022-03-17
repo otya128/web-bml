@@ -37,9 +37,3 @@ export function eucJPFromCharCode(...codes: number[]): string {
         return [code];
     }));
 }
-
-export function overrideString() {
-    // EUC-JPベースで動いてるらしい
-    String.prototype.charCodeAt = eucJPCharCodeAt;
-    String.fromCharCode = eucJPFromCharCode;
-}
