@@ -26,7 +26,21 @@ resource.resourceEventTarget.addEventListener("message", ((event: CustomEvent) =
     if (msg.type === "videoStreamUrl") {
         const videoElement = document.querySelector("video") as HTMLVideoElement; // a
         const container = document.querySelector("#arib-video-cc-container") as HTMLElement;
-        browserStatus.player = new MPEGTSVideoPlayer(videoElement, container);
+        switch (new URLSearchParams(location.search).get("format")) {
+            case "mp4":
+                browserStatus.player = new MP4VideoPlayer(videoElement, container);
+                break;
+            case "hls":
+                browserStatus.player = new HLSVideoPlayer(videoElement, container);
+                break;
+            case "null":
+                browserStatus.player = new NullVideoPlayer(videoElement, container);
+                break;
+            default:
+            case "mpegts-h264":
+                browserStatus.player = new MPEGTSVideoPlayer(videoElement, container);
+                break;
+        }
         browserStatus.player.setSource(msg.videoStreamUrl);
         browserStatus.player.play();
         videoElement.style.display = "";

@@ -215,6 +215,11 @@ router.get("/videos/:videoFileId", async ctx => {
     ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
 });
 
+router.get("/play", async ctx => {
+    ctx.body = fs.createReadStream("client/index.html");
+    ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
+});
+
 function pipeAsync(from: stream.Readable, to: stream.Writable, options?: { end?: boolean }): Promise<void> {
     return new Promise((resolve, reject) => {
         from.pipe(to, options);
@@ -488,36 +493,28 @@ router.get('/api/ws', async (ctx) => {
     let source: string;
     let serviceId: number | undefined;
     // とりあえず手動validate
-    if (typeof ctx.query.param === "string") {
-        const query: any = JSON.parse(ctx.query.param);
-        if (query != null && typeof query === "object") {
-            if (typeof query.demultiplexServiceId == "number") {
-                serviceId = (query as wsApi.Param).demultiplexServiceId;
-            }
-            if (query.type === "mirakLive" && typeof query.channelType === "string" && typeof query.channel === "string" && (query.serviceId == null || typeof query.serviceId == "number")) {
-                const q = query as wsApi.MirakLiveParam;
-                if (q.serviceId == null) {
-                    source = mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/stream`;
-                } else {
-                    source = mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/services/${q.serviceId}/stream`;
-                    serviceId = undefined;
-                }
-                const res = await httpGetAsync(source);
-                readStream = res;
-            } else if (query.type === "epgStationRecorded" && typeof query.videoFileId === "number") {
-                const q = query as wsApi.EPGStationRecordedParam;
-                source = epgBaseUrl + `videos/${q.videoFileId}`;
-                const res = await httpGetAsync(source);
-                readStream = res;
-                const len = Number.parseInt(res.headers["content-length"] || "NaN");
-                if (Number.isFinite(len)) {
-                    size = len;
-                }
-            } else {
-                return;
-            }
+    const query: any = typeof ctx.query.param === "string" ? (JSON.parse(ctx.query.param) ?? {}) : {};
+    if (typeof query.demultiplexServiceId == "number") {
+        serviceId = (query as wsApi.Param).demultiplexServiceId;
+    }
+    if (query.type === "mirakLive" && typeof query.channelType === "string" && typeof query.channel === "string" && (query.serviceId == null || typeof query.serviceId == "number")) {
+        const q = query as wsApi.MirakLiveParam;
+        if (q.serviceId == null) {
+            source = mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/stream`;
         } else {
-            return;
+            source = mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/services/${q.serviceId}/stream`;
+            serviceId = undefined;
+        }
+        const res = await httpGetAsync(source);
+        readStream = res;
+    } else if (query.type === "epgStationRecorded" && typeof query.videoFileId === "number") {
+        const q = query as wsApi.EPGStationRecordedParam;
+        source = epgBaseUrl + `videos/${q.videoFileId}`;
+        const res = await httpGetAsync(source);
+        readStream = res;
+        const len = Number.parseInt(res.headers["content-length"] || "NaN");
+        if (Number.isFinite(len)) {
+            size = len;
         }
     } else {
         if (inputFile === "-" || inputFile == null) {

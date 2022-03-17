@@ -33,7 +33,7 @@ function getParametersFromUrl(url: string): Param | {} {
             }
         }
     }
-    return {};
+    return baseParam;
 }
 
 // 運用的には固定
