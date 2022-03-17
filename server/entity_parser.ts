@@ -73,6 +73,12 @@ export type Entity = {
     multipartBody: Entity[] | null,
 }
 
+export function parseMediaTypeFromString(mediaType: string): MediaType | null {
+    const parser = new EntityParser(Buffer.from(mediaType));
+    const fv = parser.readFieldValue();
+    return parseMediaType(fv);
+}
+
 export class EntityParser {
     buffer: Buffer;
     _offset: number;

@@ -69,7 +69,7 @@ import { MediaType as EMediaType } from "./entity_parser";
 
 export type MediaType = EMediaType;
 export type ModuleFile = {
-    contentLocation: string,
+    contentLocation: string | null,
     contentType: MediaType,
     dataBase64: string,
 };

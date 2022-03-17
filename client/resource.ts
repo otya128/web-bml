@@ -60,11 +60,11 @@ export type CachedComponent = {
 };
 export type CachedModule = {
     moduleId: number,
-    files: Map<string, CachedFile>
+    files: Map<string | null, CachedFile>
 };
 
 export type CachedFile = {
-    contentLocation: string,
+    contentLocation: string | null,
     contentType: MediaType,
     data: Uint8Array,
     blobUrl: Map<any, string>,
@@ -77,7 +77,7 @@ export type LockedComponent = {
 
 export type LockedModule = {
     moduleId: number,
-    files: Map<string, CachedFile>,
+    files: Map<string | null, CachedFile>,
     lockedBy: "system" | "lockModuleOnMemory" | "lockModuleOnMemoryEx",
 };
 
@@ -197,7 +197,7 @@ ws.addEventListener("message", (ev) => {
         };
         const cachedModule: CachedModule = {
             moduleId: msg.moduleId,
-            files: new Map(msg.files.map(file => ([file.contentLocation.toLowerCase(), {
+            files: new Map(msg.files.map(file => ([file.contentLocation?.toLowerCase() ?? null, {
                 contentLocation: file.contentLocation,
                 contentType: file.contentType,
                 data: Uint8Array.from(window.atob(file.dataBase64), c => c.charCodeAt(0)),
@@ -337,9 +337,6 @@ export function fetchLockedResource(url: string): CachedFile | null {
             console.error("module not found ", url);
             return null;
         }
-    }
-    if (filename == null) {
-        return null;
     }
     const cachedFile = cachedModule.files.get(filename);
     if (cachedFile == null) {

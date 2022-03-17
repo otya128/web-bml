@@ -8,6 +8,10 @@ import { launchDocument } from "./document";
 // const interpreter = new NativeInterpreter(browser);
 const interpreter = new JSInterpreter(browser);
 browserStatus.interpreter = interpreter;
-resource.fetchResourceAsync("/40/0000/startup.bml").then(() => {
-    launchDocument("/40/0000/startup.bml");
+resource.fetchResourceAsync("/40/0000").then(() => {
+    if (resource.fetchLockedResource("/40/0000/startup.bml")) {
+        launchDocument("/40/0000/startup.bml");
+    } else {
+        launchDocument("/40/0000");
+    }
 });

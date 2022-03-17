@@ -1,7 +1,7 @@
 import stream from "stream";
 import { TsUtil } from "@chinachu/aribts";
 import zlib from "zlib";
-import { EntityParser, MediaType, parseMediaType, entityHeaderToString } from './entity_parser';
+import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from './entity_parser';
 import * as wsApi from "./ws_api";
 import { WebSocket } from "ws";
 import { ComponentPMT, AdditionalAribBXMLInfo } from './ws_api';
@@ -31,13 +31,13 @@ type DownloadModuleInfo = {
 
 type CachedModuleFile = {
     contentType: MediaType,
-    contentLocation: string,
+    contentLocation: string | null,
     data: Buffer,
 };
 
 type CachedModule = {
     downloadModuleInfo: DownloadModuleInfo,
-    files?: Map<string, CachedModuleFile>,
+    files?: Map<string | null, CachedModuleFile>,
 };
 
 type CachedComponent = {
@@ -522,14 +522,15 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                     // 更新されていない
                     return;
                 }
+                const mediaType = moduleInfo.contentType == null ? null : parseMediaTypeFromString(moduleInfo.contentType);
                 // console.info(`component ${componentId.toString(16).padStart(2, "0")} module ${moduleId.toString(16).padStart(4, "0")}updated`);
-                if (moduleInfo.contentType == null || moduleInfo.contentType.toLowerCase().startsWith("multipart/mixed")) { // FIXME
+                if (mediaType == null || (mediaType.type === "multipart" && mediaType.subtype === "mixed")) {
                     const parser = new EntityParser(moduleData);
                     const mod = parser.readEntity();
                     if (mod?.multipartBody == null) {
                         console.error("failed to parse module");
                     } else {
-                        const files = new Map<string, CachedModuleFile>();
+                        const files = new Map<string | null, CachedModuleFile>();
                         for (const entity of mod.multipartBody) {
                             const location = entity.headers.find(x => x.name === "content-location");
                             if (location == null) { // 必ず含む
@@ -567,7 +568,23 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                         });
                     }
                 } else {
-                    console.error("not multipart");
+                    const files = new Map<string | null, CachedModuleFile>();
+                    files.set(null, {
+                        contentLocation: null,
+                        contentType: mediaType,
+                        data: moduleData,
+                    });
+                    cachedModule.files = files;
+                    unicast(ws, {
+                        type: "moduleDownloaded",
+                        componentId,
+                        moduleId,
+                        files: [...files.values()].map(x => ({
+                            contentType: x.contentType,
+                            contentLocation: x.contentLocation,
+                            dataBase64: x.data.toString("base64"),
+                        }))
+                    });
                 }
                 cachedComponent.modules.set(moduleInfo.moduleId, cachedModule);
                 cachedComponents.set(componentId, cachedComponent);
