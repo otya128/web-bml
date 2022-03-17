@@ -50,7 +50,7 @@ export function parseCSSValue(href: string, value: string): string | null {
         return null;
     }
     const uri = uriMatch.groups["uri"].replace(/\\/g, "");
-    return new URL(uri, href).pathname;
+    return decodeURI(new URL(uri, href).pathname);
 }
 
 export type CSSTranspileOptions = {
@@ -150,6 +150,13 @@ function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | str
         const decl = node as css.Declaration;
         if (decl.property === "clut") {
             decl.property = "--" + decl.property;
+            if (decl.value) {
+                const parsed = parseCSSValue(opts.href, decl.value);
+                if (parsed) {
+                    // Chrome, Safariだとurl()の中身だけがエスケープされて面倒なので回避
+                    decl.value = "url(\"" + parsed + "\")";
+                }
+            }
             return decl.value;
         } else if (decl.property && bmlCssPropertyToBmlJsProperty.has(decl.property)) {
             decl.property = "--" + decl.property;
