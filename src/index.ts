@@ -13,6 +13,8 @@ import { randomUUID } from 'crypto';
 import { DataBroadcastingStream, LiveStream } from './stream/live_stream';
 import { HLSLiveStream } from './stream/hls_stream';
 import { decodeTS } from './decode_ts';
+import { downloadFonts } from './font';
+downloadFonts();
 
 const ffmpeg = process.env.FFMPEG ?? "ffmpeg";
 const hlsDir = process.env.HLS_DIR ?? "./hls";
