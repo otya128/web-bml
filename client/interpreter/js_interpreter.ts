@@ -373,9 +373,7 @@ export class JSInterpreter implements IInterpreter {
             interpreter.setProperty(pseudoBrowser, "getProgramID", interpreter.createAsyncFunction(function getProgramID(type: number, callback: (result: any, promiseValue: any) => void) {
                 resource.getProgramInfoAsync().then(_ => {
                     const pid = browser.getProgramID(type);
-                    if (pid != null) {
-                        callback(pid, undefined);
-                    }
+                    callback(pid, undefined);
                 });
             }));
 
