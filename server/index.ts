@@ -438,10 +438,11 @@ async function streamToString(stream: stream.Readable) {
 }
 
 function httpGetAsync(options: string | http.RequestOptions | URL): Promise<http.IncomingMessage> {
-    return new Promise<http.IncomingMessage>((resolve, _reject) => {
-        http.get(options, (res) => {
+    return new Promise<http.IncomingMessage>((resolve, reject) => {
+        const req = http.get(options, (res) => {
             resolve(res);
         });
+        req.on("error", reject);
     });
 }
 
