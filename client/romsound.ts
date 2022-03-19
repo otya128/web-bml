@@ -33,12 +33,42 @@ function sine(sampleRate: number, i: number, freq: number) {
 }
 
 export function playRomSound(soundId: number) {
-    if (soundId === 7) {
-        playSound7();
-    } else if (soundId === 9) {
-        playSound9();
+    switch (soundId) {
+        case 5:
+            playSound5();
+            break;
+        case 7:
+            playSound7();
+            break;
+        case 9:
+            playSound9();
+            break;
+        default:
+            break;
     }
 }
+
+// 選択音
+function playSound5() {
+    const context = new AudioContext();
+    const buf = new Float32Array(context.sampleRate * 0.2), volume = 0.1;
+    const len = context.sampleRate * 0.2;
+    for (let i = 0; i < len; i++) {
+        buf[i] += sine(context.sampleRate, i, 4680) * volume * (1 - i / len); // envelope
+    }
+    for (let i = 0; i < len; i++) {
+        buf[i] += sine(context.sampleRate, i, 4160) * volume * (1 - i / len);
+    }
+    for (let i = 0; i < len; i++) {
+        buf[i] += sine(context.sampleRate, i, 3640) * volume / 0.25  * (1 - i / len);
+    }
+    for (let i = 0; i < len; i++) {
+        buf[i] += sine(context.sampleRate, i, 520) * volume * (1 - i / len);
+    }
+    playBuffer(context, buf);
+}
+
+// 6は5の連続
 
 // 決定音
 function playSound7() {
