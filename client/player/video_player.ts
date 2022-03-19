@@ -22,4 +22,6 @@ export abstract class VideoPlayer {
     }
     public hideCC() {
     }
+    public scale(_factor: number) {
+    }
 }

@@ -90,13 +90,13 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
     resizeCanvas = () => {
         const vc = this.captionRenderer?.getViewCanvas();
         if (vc) {
-            vc.width = 960;
-            vc.height = 540;
+            vc.width = 960 * this.scaleFactor;
+            vc.height = 540 * this.scaleFactor;
         }
         const vc2 = this.superimposeRenderer?.getViewCanvas();
         if (vc2) {
-            vc2.width = 960;
-            vc2.height = 540;
+            vc2.width = 960 * this.scaleFactor;
+            vc2.height = 540 * this.scaleFactor;
         }
     };
     public showCC(): void {
@@ -111,6 +111,11 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
         this.superimposeRenderer?.hide();
         this.container.style.display = "none";
         this.container.style.setProperty("z-index", "-1", "important");
+        this.resizeCanvas();
+    }
+    scaleFactor: number = 1;
+    public scale(factor: number) {
+        this.scaleFactor = factor;
         this.resizeCanvas();
     }
 }

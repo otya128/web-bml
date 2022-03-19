@@ -300,6 +300,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                         data_component_id |= additional_data_component_info[0];
                         additional_data_component_info = additional_data_component_info.subarray(1);
                     }
+                    // STD-B10 第2部 付録J 表J-1参照
                     if (data_component_id == 0x0C || // 地上波
                         data_component_id == 0x07 || // BS
                         data_component_id == 0x0B // CS

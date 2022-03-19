@@ -1,4 +1,4 @@
-// BS
+// BSデジタル放送
 export const broadcaster4 = {
     "services": {
         "101": {

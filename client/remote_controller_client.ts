@@ -39,8 +39,16 @@ window.addEventListener("message", (ev) => {
         } else if (remoteController.type === "disable-cc") {
             browserState.player?.hideCC();
         } else if (remoteController.type === "zoom-100") {
+            document.documentElement.style.transform = "";
+            browserState.player.scale(1);
         } else if (remoteController.type === "zoom-150") {
+            document.documentElement.style.transform = "scale(150%)";
+            document.documentElement.style.transformOrigin = "left top";
+            browserState.player.scale(1.5);
         } else if (remoteController.type === "zoom-200") {
+            document.documentElement.style.transform = "scale(200%)";
+            document.documentElement.style.transformOrigin = "left top";
+            browserState.player.scale(2);
         } else if (remoteController.type === "button") {
             processKeyDown(remoteController.keyCode as AribKeyCode);
             processKeyUp(remoteController.keyCode as AribKeyCode);
