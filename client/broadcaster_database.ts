@@ -39,6 +39,7 @@ function affiliationsEquals(lhs: number[] | undefined, rhs: number[]) {
 }
 
 import { broadcaster4 } from "./broadcaster_4";
+import { broadcaster6 } from "./broadcaster_6";
 import { broadcaster7 } from "./broadcaster_7";
 
 export class BroadcasterDatabase {
@@ -73,6 +74,9 @@ export class BroadcasterDatabase {
     private seedDatabase() {
         if (!localStorage.getItem(this.broadcastersPrefix + "4")) {
             localStorage.setItem(this.broadcastersPrefix + "4", JSON.stringify(broadcaster4));
+        }
+        if (!localStorage.getItem(this.broadcastersPrefix + "6")) {
+            localStorage.setItem(this.broadcastersPrefix + "6", JSON.stringify(broadcaster6));
         }
         if (!localStorage.getItem(this.broadcastersPrefix + "7")) {
             localStorage.setItem(this.broadcastersPrefix + "7", JSON.stringify(broadcaster7));

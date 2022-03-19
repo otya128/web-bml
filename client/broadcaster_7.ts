@@ -1,4 +1,4 @@
-// e2 CS2(広帯域CSデジタル放送)
+// スカパー！ＣＳ２(広帯域CSデジタル放送)
 export const broadcaster7 = {
     "services": {
         "100": {
