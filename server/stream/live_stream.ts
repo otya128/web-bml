@@ -26,7 +26,9 @@ export class LiveStream {
             console.error("enc stdin err", err);
         });
         tsStream.resume();
-        this.encoderProcess.stderr.on("data", (data) => process.stderr.write(data));
+        if (process.env.FFMPEG_OUTPUT == "1") {
+            this.encoderProcess.stderr.on("data", (data) => process.stderr.write(data));
+        }
     }
 
     public destroy() {
