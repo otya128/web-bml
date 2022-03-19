@@ -203,7 +203,7 @@ body {
 }
 
 :where(body) {
-    font-family: "丸ゴシック";
+    font-family: "丸ゴシック", monospace;
 }
 
 object[type="audio/X-arib-mpeg2-aac"] {
@@ -216,7 +216,7 @@ object[type="image/X-arib-png"] {
 
 body[arib-loading] { display: none !important; }
 
-:where(html) {
+:where(:root) {
     line-height: 1; /* Firefox */
 }
 
