@@ -361,10 +361,12 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint
                 if (field.unit === BinaryTableUnit.Byte) {
                     if (encoded.length === field.length) {
                         buffer.set(encoded, posBits >> 3);
+                        posBits += field.length * 8;
                     } else if (encoded.length > field.length) {
                         // 切り捨てる (TR-B14 第三分冊 8.1.15.6参照)
                         // EUC-JP的に不完全な文字列だと死にそう
                         buffer.set(encoded.subarray(0, field.length), posBits >> 3);
+                        posBits += field.length * 8;
                     } else {
                         // スペースを付加 (TR-B14 第三分冊 8.1.15.6参照)
                         buffer.set(encoded, posBits >> 3);
@@ -374,7 +376,6 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint
                             posBits += 8;
                         }
                     }
-                    posBits += field.length * 8;
                 } else if (field.unit === BinaryTableUnit.Variable) {
                     posBits = writeBits(posBits, field.length * 8, buffer, encoded.length);
                     buffer.set(encoded, posBits >> 3);
@@ -571,7 +572,7 @@ export class BinaryTable implements IBinaryTable {
             if (logic) {
                 result = results.some(x => x);
             } else {
-                result = !results.some(x => !x);
+                result = results.every(x => x);
             }
             if (result) {
                 resultArray.push(this.rows[i].map((v, j) => {
