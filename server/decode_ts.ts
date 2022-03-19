@@ -1,5 +1,5 @@
 import stream from "stream";
-import { TsUtil } from "@chinachu/aribts";
+import { TsUtil, TsChar } from "@chinachu/aribts";
 import zlib from "zlib";
 import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from './entity_parser';
 import * as wsApi from "./ws_api";
@@ -143,7 +143,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                 pat.set(program.program_map_PID, program.program_number);
             }
         }
-        if (pat.size !== pidToProgramNumber.size ||  [...pidToProgramNumber.keys()].some((x) => !pat.has(x))) {
+        if (pat.size !== pidToProgramNumber.size || [...pidToProgramNumber.keys()].some((x) => !pat.has(x))) {
             console.log("PAT changed", pat);
             if (dbs.serviceId != null && pat.size !== 1) {
                 console.warn("multiplexed!");
@@ -343,6 +343,40 @@ export function decodeTS(dbs: DataBroadcastingStream) {
         // console.log(program_clock_reference_base);
     });
 
+    tsStream.on("bit", (_pid, data) => {
+        // data.first_descriptorsはSI伝送記述子のみ
+        // 地上波だとbroadcaster_idは255
+        const original_network_id: number = data.original_network_id;
+        const broadcasters: wsApi.BITBroadcaster[] = [];
+        for (const broadcaster_descriptor of data.broadcaster_descriptors) {
+            let broadcaster_id: number = broadcaster_descriptor.broadcaster_id;
+            const broadcasterNameDescriptor = broadcaster_descriptor.descriptors.find((x: any) => x.descriptor_tag === 0xD8);
+            const broadcasterName = broadcasterNameDescriptor?.char == null ? null : new TsChar(broadcasterNameDescriptor.char).decode();
+            const serviceListDescriptor = broadcaster_descriptor.descriptors.find((x: any) => x.descriptor_tag === 0x41);
+            const extendedBroadcasterDescriptor = broadcaster_descriptor.descriptors.find((x: any) => x.descriptor_tag === 0xCE);
+            const affiliations = extendedBroadcasterDescriptor?.affiliations?.map((x: { affiliation_id: number }) => x.affiliation_id) ?? [];
+            const affiliationBroadcasters = extendedBroadcasterDescriptor?.broadcasters?.map((x: { original_network_id: number, broadcaster_id: number }) => ({ originalNetworkId: x.original_network_id, broadcasterId: x.broadcaster_id })) ?? [];
+            const services = (serviceListDescriptor?.services as ({ service_id: number, service_type: number }[] | null | undefined))?.map(x => ({ serviceId: x.service_id, serviceType: x.service_type })) ?? [];
+            if (broadcaster_id === 255) {
+                // broadcaster_id = extendedBroadcasterDescriptor?.terrestrial_broadcaster_id ?? broadcaster_id;
+            }
+            const broadcaster: wsApi.BITBroadcaster = {
+                affiliations,
+                broadcasterId: broadcaster_id,
+                broadcasterName,
+                affiliationBroadcasters: affiliationBroadcasters,
+                services,
+                terrestrialBroadcasterId: extendedBroadcasterDescriptor?.terrestrial_broadcaster_id,
+            };
+            broadcasters.push(broadcaster);
+        }
+        const msg: wsApi.BITMessage = {
+            type: "bit",
+            broadcasters,
+            originalNetworkId: original_network_id,
+        };
+        unicast(ws, msg);
+    });
     tsStream.on("eit", (pid, data) => {
         tsUtil.addEit(pid, data);
 
@@ -393,7 +427,17 @@ export function decodeTS(dbs: DataBroadcastingStream) {
 
     tsStream.on("sdt", (pid, data) => {
         tsUtil.addSdt(pid, data);
+        if (data.table_id === 0x42) { // 自ストリームのSDT
+            for (const service of data.services) {
+                for (const descriptor of service.descriptors) {
+                    if (descriptor.descriptor_tag == 0x48) {// 0x48 サービス記述子
+                        // console.log(service.service_id, new TsChar(descriptor.service_name_char).decode(), new TsChar(descriptor.service_provider_name_char).decode());
+                    }
+                }
+            }
+        }
     });
+
     tsStream.on("dsmcc", (pid: any, data: any) => {
         const c = pidToComponent.get(pid);
         if (c == null) {

@@ -2,7 +2,7 @@ import css from "css";
 import { bmlSetInterval, dispatchDataButtonPressed, eventQueueOnModuleUpdated, executeEventHandler, lockSyncEventQueue, processEventQueue, queueAsyncEvent, queueSyncEvent, resetCurrentEvent, resetEventQueue, setCurrentBeventEvent, setCurrentIntrinsicEvent, unlockSyncEventQueue } from "./event";
 import { activeDocument, CachedFile, fetchLockedResource, lockCachedModule, parseURL, parseURLEx, LongJump } from "./resource";
 import * as resource from "./resource";
-import { browser, browserStatus } from "./browser";
+import { browser, browserState } from "./browser";
 // @ts-ignore
 import defaultCss from "./default.css";
 import { setRemoteControllerMessage } from "./remote_controller_client";
@@ -88,7 +88,7 @@ function focusHelper(element?: HTMLElement | null) {
 
 async function loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
     // スクリプトが呼ばれているときにさらにスクリプトが呼ばれることはないがonunloadだけ例外
-    browserStatus.interpreter.resetStack();
+    browserState.interpreter.resetStack();
     const onunload = document.body.getAttribute("arib-onunload");
     if (onunload != null) {
         if (await executeEventHandler(onunload)) {
@@ -99,11 +99,11 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
     }
     newContext({ from: activeDocument, to: documentName });
     resetEventQueue();
-    browserStatus.interpreter.reset();
+    browserState.interpreter.reset();
     resource.setActiveDocument(documentName);
     BML.document._currentFocus = null;
     resource.unlockAllModule();
-    browserStatus.currentDateMode = 0;
+    browserState.currentDateMode = 0;
     try {
         lockSyncEventQueue();
         await requestAnimationFrameAsync();
@@ -124,12 +124,12 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
             if (src) {
                 const res = fetchLockedResource(src);
                 if (res !== null) {
-                    if (exit = await browserStatus.interpreter.addScript(decodeEUCJP(res.data), src ?? undefined)) {
+                    if (exit = await browserState.interpreter.addScript(decodeEUCJP(res.data), src ?? undefined)) {
                         return true;
                     }
                 }
             } else if (x.textContent != null) {
-                if (exit = await browserStatus.interpreter.addScript(x.textContent, activeDocument ?? "")) {
+                if (exit = await browserState.interpreter.addScript(x.textContent, activeDocument ?? "")) {
                     return true;
                 }
             }

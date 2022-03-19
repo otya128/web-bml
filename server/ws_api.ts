@@ -17,14 +17,7 @@ export type EPGStationRecordedParam = {
 
 export type Param = (MirakLiveParam | EPGStationRecordedParam) & { demultiplexServiceId?: number };
 
-export type ModuleLockRequestMessage = {
-    type: "moduleLockRequest",
-    componentId: number,
-    moduleId: number,
-    isEx: boolean,
-};
-
-export type RequestMessage = ModuleLockRequestMessage;
+export type RequestMessage = {};
 
 export type ComponentPMT = {
     pid: number,
@@ -112,14 +105,6 @@ export type ESEventUpdatedMessage = {
     events: ESEvent[],
 }
 
-export type ModuleLockResponseMessage = {
-    type: "moduleLockResponse",
-    componentId: number,
-    moduleId: number,
-    isEx: boolean,
-    status: number,
-};
-
 export type ProgramInfoMessage = {
     type: "programInfo",
     originalNetworkId: number | null,
@@ -144,4 +129,30 @@ export type ErrorMessage = {
     type: "error",
     message: string,
 };
-export type ResponseMessage = PMTMessage | ModuleDownloadedMessage | ModuleListUpdatedMessage | ModuleLockResponseMessage | ProgramInfoMessage | CurrentTime | VideoStreamUrlMessage | ErrorMessage | ESEventUpdatedMessage;
+
+export type BITExtendedBroadcaster = {
+    originalNetworkId: number,
+    broadcasterId: number,
+};
+
+export type BITService = {  
+    serviceType: number,
+    serviceId: number,
+};
+
+export type BITBroadcaster = {
+    broadcasterId: number,
+    broadcasterName: string | null,
+    services: BITService[],
+    affiliations: number[],
+    affiliationBroadcasters: BITExtendedBroadcaster[],
+    terrestrialBroadcasterId?: number,
+};
+
+export type BITMessage = {
+    type: "bit",
+    originalNetworkId: number,
+    broadcasters: BITBroadcaster[],
+};
+
+export type ResponseMessage = PMTMessage | ModuleDownloadedMessage | ModuleListUpdatedMessage | ProgramInfoMessage | CurrentTime | VideoStreamUrlMessage | ErrorMessage | ESEventUpdatedMessage | BITMessage;

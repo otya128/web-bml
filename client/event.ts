@@ -1,7 +1,7 @@
 import * as resource from "./resource";
 // @ts-ignore
 import { BML } from "./interface/DOM";
-import { browserStatus } from "./browser";
+import { browserState } from "./browser";
 
 interface BMLEvent {
     type: string;
@@ -64,7 +64,7 @@ export async function executeEventHandler(handler: string): Promise<boolean> {
         throw new Error("invalid event handler attribute " + handler);
     }
     console.debug("EXECUTE", handler);
-    const result = await browserStatus.interpreter.runEventHandler(groups.funcName);
+    const result = await browserState.interpreter.runEventHandler(groups.funcName);
     console.debug("END", handler);
     return result;
 }

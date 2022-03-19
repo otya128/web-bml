@@ -9,6 +9,7 @@ import { launchDocument as documentLaunchDocument } from "./document";
 import { ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
 import { VideoPlayer } from "./player/video_player";
+import { BroadcasterDatabase } from "./broadcaster_database";
 // browser疑似オブジェクト
 
 export type LockedModuleInfo = [moduleName: string, func: number, status: number];
@@ -190,9 +191,9 @@ export const browser: Browser = {
     setCurrentDateMode(time_mode: number): number {
         console.log("setCurrentDateMode", time_mode);
         if (time_mode == 0) {
-            browserStatus.currentDateMode = 0;
+            browserState.currentDateMode = 0;
         } else if (time_mode == 1) {
-            browserStatus.currentDateMode = 1;
+            browserState.currentDateMode = 1;
         } else {
             return NaN;
         }
@@ -373,7 +374,7 @@ export const browser: Browser = {
     launchDocument(documentName: string, transitionStyle?: string): number {
         console.log("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
         documentLaunchDocument(documentName);
-        browserStatus.interpreter.destroyStack();
+        browserState.interpreter.destroyStack();
         throw new Error("unreachable!!");
     },
     reloadActiveDocument(): number {
@@ -525,20 +526,21 @@ export const browser: Browser = {
 } as Browser;
 
 
-export const browserStatus = {
+export const browserState = {
     currentDateMode: 0,
     interpreter: null! as IInterpreter,
     currentProgramInfo: null as (ProgramInfoMessage | null),
     player: null as (VideoPlayer | null),
+    broadcasterDatabase: new BroadcasterDatabase(),
 };
 
 resource.resourceEventTarget.addEventListener("message", ((event: CustomEvent) => {
     const msg = event.detail as ResponseMessage;
     if (msg.type === "programInfo") {
-        if (msg.serviceId != null && msg.serviceId !== browserStatus.currentProgramInfo?.serviceId) {
+        if (msg.serviceId != null && msg.serviceId !== browserState.currentProgramInfo?.serviceId) {
             // TR-B14 第二分冊 5.12.6.1
-            if (browserStatus.currentProgramInfo != null) {
-                console.log("serviceId changed", msg.serviceId, browserStatus.currentProgramInfo?.serviceId)
+            if (browserState.currentProgramInfo != null) {
+                console.log("serviceId changed", msg.serviceId, browserState.currentProgramInfo?.serviceId)
             }
             browser.Ureg![0] = "0x" + msg.serviceId.toString(16).padStart(4);
             for (let i = 1; i < 64; i++) { // FIXME
