@@ -117,6 +117,7 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
     // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
     lockSyncEventQueue();
     let exit = false;
+    let scriptCount = 0;
     try {
         focusHelper(findNavIndex(0));
         for (const x of Array.from(document.querySelectorAll("arib-script"))) {
@@ -129,7 +130,8 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
                     }
                 }
             } else if (x.textContent != null) {
-                if (exit = await browserState.interpreter.addScript(x.textContent, activeDocument ?? "")) {
+                scriptCount++;
+                if (exit = await browserState.interpreter.addScript(x.textContent, `${activeDocument ?? ""}[${scriptCount}]`)) {
                     return true;
                 }
             }

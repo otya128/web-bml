@@ -331,13 +331,17 @@ Interpreter.prototype.parse_ = function(code, sourceFile) {
  * Add more code to the interpreter.
  * @param {string|!Object} code Raw JavaScript text or AST.
  */
-Interpreter.prototype.appendCode = function(code) {
+Interpreter.prototype.appendCode = function(code, sourceFile) {
   var state = this.stateStack[0];
   if (!state || state.node['type'] !== 'Program') {
     throw Error('Expecting original AST to start with a Program node.');
   }
   if (typeof code === 'string') {
-    code = this.parse_(code, 'appendCode' + (this.appendCodeNumber_++));
+    if (typeof sourceFile === 'string') {
+      code = this.parse_(code, sourceFile);
+    } else {
+      code = this.parse_(code, 'appendCode' + (this.appendCodeNumber_++));
+    }
   }
   if (!code || code['type'] !== 'Program') {
     throw Error('Expecting new AST to start with a Program node.');

@@ -1,5 +1,4 @@
-// @ts-ignore
-import { Interpreter } from "../../JS-Interpreter/interpreter";
+const { Interpreter }: { Interpreter: any } = require("../../JS-Interpreter/interpreter");
 import * as BT from "../binary_table";
 import { IInterpreter } from "./interpreter";
 import * as context from "../context";
@@ -70,7 +69,6 @@ function unlockScreen(callback: (result: any, promiseValue: any) => void) {
 import { BML } from "../interface/DOM";
 import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
 import { browser, Browser } from "../browser";
-import { queueSyncEvent } from "../event";
 import { fetchResourceAsync } from "../resource";
 import * as bmlDate from "../date";
 import * as bmlNumber from "../number";
@@ -449,9 +447,10 @@ export class JSInterpreter implements IInterpreter {
 
     public addScript(script: string, src?: string): Promise<boolean> {
         const elem = document.createElement("arib-script");
-        elem.textContent = script;//transpile(script);
+        elem.textContent = script;
+        elem.setAttribute("src", src);
         document.body.appendChild(elem);
-        this.interpreter.appendCode(script);
+        this.interpreter.appendCode(script, src);
         return this.runScript();
     }
 
