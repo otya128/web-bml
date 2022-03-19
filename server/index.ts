@@ -27,7 +27,7 @@ const hlsDir = process.env.HLS_DIR ?? "./hls";
 const mirakBaseUrl = (process.env.MIRAK_URL ?? "http://localhost:40772/").replace(/\/+$/, "") + "/api/";
 const epgBaseUrl = (process.env.EPG_URL ?? "http://localhost:8888/").replace(/\/+$/, "") + "/api/";
 
-const inputFile = process.argv[2];
+const inputFile = process.argv[2] ?? process.env.INPUT_FILE;
 
 const ws = websocket();
 
