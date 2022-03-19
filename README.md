@@ -2,6 +2,8 @@
 
 Webブラウザで動作するデータ放送ブラウザ(BMLブラウザ)
 
+![screenshot](https://user-images.githubusercontent.com/4075988/159119988-d57b4d1b-6940-45d5-8d54-87acb2f75781.png)
+
 ## 動作環境
 
 * LinuxまたはWindows上のnode.js (v16.x)
