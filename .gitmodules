@@ -1,0 +1,3 @@
+[submodule "node-aribts"]
+	path = node-aribts
+	url = https://github.com/otya128/node-aribts.git

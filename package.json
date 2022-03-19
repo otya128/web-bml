@@ -8,7 +8,6 @@
     "@babel/parser": "^7.17.3",
     "@babel/traverse": "^7.17.3",
     "@babel/types": "^7.17.0",
-    "@chinachu/aribts": "^1.3.5-mirakurun.18",
     "arib-subtitle-timedmetadater": "^4.0.9",
     "aribb24.js": "^1.8.9",
     "buffer": "^6.0.3",
@@ -29,7 +28,7 @@
     "react-dom": "^17.0.2"
   },
   "scripts": {
-    "start": "node build/server/index.js",
+    "start": "node build/index.js",
     "build": "webpack && tsc",
     "dev": "ts-node server/index.ts"
   },
@@ -49,5 +48,9 @@
     "webpack": "^5.69.1",
     "webpack-cli": "^4.9.2",
     "webpack-dev-server": "^4.7.4"
-  }
+  },
+  "private": true,
+  "workspaces": [
+    "./node-aribts"
+  ]
 }

@@ -107,14 +107,6 @@
     "@babel/helper-validator-identifier" "^7.16.7"
     to-fast-properties "^2.0.0"
 
-"@chinachu/aribts@^1.3.5-mirakurun.18":
-  version "1.3.5-mirakurun.18"
-  resolved "https://registry.yarnpkg.com/@chinachu/aribts/-/aribts-1.3.5-mirakurun.18.tgz#2f45a9961f4f230511395ea4bd852561d26f83bc"
-  integrity sha512-2HDcR4khLNhZRkXhI4Ct4AbwiYvMmoLyg781zqR7u+YnFHYAT/dm0Syg7wRnb3FCdipq34bzbJOwplkXwQjKRw==
-  dependencies:
-    "@node-rs/crc32" "1.4.3"
-    iconv-lite "0.6.3"
-
 "@cspotcode/source-map-consumer@0.8.0":
   version "0.8.0"
   resolved "https://registry.yarnpkg.com/@cspotcode/source-map-consumer/-/source-map-consumer-0.8.0.tgz#33bf4b7b39c178821606f669bbc447a6a629786b"
@@ -437,6 +429,11 @@
   version "17.0.21"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-17.0.21.tgz#864b987c0c68d07b4345845c3e63b75edd143644"
   integrity sha512-DBZCJbhII3r90XbQxI8Y9IjjiiOGlZ0Hr32omXIZvwwZ7p4DMMXGrKXVyPfuoBOri9XNtL0UK69jYIBIsRX3QQ==
+
+"@types/node@^12.20.43":
+  version "12.20.47"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.20.47.tgz#ca9237d51f2a2557419688511dab1c8daf475188"
+  integrity sha512-BzcaRsnFuznzOItW1WpQrDHM7plAa7GIDMZ6b5pnMbkqEtM/6WCOhvZar39oeMQP79gwvFUWjjptE7/KGcNqFg==
 
 "@types/prop-types@*":
   version "15.7.4"
@@ -3037,7 +3034,7 @@ type-is@^1.6.16, type-is@~1.6.18:
     media-typer "0.3.0"
     mime-types "~2.1.24"
 
-typescript@^4.6.2:
+typescript@^4.5.5, typescript@^4.6.2:
   version "4.6.2"
   resolved "https://registry.yarnpkg.com/typescript/-/typescript-4.6.2.tgz#fe12d2727b708f4eef40f51598b3398baa9611d4"
   integrity sha512-HM/hFigTBHZhLXshn9sN37H085+hQGeJHJ/X7LpBWLID/fbc2acUMfU+lGD98X81sKP+pFa9f0DZmCwB9GnbAg==
