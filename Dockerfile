@@ -16,8 +16,12 @@ RUN node -e "require('./build/font').downloadFonts()"
 FROM node:16-buster AS runner
 RUN apt-get update && apt-get install -y ffmpeg
 WORKDIR /app
-COPY --from=builder /app/node-aribts/lib /app/node-aribts/node_modules ./node-aribts/
-COPY --from=builder /app/build /app/dist /app/public ./
+COPY --from=builder /app/node-aribts/lib ./node-aribts/lib
+COPY --from=builder /app/node-aribts/node_modules ./node-aribts/node_modules
+COPY --from=builder /app/node-aribts/package.json ./node-aribts
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
 COPY --from=deps /app/node_modules ./node_modules
 
 EXPOSE 23234
