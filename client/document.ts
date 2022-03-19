@@ -500,28 +500,28 @@ export function processKeyUp(k: AribKeyCode) {
 }
 
 window.addEventListener("keydown", (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+    }
     const k = keyCodeToAribKey(event.key);
     if (k == -1) {
         return;
     }
+    event.preventDefault();
     processKeyDown(k);
 });
 
 window.addEventListener("keyup", (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+    }
     const k = keyCodeToAribKey(event.key);
     if (k == -1) {
         return;
     }
+    event.preventDefault();
     processKeyUp(k);
 });
-
-function reloadObjectElement(obj: HTMLObjectElement) {
-    // chromeではこうでもしないとtypeの変更が反映されない
-    // バグかも
-    const dummy = document.createElement("dummy");
-    obj.appendChild(dummy);
-    dummy.remove();
-}
 
 function clutToDecls(table: number[][]): css.Declaration[] {
     const ret = [];
