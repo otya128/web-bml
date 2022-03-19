@@ -5,11 +5,17 @@ function postMessage(msg: RemoteControllerMessage) {
 }
 
 document.body.addEventListener("keydown", e => {
+    if (e.ctrlKey || e.altKey || e.metaKey) {
+        return;
+    }
     e.preventDefault();
     postMessage({ type: "keydown", key: e.key });
 });
 
 document.body.addEventListener("keyup", e => {
+    if (e.ctrlKey || e.altKey || e.metaKey) {
+        return;
+    }
     e.preventDefault();
     postMessage({ type: "keyup", key: e.key });
 });
