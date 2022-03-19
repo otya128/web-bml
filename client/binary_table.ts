@@ -467,8 +467,8 @@ export class BinaryTable implements IBinaryTable {
     }
     public toArray(startRow: number, numRow: number): any[] | null {
         return this.rows.slice(startRow, startRow + numRow).map(x => {
-            return x.map(v => {
-                if (typeof v === "object" && "from" in v && "to" in v) {
+            return x.map((v, i) => {
+                if (this.fields[i].type === BinaryTableType.ZipCode) {
                     return null;
                 } else {
                     return v;
