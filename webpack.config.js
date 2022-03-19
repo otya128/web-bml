@@ -32,12 +32,10 @@ module.exports = {
             path: false,
             url: false,
             vm: false,
-            // babelのため
             process: require.resolve('process/browser'),
             Buffer: require.resolve('buffer'),
         },
     },
-    mode: 'development',
     devtool: 'source-map',
     // babelのため
     plugins: [
@@ -50,3 +48,7 @@ module.exports = {
         }),
     ],
 };
+
+if (process.env.NODE_ENV == null) {
+    module.exports.mode = "development";
+}
