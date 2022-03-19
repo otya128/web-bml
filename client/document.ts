@@ -125,7 +125,7 @@ async function loadDocument(file: CachedFile, documentName: string): Promise<boo
             if (src) {
                 const res = fetchLockedResource(src);
                 if (res !== null) {
-                    if (exit = await browserState.interpreter.addScript(decodeEUCJP(res.data), src ?? undefined)) {
+                    if (exit = await browserState.interpreter.addScript(decodeEUCJP(res.data), src)) {
                         return true;
                     }
                 }

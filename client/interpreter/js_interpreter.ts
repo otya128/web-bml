@@ -448,7 +448,9 @@ export class JSInterpreter implements IInterpreter {
     public addScript(script: string, src?: string): Promise<boolean> {
         const elem = document.createElement("arib-script");
         elem.textContent = script;
-        elem.setAttribute("src", src);
+        if (src != null) {
+            elem.setAttribute("src", src);
+        }
         document.body.appendChild(elem);
         this.interpreter.appendCode(script, src);
         return this.runScript();
