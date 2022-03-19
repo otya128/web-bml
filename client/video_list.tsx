@@ -67,8 +67,16 @@ function Channels({ channels }: { channels: MirakChannel[] }) {
 }
 
 async function VideoList() {
-    const records = await fetchRecorded();
-    const channels = await fetchChannels();
+    try {
+        var records = await fetchRecorded();
+    } catch {
+        records = { records: [], total: 0 };
+    }
+    try {
+        var channels = await fetchChannels();
+    } catch {
+        channels = [];
+    }
     return <div>
         <h2>
             チャンネル一覧
