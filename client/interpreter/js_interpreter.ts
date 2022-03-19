@@ -150,7 +150,7 @@ function initDate(interpreter: any, globalObject: any) {
         return bmlDate.toString.call(this.data);
     });
     interpreter.setNativeFunctionPrototype(interpreter.DATE, "toUTCString", function (this: { data: Date }) {
-        return bmlDate.toString.call(this.data);
+        return bmlDate.toUTCString.call(this.data);
     });
 }
 

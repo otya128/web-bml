@@ -58,8 +58,8 @@ function overrideString() {
 
 function overrideDate() {
     Date.prototype.toString = bmlDate.toString;
-    Date.prototype.toLocaleString = Date.prototype.toString;
-    Date.prototype.toUTCString = Date.prototype.toString;
+    Date.prototype.toLocaleString = bmlDate.toString;
+    Date.prototype.toUTCString = bmlDate.toUTCString;
 }
 
 export class NativeInterpreter implements IInterpreter {
