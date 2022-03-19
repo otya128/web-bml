@@ -67,10 +67,10 @@ function playSound9() {
         buf[i] += sine(context.sampleRate, i, 5200) * volume * (1 - i / len); // envelope
     }
     for (let i = 0; i < len; i++) {
-        buf[i] += sine(context.sampleRate, i, 3100) * volume * (1 - i / len);
+        buf[i] += sine(context.sampleRate, i, 3120) * volume * (1 - i / len);
     }
     for (let i = 0; i < len; i++) {
-        buf[i] += sine(context.sampleRate, i, 1000) * volume * (1 - i / len);
+        buf[i] += sine(context.sampleRate, i, 1040) * volume * (1 - i / len);
     }
     playBuffer(context, buf);
 }
