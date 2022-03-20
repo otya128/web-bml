@@ -391,6 +391,30 @@ export namespace BML {
         }
     }
 
+    // STD B-24 第二分冊 (2/2) 第二編 付属2 表5-3参照
+    // 画像の大きさは固定
+    function fixImageSize(resolution: string, width: number, height: number, type: string): { width?: number, height?: number } {
+        type = type.toLowerCase();
+        // 表5-4参照
+        //const scaleNumerator = [256, 192, 160, 128, 96, 80, 64, 48, 32];
+        //const scaleDenominator = 128;
+        const is720x480 = resolution.trim() === "720x480";
+        if (type === "image/jpeg") {
+            if (is720x480) {
+                if (width % 2 != 0) {
+                    return { width: width - 1, height };
+                }
+                return { width, height };
+            }
+            if (width === 960 && height === 540) {
+                return { width, height };
+            }
+            return { width: Math.floor(width / 2), height: Math.floor(height / 2) };
+        } else if (type === "image/x-arib-png" || type === "image/x-arib-mng") {
+            return { width, height };
+        }
+        return {};
+    }
     // impl
     export class HTMLObjectElement extends HTMLElement {
         protected node: globalThis.HTMLObjectElement;
@@ -430,31 +454,45 @@ export namespace BML {
                     return;
                 }
 
+                let imageUrl: string | undefined;
                 if ((aribType ?? this.type).match(/image\/X-arib-png/i)) {
                     if (!aribType) {
                         this.node.setAttribute("arib-type", this.type);
                     }
-                    this.node.type = "image/png";
                     const clutCss = window.getComputedStyle(this.node).getPropertyValue("--clut");
                     const clutUrl = clutCss == null ? null : parseCSSValue("http://localhost" + (resource.activeDocument ?? ""), clutCss);
                     const fetchedClut = clutUrl == null ? null : (await resource.fetchResourceAsync(clutUrl))?.data;
                     if (this.__version !== version) {
                         return;
                     }
-                    const cachedBlob = fetched.blobUrl.get(fetchedClut);
-                    if (cachedBlob != null) {
-                        this.node.setAttribute("data", cachedBlob);
-                    } else {
+                    imageUrl = fetched.blobUrl.get(fetchedClut);
+                    if (imageUrl == null) {
                         const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
                         const png = aribPNGToPNG(Buffer.from(fetched.data), clut);
                         const blob = new Blob([png], { type: "image/png" });
-                        const b = URL.createObjectURL(blob);
-                        this.node.setAttribute("data", b);
-                        fetched.blobUrl.set(fetchedClut, b);
+                        imageUrl = URL.createObjectURL(blob);
+                        fetched.blobUrl.set(fetchedClut, imageUrl);
                     }
+                    this.node.type = "image/png";
                 } else {
-                    this.node.setAttribute("data", resource.getCachedFileBlobUrl(fetched));
+                    imageUrl = resource.getCachedFileBlobUrl(fetched);
                 }
+                // jpeg/png程度ならバイナリ解析すればImage使わずとも大きさは取得できそう
+                const img = new Image();
+                img.onload = () => {
+                    if (this.__version !== version) {
+                        return;
+                    }
+                    const { width, height } = fixImageSize(window.getComputedStyle(window.document.body).getPropertyValue("resolution"), img.width, img.height, (aribType ?? this.type));
+                    if (width != null && height != null) {
+                        this.node.style.maxWidth = width + "px";
+                        this.node.style.minWidth = width + "px";
+                        this.node.style.maxHeight = height + "px";
+                        this.node.style.minHeight = height + "px";
+                    }
+                };
+                img.src = imageUrl;
+                this.node.setAttribute("data", imageUrl);
             })();
         }
         public get type(): string {
