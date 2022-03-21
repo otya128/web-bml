@@ -463,7 +463,7 @@ export class BMLDocument {
         } else if (!usedKeyList.some(x => x === keyGroup)) {
             return;
         }
-        let nextFocusStyle = computedStyle;
+        let nextFocusStyle = window.getComputedStyle(focusElement);
         while (true) {
             if (k == AribKeyCode.Left) {
                 // 明記されていなさそうだけどおそらく先にnav-indexによるフォーカス移動があるだろう
