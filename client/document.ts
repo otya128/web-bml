@@ -446,7 +446,7 @@ export class BMLDocument {
         if (!focusElement) {
             return;
         }
-        const computedStyle = window.getComputedStyle(focusElement);
+        const computedStyle = window.getComputedStyle(this.getBody()!);
         let nextFocus = "";
         const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
         if (usedKeyList.length && usedKeyList[0] === "none") {
@@ -533,7 +533,7 @@ export class BMLDocument {
         if (!focusElement) {
             return;
         }
-        const computedStyle = window.getComputedStyle(focusElement);
+        const computedStyle = window.getComputedStyle(this.getBody()!);
         const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
         if (usedKeyList.length && usedKeyList[0] === "none") {
             return;
