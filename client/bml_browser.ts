@@ -57,6 +57,12 @@ export type BMLBrowserOptions = {
     // 番組名などを表示
     indicator?: Indicator;
     fonts?: BMLBrowserFonts;
+    // localStorageのprefix (default: "")
+    storagePrefix?: string;
+    // nvramのprefix (default: "nvram_")
+    nvramPrefix?: string;
+    // 放送者ID DBのprefix (default: "")
+    broadcasterDatabasePrefix?: string;
 };
 
 export class BMLBrowser {
@@ -75,6 +81,7 @@ export class BMLBrowser {
     private bmlDomDocument: BML.BMLDocument;
     private indicator?: Indicator;
     private eventTarget = new EventTarget() as BMLBrowserEventTarget;
+    private fonts: FontFace[] = [];
     public constructor(options: BMLBrowserOptions) {
         this.containerElement = options.containerElement;
         this.mediaElement = options.mediaElement;
@@ -88,7 +95,7 @@ export class BMLBrowser {
         this.resources = new Resources();
         this.broadcasterDatabase = new BroadcasterDatabase(this.resources);
         this.broadcasterDatabase.openDatabase();
-        this.nvram = new NVRAM(this.resources, this.broadcasterDatabase);
+        this.nvram = new NVRAM(this.resources, this.broadcasterDatabase, options.nvramPrefix);
         this.interpreter = new JSInterpreter();
         this.eventQueue = new EventQueue(this.resources, this.interpreter);
         this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget);
@@ -101,13 +108,16 @@ export class BMLBrowser {
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
         this.interpreter.setupEnvironment(this.browserAPI.browser, this.resources, this.bmlDocument);
         if (options.fonts?.roundGothic) {
-            document.fonts.add(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));
+            this.fonts.push(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));
         }
         if (options.fonts?.boldRoundGothic) {
-            document.fonts.add(new FontFace(bmlBrowserFontNames.boldRoundGothic, options.fonts?.boldRoundGothic.source, options.fonts?.boldRoundGothic.descriptors));
+            this.fonts.push(new FontFace(bmlBrowserFontNames.boldRoundGothic, options.fonts?.boldRoundGothic.source, options.fonts?.boldRoundGothic.descriptors));
         }
         if (options.fonts?.squareGothic) {
-            document.fonts.add(new FontFace(bmlBrowserFontNames.squareGothic, options.fonts?.squareGothic.source, options.fonts?.squareGothic.descriptors));
+            this.fonts.push(new FontFace(bmlBrowserFontNames.squareGothic, options.fonts?.squareGothic.source, options.fonts?.squareGothic.descriptors));
+        }
+        for (const font of this.fonts) {
+            document.fonts.add(font);
         }
     }
     // スタートアップ文書を表示させる
@@ -138,5 +148,11 @@ export class BMLBrowser {
 
     public getVideoElement(): HTMLElement | null {
         return this.documentElement.querySelector("object[arib-type=\"video/X-arib-mpeg2\"]");
+    }
+
+    public destroy() {
+        for (const font of this.fonts) {
+            document.fonts.delete(font);
+        }
     }
 }

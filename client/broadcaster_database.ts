@@ -44,8 +44,12 @@ import { broadcaster7 } from "./broadcaster_7";
 
 export class BroadcasterDatabase {
     private resources: resource.Resources; // iru?
-    public constructor(resources: resource.Resources) {
+    private prefix: string;
+    public constructor(resources: resource.Resources, prefix?: string) {
         this.resources = resources;
+        this.prefix = prefix ?? "";
+        this.broadcastersPrefix = this.prefix + "broadcasters_";
+        this.affiliationsPrefix = this.prefix + "affiliations_";
     }
     private broadcastersPrefix = "broadcasters_";
     private affiliationsPrefix = "affiliations_";

@@ -3,8 +3,6 @@ import { parseBinaryStructure, readBinaryFields, writeBinaryFields } from "./bin
 import { BroadcasterDatabase } from "./broadcaster_database";
 import { Resources } from "./resource";
 
-const nvramPrefix = "nvram_";
-
 type NvramAccessId =
     "broadcaster_id" | // 事業者ごと(BSとCS)
     "original_network_id" | // ネットワークごと(地上波とCS)
@@ -247,9 +245,11 @@ type AccessInfo = {
 export class NVRAM {
     resources: Resources;
     broadcasterDatabase: BroadcasterDatabase;
-    constructor(resources: Resources, broadcasterDatabase: BroadcasterDatabase) {
+    prefix: string;
+    constructor(resources: Resources, broadcasterDatabase: BroadcasterDatabase, prefix?: string) {
         this.resources = resources;
         this.broadcasterDatabase = broadcasterDatabase;
+        this.prefix = prefix ?? "nvram_";
     }
 
     private getBroadcasterInfo(): BroadcasterInfo {
@@ -330,7 +330,7 @@ export class NVRAM {
         let isFixed: boolean;
         let size: number;
         if (uri === "nvram://receiverinfo/zipcode") {
-            strg = localStorage.getItem(nvramPrefix + "prefix=receiverinfo%2Fzipcode");
+            strg = localStorage.getItem(this.prefix + "prefix=receiverinfo%2Fzipcode");
             isFixed = true;
             size = 7;
         } else {
@@ -345,7 +345,7 @@ export class NVRAM {
             if (!k) {
                 console.error("readNVRAM: access denied", uri);
             }
-            strg = localStorage.getItem(nvramPrefix + k);
+            strg = localStorage.getItem(this.prefix + k);
             isFixed = area.isFixed;
             size = area.size;
         }
@@ -373,7 +373,7 @@ export class NVRAM {
             return NaN;
             // 書き込める (TR-B14 第二分冊 5.2.7 表5-2参照)
         } else if (uri === "nvram://receiverinfo/zipcode") {
-            localStorage.setItem(nvramPrefix + "prefix=receiverinfo%2Fzipcode", window.btoa(String.fromCharCode(...data).substring(0, 7)));
+            localStorage.setItem(this.prefix + "prefix=receiverinfo%2Fzipcode", window.btoa(String.fromCharCode(...data).substring(0, 7)));
             return NaN;
         }
         const binfo = this.getBroadcasterInfo();
@@ -394,7 +394,7 @@ export class NVRAM {
             console.error("writeNVRAM: access denied", uri);
             return NaN;
         }
-        localStorage.setItem(nvramPrefix + k, window.btoa(String.fromCharCode(...data)));
+        localStorage.setItem(this.prefix + k, window.btoa(String.fromCharCode(...data)));
         return data.length;
     }
 
