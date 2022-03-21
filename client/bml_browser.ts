@@ -158,5 +158,7 @@ export class BMLBrowser {
         for (const font of this.fonts) {
             document.fonts.delete(font);
         }
+        this.fonts.length = 0;
+        this.bmlDocument.unloadAllDRCS();
     }
 }

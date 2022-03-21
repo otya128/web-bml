@@ -466,29 +466,16 @@ export class BrowserAPI {
             if (res?.data == null) {
                 return NaN;
             }
-            const id = `drcs-${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(2, "0")}/${filename}`;
-            const css = this.bmlDocument.bmlDocument.getElementById(id);
-            if (!css) {
-                const style = document.createElement("style");
-                style.id = id;
-                let tc = "";
-                for (const [id, fontFamily] of [
-                    [1, "丸ゴシック"],
-                    [2, "角ゴシック"],
-                    [3, "太丸ゴシック"],
-                ]) {
-                    const glyph = drcs.loadDRCS(Buffer.from(res.data), id as number);
-                    const ttf = drcs.toTTF(glyph);
-                    const url = URL.createObjectURL(new Blob([ttf.buffer]));
-                    tc += `@font-face {
-    font-family: "${fontFamily}";
-    src: url("${url}");
-    unicode-range: U+EC00-FE00;
-}
-`;
-                }
-                style.textContent = tc;
-                BML.bmlNodeToNode(this.bmlDocument.bmlDocument.documentElement)?.appendChild(style);
+            for (const [id, fontFamily] of [
+                [1, "丸ゴシック"],
+                [2, "角ゴシック"],
+                [3, "太丸ゴシック"],
+            ]) {
+                const glyph = drcs.loadDRCS(Buffer.from(res.data), id as number);
+                const ttf = drcs.toTTF(glyph);
+                this.bmlDocument.addDRCSFont(new FontFace(fontFamily as string, ttf.buffer, {
+                    unicodeRange: "U+EC00-FE00",
+                }));
             }
             return 1;
         },

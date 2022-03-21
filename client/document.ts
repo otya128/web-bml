@@ -153,6 +153,7 @@ export class BMLDocument {
     private videoContainer: HTMLElement;
     private bmlEventTarget: BMLBrowserEventTarget;
     private indicator?: Indicator;
+    private fonts: FontFace[] = [];
     public constructor(bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
         resources: Resources,
@@ -266,6 +267,13 @@ export class BMLDocument {
         }
     }
 
+    public unloadAllDRCS() {
+        for (const font of this.fonts) {
+            document.fonts.delete(font);
+        }
+        this.fonts.length = 0;
+    }
+
     private async loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
         // スクリプトが呼ばれているときにさらにスクリプトが呼ばれることはないがonunloadだけ例外
         this.interpreter.resetStack();
@@ -292,6 +300,7 @@ export class BMLDocument {
         } finally {
             this.eventQueue.resetEventQueue();
         }
+        this.unloadAllDRCS();
         let width: number = 960;
         let height: number = 540;
         const body = this.getBody()!;
@@ -681,5 +690,9 @@ export class BMLDocument {
                 this.eventQueue.processEventQueue();
             });
         }
+    }
+    
+    public addDRCSFont(font: FontFace) {
+        this.fonts.push(font);
     }
 }
