@@ -82,16 +82,10 @@ bmlBrowser.addEventListener("invisible", (evt) => {
     console.log("invisible", evt.detail);
     const s = invisibleVideoContainer.style;
     if (evt.detail) {
-        if (s) {
-            s.setProperty("display", "", "important");
-            s.setProperty("z-index", "999", "important");
-        }
+        s.display = "block";
         invisibleVideoContainer.appendChild(videoContainer);
     } else {
-        if (s) {
-            s.setProperty("display", "none", "important");
-            s.setProperty("z-index", "-1", "important");
-        }
+        s.display = "none";
         const obj = bmlBrowser.getVideoElement();
         if (obj != null) {
             obj.appendChild(videoContainer);
