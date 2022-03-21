@@ -9,6 +9,7 @@ import websocket, { WebSocketContext } from "koa-easy-ws";
 import * as wsApi from "./ws_api";
 import { WebSocket } from "ws";
 import http from "http";
+import https from "https";
 import { randomUUID } from 'crypto';
 import { DataBroadcastingStream, LiveStream } from './stream/live_stream';
 import { HLSLiveStream } from './stream/hls_stream';
@@ -417,9 +418,17 @@ async function streamToString(stream: stream.Readable) {
     return Buffer.concat(chunks).toString("utf-8");
 }
 
+function provideHttpClient(options: string | http.RequestOptions | URL) {
+   if (typeof options === "string") {
+        return options.startsWith('https:') ? https : http
+    } else {
+        return options.protocol === 'https:' ? https : http
+    }
+}
+
 function httpGetAsync(options: string | http.RequestOptions | URL): Promise<http.IncomingMessage> {
     return new Promise<http.IncomingMessage>((resolve, reject) => {
-        const req = http.get(options, (res) => {
+        const req = provideHttpClient(options).get(options, (res) => {
             resolve(res);
         });
         req.on("error", reject);
