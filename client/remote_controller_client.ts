@@ -12,22 +12,6 @@ export class RemoteControl implements Indicator {
         this.player = player;
         this.element = element;
 
-        this.element.addEventListener("keydown", e => {
-            if (e.ctrlKey || e.altKey || e.metaKey) {
-                return;
-            }
-            e.preventDefault();
-            this.process({ type: "keydown", key: e.key });
-        });
-
-        this.element.addEventListener("keyup", e => {
-            if (e.ctrlKey || e.altKey || e.metaKey) {
-                return;
-            }
-            e.preventDefault();
-            this.process({ type: "keyup", key: e.key });
-        });
-
         this.element.querySelectorAll("button").forEach(x => {
             x.addEventListener("click", () => {
                 if (x.id === "unmute" || x.id === "mute" || x.id === "play" || x.id === "pause" || x.id === "cc" || x.id === "disable-cc" || x.id === "zoom-100" || x.id === "zoom-150" || x.id === "zoom-200") {

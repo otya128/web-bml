@@ -63,6 +63,8 @@ export type BMLBrowserOptions = {
     nvramPrefix?: string;
     // 放送者ID DBのprefix (default: "")
     broadcasterDatabasePrefix?: string;
+    // フォーカスを受け付けキー入力を受け取る
+    tabIndex?: number;
 };
 
 export class BMLBrowser {
@@ -91,7 +93,9 @@ export class BMLBrowser {
         uaStyle.textContent = defaultCSS;
         this.shadowRoot.appendChild(uaStyle);
         this.documentElement = document.createElement("html");
-        this.documentElement.tabIndex = 0;
+        if (options.tabIndex != null) {
+            this.documentElement.tabIndex = options.tabIndex;
+        }
         this.shadowRoot.appendChild(this.documentElement);
         this.resources = new Resources();
         this.broadcasterDatabase = new BroadcasterDatabase(this.resources);
