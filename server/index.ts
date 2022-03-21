@@ -143,26 +143,6 @@ router.get('/arib.js.map', async ctx => {
     ctx.set('Content-Type', 'application/json; charset=utf-8')
 });
 
-router.get('/remote_controller.js', async ctx => {
-    ctx.body = fs.createReadStream("dist/remote_controller.js");
-    ctx.set('Content-Type', 'text/javascript; charset=utf-8')
-});
-
-router.get('/remote_controller.js.map', async ctx => {
-    ctx.body = fs.createReadStream("dist/remote_controller.js.map");
-    ctx.set('Content-Type', 'application/json; charset=utf-8')
-});
-
-router.get("/remote_controller.html", async ctx => {
-    ctx.body = fs.createReadStream("public/remote_controller.html");
-    ctx.set("Content-Type", "text/html; charset=utf-8");
-});
-
-router.get('/default.css', async ctx => {
-    ctx.body = fs.createReadStream("public/default.css");
-    ctx.set('Content-Type', 'text/css; charset=utf-8')
-});
-
 router.get("/rounded-mplus-1m-arib.ttf", async ctx => {
     ctx.body = fs.createReadStream("dist/rounded-mplus-1m-arib.ttf");
 });

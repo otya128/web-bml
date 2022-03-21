@@ -5,7 +5,6 @@ module.exports = {
     entry: {
         arib: './client/index.ts',
         video_list: './client/video_list.tsx',
-        remote_controller: './client/remote_controller_ui.ts',
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
