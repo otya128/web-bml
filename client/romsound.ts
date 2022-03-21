@@ -60,7 +60,7 @@ function playSound5() {
         buf[i] += sine(context.sampleRate, i, 4160) * volume * (1 - i / len);
     }
     for (let i = 0; i < len; i++) {
-        buf[i] += sine(context.sampleRate, i, 3640) * volume / 0.25  * (1 - i / len);
+        buf[i] += sine(context.sampleRate, i, 3640) * volume * 0.25  * (1 - i / len);
     }
     for (let i = 0; i < len; i++) {
         buf[i] += sine(context.sampleRate, i, 520) * volume * (1 - i / len);
