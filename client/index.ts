@@ -1,5 +1,4 @@
 export { };
-import * as resource from "./resource";
 // @ts-ignore
 import { EPGStationRecordedParam, MirakLiveParam, Param, ResponseMessage } from "../server/ws_api";
 import { MP4VideoPlayer } from "./player/mp4";
@@ -50,14 +49,20 @@ const format = new URLSearchParams(location.search).get("format");
 const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/ws?param=" + encodeURIComponent(JSON.stringify(getParametersFromUrl(location.href))));
 
 let player: VideoPlayer | undefined;
+// BML文書と動画と字幕が入る要素
 const browserElement = document.getElementById("data-broadcasting-browser")!;
+// 動画が入っている要素
 const videoContainer = browserElement.querySelector(".arib-video-container") as HTMLElement;
+// BMLが非表示になっているときに動画を前面に表示するための要素
 const invisibleVideoContainer = browserElement.querySelector(".arib-video-invisible-container") as HTMLElement;
+// BML文書が入る要素
 const contentElement = browserElement.querySelector(".data-broadcasting-browser-content") as HTMLElement;
+// BML用フォント
 const roundGothic: BMLBrowserFontFace = { source: "url('/KosugiMaru-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
 const boldRoundGothic: BMLBrowserFontFace = { source: "url('/KosugiMaru-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
 const squareGothic: BMLBrowserFontFace = { source: "url('/Kosugi-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
 
+// リモコン
 const remoteControl = new RemoteControl(document.getElementById("remote-control")!);
 const bmlBrowser = new BMLBrowser({
     containerElement: contentElement,
@@ -143,8 +148,8 @@ ws.addEventListener("message", (event) => {
             case "null":
                 player = new NullVideoPlayer(videoElement, ccContainer);
                 break;
-            default:
             case "mpegts-h264":
+            default:
                 player = new MPEGTSVideoPlayer(videoElement, ccContainer);
                 break;
         }
