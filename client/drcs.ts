@@ -170,7 +170,7 @@ function checksum(buffer: Buffer): number {
     return chksum;
 }
 
-export function toTTF(glyphs: DRCSGlyphs[]): Buffer {
+export function toTTF(glyphs: DRCSGlyphs[]): { ttf: Buffer, unicodeCharacters: number[] } {
     const tables = [
         { name: "cmap", writer: writeCMAP, headerOffset: -1 },
         { name: "head", writer: writeHEAD, headerOffset: -1 },
@@ -237,32 +237,8 @@ export function toTTF(glyphs: DRCSGlyphs[]): Buffer {
     const wholeChecksum = (0xB1B0AFBA - checksum(writer.getBuffer())) | 0;
     writer.seek(headOffset + 8);
     writer.writeInt32BE(wholeChecksum);
-    return writer.getBuffer();
-}
-
-function writeCMAP4(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
-    let cmapOffset = writer.writeUInt16BE(0); // version
-    writer.writeUInt16BE(1); // numTables
-    // encoding record
-    writer.writeUInt16BE(0); // platform id (unicode)
-    writer.writeUInt16BE(6); // encoding ID
-    writer.writeInt32BE(writer.position + 4 - cmapOffset); // subtable offset
-    // table
-    const offSubTable = writer.writeUInt16BE(13); // format
-    writer.writeUInt16BE(0); // reserved
-    const offLen = writer.writeUInt32BE(0); // length
-    writer.writeUInt32BE(0); // language
-    writer.writeUInt32BE(glyphs.length); // numGroups
-    let idx = 0;
-    for (const g of glyphs) {
-        idx++;
-        writer.writeUInt32BE(0x41 + idx);
-        writer.writeUInt32BE(0x41 + idx);
-        writer.writeUInt32BE(idx);
-    }
-    const prev = writer.seek(offLen);
-    writer.writeUInt32BE(prev - offSubTable);
-    writer.seek(prev);
+    const unicodeCharacters = glyphs.map(x => map(x.ku, x.ten));
+    return { ttf: writer.getBuffer(), unicodeCharacters };
 }
 
 function map(ku: number, ten: number): number {

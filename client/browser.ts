@@ -476,9 +476,12 @@ export class BrowserAPI {
                 [3, "太丸ゴシック"],
             ]) {
                 const glyph = drcs.loadDRCS(Buffer.from(res.data), id as number);
-                const ttf = drcs.toTTF(glyph);
-                this.bmlDocument.addDRCSFont(new FontFace(fontFamily as string, ttf.buffer, {
-                    unicodeRange: "U+EC00-FE00",
+                const { ttf, unicodeCharacters } = drcs.toTTF(glyph);
+                if (unicodeCharacters.length === 0) {
+                    continue;
+                }
+                this.bmlDocument.addDRCSFont(new FontFace(fontFamily as string, ttf, {
+                    unicodeRange: unicodeCharacters.map(x => "U+" + x.toString(16)).join(","),
                 }));
             }
             return 1;

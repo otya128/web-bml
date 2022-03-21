@@ -694,5 +694,6 @@ export class BMLDocument {
     
     public addDRCSFont(font: FontFace) {
         this.fonts.push(font);
+        document.fonts.add(font);
     }
 }
