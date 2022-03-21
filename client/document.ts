@@ -172,8 +172,7 @@ export class BMLDocument {
         this.bmlEventTarget = bmlEventTarget;
         this.indicator = indicator;
 
-        // FIXME
-        window.addEventListener("keydown", (event) => {
+        this.documentElement.addEventListener("keydown", (event) => {
             if (event.altKey || event.ctrlKey || event.metaKey) {
                 return;
             }
@@ -185,7 +184,7 @@ export class BMLDocument {
             this.processKeyDown(k);
         });
 
-        window.addEventListener("keyup", (event) => {
+        this.documentElement.addEventListener("keyup", (event) => {
             if (event.altKey || event.ctrlKey || event.metaKey) {
                 return;
             }
@@ -400,7 +399,7 @@ export class BMLDocument {
         } else {
             normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
         }
-        this.indicator?.setUrl(normalizedDocument, false);
+        this.indicator?.setUrl(normalizedDocument, true);
         if (!this.resources.lockCachedModule(componentId, moduleId, "system")) {
             this.resources.fetchResourceAsync(documentName).then((res) => {
                 if (res == null) {

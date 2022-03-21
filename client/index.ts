@@ -8,6 +8,8 @@ import { HLSVideoPlayer } from "./player/hls";
 import { NullVideoPlayer } from "./player/null";
 import { BMLBrowser, BMLBrowserFontFace } from "./bml_browser";
 import { VideoPlayer } from "./player/video_player";
+import { RemoteControl } from "./remote_controller_client";
+import { keyCodeToAribKey } from "./document";
 
 function getParametersFromUrl(url: string): Param | {} {
     const pathname = new URL(url).pathname;
@@ -55,9 +57,12 @@ const contentElement = browserElement.querySelector(".data-broadcasting-browser-
 const roundGothic: BMLBrowserFontFace = { source: "url('/KosugiMaru-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
 const boldRoundGothic: BMLBrowserFontFace = { source: "url('/KosugiMaru-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
 const squareGothic: BMLBrowserFontFace = { source: "url('/Kosugi-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
+
+const remoteControl = new RemoteControl(document.getElementById("remote-control")!);
 const bmlBrowser = new BMLBrowser({
     containerElement: contentElement,
     mediaElement: videoContainer,
+    indicator: remoteControl,
     fonts: {
         roundGothic,
         boldRoundGothic,
@@ -65,6 +70,8 @@ const bmlBrowser = new BMLBrowser({
     }
 });
 
+
+remoteControl.bmlDocument = bmlBrowser.bmlDocument;
 // trueであればデータ放送の上に動画を表示させる非表示状態
 bmlBrowser.addEventListener("invisible", (evt) => {
     console.log("invisible", evt.detail);
@@ -89,6 +96,34 @@ bmlBrowser.addEventListener("invisible", (evt) => {
 
 bmlBrowser.addEventListener("load", (evt) => {
     console.log("load", evt.detail);
+    browserElement.style.minWidth = evt.detail.resolution.width + "px";
+    browserElement.style.maxWidth = evt.detail.resolution.width + "px";
+    browserElement.style.minHeight = evt.detail.resolution.height + "px";
+    browserElement.style.maxHeight = evt.detail.resolution.height + "px";
+});
+
+window.addEventListener("keydown", (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+    }
+    const k = keyCodeToAribKey(event.key);
+    if (k == -1) {
+        return;
+    }
+    event.preventDefault();
+    bmlBrowser.bmlDocument.processKeyDown(k);
+});
+
+window.addEventListener("keyup", (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.key === "Tab") {
+        return;
+    }
+    const k = keyCodeToAribKey(event.key);
+    if (k == -1) {
+        return;
+    }
+    event.preventDefault();
+    bmlBrowser.bmlDocument.processKeyUp(k);
 });
 
 ws.addEventListener("message", (event) => {
@@ -116,6 +151,7 @@ ws.addEventListener("message", (event) => {
         player.setSource(msg.videoStreamUrl);
         player.play();
         videoElement.style.display = "";
+        remoteControl.player = player;
     }
 });
 bmlBrowser.launchStartupDocument();

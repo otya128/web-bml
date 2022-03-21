@@ -17,7 +17,7 @@ export interface Indicator {
     // テレビの下の方に出てくるデータ受信中...の表示
     setReceivingStatus(receiving: boolean): void;
     // 番組名
-    setEventName(eventName: string): void;
+    setEventName(eventName: string | null): void;
 }
 
 interface BMLBrowserEventMap {
@@ -70,14 +70,14 @@ export class BMLBrowser {
     private shadowRoot: ShadowRoot;
     private documentElement: HTMLElement;
     private interpreter: Interpreter;
-    private nvram: NVRAM;
-    private browserAPI: BrowserAPI;
+    public readonly nvram: NVRAM;
+    public readonly browserAPI: BrowserAPI;
     private mediaElement: HTMLElement;
     private resources: Resources;
     private eventQueue: EventQueue;
     private eventDispatcher: EventDispatcher;
-    private broadcasterDatabase: BroadcasterDatabase;
-    private bmlDocument: BMLDocument;
+    public readonly broadcasterDatabase: BroadcasterDatabase;
+    public readonly bmlDocument: BMLDocument;
     private bmlDomDocument: BML.BMLDocument;
     private indicator?: Indicator;
     private eventTarget = new EventTarget() as BMLBrowserEventTarget;
@@ -91,6 +91,7 @@ export class BMLBrowser {
         uaStyle.textContent = defaultCSS;
         this.shadowRoot.appendChild(uaStyle);
         this.documentElement = document.createElement("html");
+        this.documentElement.tabIndex = 0;
         this.shadowRoot.appendChild(this.documentElement);
         this.resources = new Resources();
         this.broadcasterDatabase = new BroadcasterDatabase(this.resources);
@@ -132,6 +133,9 @@ export class BMLBrowser {
     // そのうちID3とかにできればよさそう
 
     public onMessage(msg: ResponseMessage) {
+        if (msg.type === "programInfo") {
+            this.indicator?.setEventName(msg.eventName);
+        }
         this.resources.onMessage(msg);
         this.broadcasterDatabase.onMessage(msg);
         this.browserAPI.onMessage(msg);
