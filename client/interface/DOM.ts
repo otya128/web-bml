@@ -1,64 +1,63 @@
-import { queueSyncEvent } from "../event";
+import { EventQueue } from "../event";
 import { BMLCSS2Properties } from "./BMLCSS2Properties";
-import * as resource from "../resource";
+import { Resources } from "../resource";
 import { aribPNGToPNG } from "../arib_png";
 import { readCLUT } from "../clut";
 import { defaultCLUT } from "../default_clut";
 import { parseCSSValue } from "../transpile_css";
 import { Buffer } from "buffer";
+import { IInterpreter } from "../interpreter/interpreter";
 
 export namespace BML {
     type DOMString = string;
-    export function nodeToBMLNode(node: globalThis.HTMLInputElement): BMLInputElement;
-    export function nodeToBMLNode(node: globalThis.HTMLBRElement): BMLBRElement;
-    export function nodeToBMLNode(node: globalThis.HTMLAnchorElement): BMLAnchorElement;
-    export function nodeToBMLNode(node: globalThis.HTMLHtmlElement): BMLBmlElement;
-    export function nodeToBMLNode(node: globalThis.HTMLScriptElement): HTMLScriptElement;
-    export function nodeToBMLNode(node: globalThis.HTMLObjectElement): BMLObjectElement;
-    export function nodeToBMLNode(node: globalThis.HTMLHeadElement): HTMLHeadElement;
-    export function nodeToBMLNode(node: globalThis.HTMLTitleElement): HTMLTitleElement;
-    export function nodeToBMLNode(node: globalThis.HTMLSpanElement): BMLSpanElement;
-    export function nodeToBMLNode(node: globalThis.HTMLMetaElement): HTMLMetaElement;
-    export function nodeToBMLNode(node: globalThis.HTMLStyleElement): HTMLStyleElement;
-    export function nodeToBMLNode(node: globalThis.HTMLElement): HTMLElement | BMLBeventElement | BMLBeitemElement;
-    export function nodeToBMLNode(node: globalThis.HTMLBodyElement): BMLBodyElement;
-    export function nodeToBMLNode(node: globalThis.HTMLParagraphElement): BMLParagraphElement;
-    export function nodeToBMLNode(node: globalThis.HTMLDivElement): BMLDivElement;
-    export function nodeToBMLNode(node: globalThis.HTMLHtmlElement): BMLBmlElement;
-    export function nodeToBMLNode(node: globalThis.HTMLElement): HTMLElement;
-    export function nodeToBMLNode(node: globalThis.Element): Element;
-    export function nodeToBMLNode(node: globalThis.CDATASection): CDATASection;
-    export function nodeToBMLNode(node: globalThis.Text): Text;
-    export function nodeToBMLNode(node: globalThis.CharacterData): CharacterData;
-    export function nodeToBMLNode(node: globalThis.HTMLAnchorElement): BMLAnchorElement;
-    export function nodeToBMLNode(node: globalThis.HTMLDocument): BMLDocument;
-    export function nodeToBMLNode(node: globalThis.Document): BMLDocument;
-    export function nodeToBMLNode(node: globalThis.Node): Node;
-    export function nodeToBMLNode(node: null): null;
-    export function nodeToBMLNode(node: globalThis.Node | null): Node | null {
-        return node == null ? null : wrapNodeNonNull(node);
+    export function nodeToBMLNode(node: globalThis.HTMLInputElement, ownerDocument: BMLDocument): BMLInputElement;
+    export function nodeToBMLNode(node: globalThis.HTMLBRElement, ownerDocument: BMLDocument): BMLBRElement;
+    export function nodeToBMLNode(node: globalThis.HTMLAnchorElement, ownerDocument: BMLDocument): BMLAnchorElement;
+    export function nodeToBMLNode(node: globalThis.HTMLHtmlElement, ownerDocument: BMLDocument): BMLBmlElement;
+    export function nodeToBMLNode(node: globalThis.HTMLScriptElement, ownerDocument: BMLDocument): HTMLScriptElement;
+    export function nodeToBMLNode(node: globalThis.HTMLObjectElement, ownerDocument: BMLDocument): BMLObjectElement;
+    export function nodeToBMLNode(node: globalThis.HTMLHeadElement, ownerDocument: BMLDocument): HTMLHeadElement;
+    export function nodeToBMLNode(node: globalThis.HTMLTitleElement, ownerDocument: BMLDocument): HTMLTitleElement;
+    export function nodeToBMLNode(node: globalThis.HTMLSpanElement, ownerDocument: BMLDocument): BMLSpanElement;
+    export function nodeToBMLNode(node: globalThis.HTMLMetaElement, ownerDocument: BMLDocument): HTMLMetaElement;
+    export function nodeToBMLNode(node: globalThis.HTMLStyleElement, ownerDocument: BMLDocument): HTMLStyleElement;
+    export function nodeToBMLNode(node: globalThis.HTMLElement, ownerDocument: BMLDocument): HTMLElement | BMLBeventElement | BMLBeitemElement;
+    export function nodeToBMLNode(node: globalThis.HTMLBodyElement, ownerDocument: BMLDocument): BMLBodyElement;
+    export function nodeToBMLNode(node: globalThis.HTMLParagraphElement, ownerDocument: BMLDocument): BMLParagraphElement;
+    export function nodeToBMLNode(node: globalThis.HTMLDivElement, ownerDocument: BMLDocument): BMLDivElement;
+    export function nodeToBMLNode(node: globalThis.HTMLHtmlElement, ownerDocument: BMLDocument): BMLBmlElement;
+    export function nodeToBMLNode(node: globalThis.HTMLElement, ownerDocument: BMLDocument): HTMLElement;
+    export function nodeToBMLNode(node: globalThis.Element, ownerDocument: BMLDocument): Element;
+    export function nodeToBMLNode(node: globalThis.CDATASection, ownerDocument: BMLDocument): CDATASection;
+    export function nodeToBMLNode(node: globalThis.Text, ownerDocument: BMLDocument): Text;
+    export function nodeToBMLNode(node: globalThis.CharacterData, ownerDocument: BMLDocument): CharacterData;
+    export function nodeToBMLNode(node: globalThis.HTMLAnchorElement, ownerDocument: BMLDocument): BMLAnchorElement;
+    export function nodeToBMLNode(node: globalThis.Node, ownerDocument: BMLDocument): Node;
+    export function nodeToBMLNode(node: null, ownerDocument: BMLDocument): null;
+    export function nodeToBMLNode(node: globalThis.Node | null, ownerDocument: BMLDocument): Node | null {
+        return node == null ? null : wrapNodeNonNull(node, ownerDocument);
     }
 
     export function bmlNodeToNode(node: Node | null): globalThis.Node | null {
         return node == null ? null : node["node"];
     }
 
-    export function htmlElementToBMLHTMLElement(node: globalThis.HTMLElement | null): HTMLElement | null {
+    export function htmlElementToBMLHTMLElement(node: globalThis.HTMLElement | null, ownerDocument: BMLDocument): HTMLElement | null {
         if (node == null) {
             return null;
         }
-        const result = wrapNodeNonNull(node);
+        const result = wrapNodeNonNull(node, ownerDocument);
         if (!(result instanceof HTMLElement)) {
             throw new TypeError("failed to cast to BML.HTMLElement");
         }
         return result;
     }
 
-    function wrapNode(node: globalThis.Node | null): Node | null {
-        return node == null ? null : wrapNodeNonNull(node);
+    function wrapNode(node: globalThis.Node | null, ownerDocument: BMLDocument): Node | null {
+        return node == null ? null : wrapNodeNonNull(node, ownerDocument);
     }
 
-    function wrapNodeNonNull(node: globalThis.Node): Node {
+    function wrapNodeNonNull(node: globalThis.Node, ownerDocument: BMLDocument): Node {
         const a: any = node;
         const klass = getNodeClass(node);
         if (a.__klass) {
@@ -69,7 +68,7 @@ export namespace BML {
             }
         }
         a.__klass = klass;
-        const inst = new klass(node);
+        const inst = new klass(node, ownerDocument);
         a.__bmlInstance = inst;
         return inst;
     }
@@ -121,10 +120,6 @@ export namespace BML {
             // CharcterDataは誤植
         } else if (node instanceof globalThis.CharacterData) {
             return CharacterData;
-        } else if (node instanceof globalThis.HTMLDocument) {
-            return BMLDocument;
-        } else if (node instanceof globalThis.Document) {
-            return BMLDocument;
         } else if (node instanceof globalThis.Node) {
             console.error(node);
             return Node;
@@ -142,51 +137,53 @@ export namespace BML {
         console.error("activeStyle is not implemented");
         return new BMLCSS2Properties(window.getComputedStyle(node), node.style);
     }
-    function focus(node: HTMLElement) {
-        const prevFocus = document.currentFocus;
+    function focus(node: HTMLElement, ownerDocument: BMLDocument, eventQueue: EventQueue) {
+        const prevFocus = ownerDocument.currentFocus;
         if (prevFocus === node) {
             return;
         }
         if (window.getComputedStyle(node["node"]).visibility === "hidden") {
             return;
         }
-        document._currentFocus = node;
+        ownerDocument._currentFocus = node;
         if (prevFocus != null) {
-            queueSyncEvent({ type: "blur", target: prevFocus["node"] });
+            eventQueue.queueSyncEvent({ type: "blur", target: prevFocus["node"] });
         }
-        queueSyncEvent({ type: "focus", target: node["node"] });
+        eventQueue.queueSyncEvent({ type: "focus", target: node["node"] });
     }
-    function blur(node: HTMLElement) {
-
+    function blur(node: HTMLElement, ownerDocument: BMLDocument, eventQueue: EventQueue) {
+        console.error("blur: not implmeneted");
     }
     // impl
     export class Node {
         protected node: globalThis.Node;
-        constructor(node: globalThis.Node) {
+        protected ownerDocument: BMLDocument;
+        constructor(node: globalThis.Node, ownerDocument: BMLDocument) {
             this.node = node;
+            this.ownerDocument = ownerDocument;
         }
         public get parentNode(): Node | null {
-            return wrapNode(this.node.parentNode);
+            return wrapNode(this.node.parentNode, this.ownerDocument);
         }
         public get firstChild(): Node | null {
-            return wrapNode(this.node.firstChild);
+            return wrapNode(this.node.firstChild, this.ownerDocument);
         }
         public get lastChild(): Node | null {
-            return wrapNode(this.node.lastChild);
+            return wrapNode(this.node.lastChild, this.ownerDocument);
         }
         public get previousSibling(): Node | null {
-            return wrapNode(this.node.previousSibling);
+            return wrapNode(this.node.previousSibling, this.ownerDocument);
         }
         get nextSibling(): Node | null {
-            return wrapNode(this.node.nextSibling);
+            return wrapNode(this.node.nextSibling, this.ownerDocument);
         }
     }
 
     // impl
     export class CharacterData extends Node {
         protected node: globalThis.CharacterData;
-        constructor(node: globalThis.CharacterData) {
-            super(node);
+        constructor(node: globalThis.CharacterData, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
             this.node = node;
         }
         public get data(): string {
@@ -214,8 +211,8 @@ export namespace BML {
     export class Document extends Node {
         protected node: globalThis.Document;
         protected _implementation: DOMImplementation;
-        constructor(node: globalThis.Document) {
-            super(node);
+        constructor(node: globalThis.Document, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
             this.node = node;
             this._implementation = new DOMImplementation();
         }
@@ -223,7 +220,7 @@ export namespace BML {
             return this._implementation;
         }
         public get documentElement(): HTMLElement {
-            return wrapNodeNonNull(this.node.documentElement) as HTMLElement;
+            return wrapNodeNonNull(this.node.documentElement, this.ownerDocument) as HTMLElement;
         }
     }
 
@@ -231,12 +228,12 @@ export namespace BML {
     // impl
     export abstract class HTMLDocument extends Document {
         protected node: globalThis.HTMLDocument;
-        constructor(node: globalThis.HTMLDocument) {
-            super(node);
+        constructor(node: globalThis.HTMLDocument, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
             this.node = node;
         }
         public getElementById(id: string): HTMLElement | null {
-            return wrapNode(this.node.getElementById(id)) as (HTMLElement | null);
+            return wrapNode(this.node.querySelector("#" + CSS.escape(id)), this.ownerDocument) as (HTMLElement | null);
         }
     }
 
@@ -244,7 +241,20 @@ export namespace BML {
     export class BMLDocument extends HTMLDocument {
         _currentFocus: HTMLElement | null = null;
         _currentEvent: BMLEvent | null = null;
+        public interpreter: IInterpreter;
+        public eventQueue: EventQueue;
+        public resources: Resources;
+        public constructor(node: globalThis.HTMLElement, interpreter: IInterpreter, eventQueue: EventQueue, resources: Resources) {
+            super(node as any, null!); // !
+            this.ownerDocument = this; // !!
+            this.interpreter = interpreter;
+            this.eventQueue = eventQueue;
+            this.resources = resources;
+        }
 
+        public get documentElement(): HTMLElement {
+            return wrapNodeNonNull(this.node, this.ownerDocument) as HTMLElement;
+        }
         public get currentFocus(): HTMLElement | null {
             return this._currentFocus;
         }
@@ -256,8 +266,8 @@ export namespace BML {
     // impl
     export class Element extends Node {
         protected node: globalThis.Element;
-        constructor(node: globalThis.Element) {
-            super(node);
+        constructor(node: globalThis.Element, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
             this.node = node;
         }
         public get tagName(): string {
@@ -268,8 +278,8 @@ export namespace BML {
     // impl
     export class HTMLElement extends Element {
         protected node: globalThis.HTMLElement;
-        constructor(node: globalThis.HTMLElement) {
-            super(node);
+        constructor(node: globalThis.HTMLElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
             this.node = node;
         }
         public get id(): string {
@@ -305,8 +315,8 @@ export namespace BML {
     // impl
     export class HTMLAnchorElement extends HTMLElement {
         protected node: globalThis.HTMLAnchorElement;
-        constructor(node: globalThis.HTMLAnchorElement) {
-            super(node);
+        constructor(node: globalThis.HTMLAnchorElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
             this.node = node;
         }
         public get accessKey(): string {
@@ -336,8 +346,8 @@ export namespace BML {
     // impl
     export class HTMLInputElement extends HTMLElement {
         protected node: globalThis.HTMLInputElement;
-        constructor(node: globalThis.HTMLInputElement) {
-            super(node);
+        constructor(node: globalThis.HTMLInputElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
             this.node = node;
         }
         public get defaultValue(): string {
@@ -371,10 +381,10 @@ export namespace BML {
             this.node.value = value;
         }
         public blur(): void {
-            blur(this);
+            blur(this, this.ownerDocument, this.ownerDocument.eventQueue);
         }
         public focus(): void {
-            focus(this);
+            focus(this, this.ownerDocument, this.ownerDocument.eventQueue);
         }
     }
 
@@ -418,8 +428,8 @@ export namespace BML {
     // impl
     export class HTMLObjectElement extends HTMLElement {
         protected node: globalThis.HTMLObjectElement;
-        constructor(node: globalThis.HTMLObjectElement) {
-            super(node);
+        constructor(node: globalThis.HTMLObjectElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
             this.node = node;
         }
         public get data(): string {
@@ -446,7 +456,7 @@ export namespace BML {
                 // 順序が逆転するのを防止
                 this.__version = this.__version + 1;
                 const version: number = (this as any).__version;
-                const fetched = await resource.fetchResourceAsync(value);
+                const fetched = await this.ownerDocument.resources.fetchResourceAsync(value);
                 if (!fetched) {
                     return;
                 }
@@ -460,8 +470,8 @@ export namespace BML {
                         this.node.setAttribute("arib-type", this.type);
                     }
                     const clutCss = window.getComputedStyle(this.node).getPropertyValue("--clut");
-                    const clutUrl = clutCss == null ? null : parseCSSValue("http://localhost" + (resource.activeDocument ?? ""), clutCss);
-                    const fetchedClut = clutUrl == null ? null : (await resource.fetchResourceAsync(clutUrl))?.data;
+                    const clutUrl = clutCss == null ? null : parseCSSValue("http://localhost" + (this.ownerDocument.resources.activeDocument ?? ""), clutCss);
+                    const fetchedClut = clutUrl == null ? null : (await this.ownerDocument.resources.fetchResourceAsync(clutUrl))?.data;
                     if (this.__version !== version) {
                         return;
                     }
@@ -475,7 +485,7 @@ export namespace BML {
                     }
                     this.node.type = "image/png";
                 } else {
-                    imageUrl = resource.getCachedFileBlobUrl(fetched);
+                    imageUrl = this.ownerDocument.resources.getCachedFileBlobUrl(fetched);
                 }
                 // jpeg/png程度ならバイナリ解析すればImage使わずとも大きさは取得できそう
                 const img = new Image();
@@ -483,7 +493,7 @@ export namespace BML {
                     if (this.__version !== version) {
                         return;
                     }
-                    const { width, height } = fixImageSize(window.getComputedStyle(window.document.body).getPropertyValue("resolution"), img.width, img.height, (aribType ?? this.type));
+                    const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("resolution"), img.width, img.height, (aribType ?? this.type));
                     if (width != null && height != null) {
                         this.node.style.maxWidth = width + "px";
                         this.node.style.minWidth = width + "px";
@@ -544,10 +554,10 @@ export namespace BML {
             throw new Error("BMLObjectElement.getMainAudioStream()");
         }
         public blur(): void {
-            blur(this);
+            blur(this, this.ownerDocument, this.ownerDocument.eventQueue);
         }
         public focus(): void {
-            focus(this);
+            focus(this, this.ownerDocument, this.ownerDocument.eventQueue);
         }
     }
 
@@ -566,10 +576,10 @@ export namespace BML {
             return this.node.accessKey;
         }
         public blur(): void {
-            blur(this);
+            blur(this, this.ownerDocument, this.ownerDocument.eventQueue);
         }
         public focus(): void {
-            focus(this);
+            focus(this, this.ownerDocument, this.ownerDocument.eventQueue);
         }
     }
 
@@ -584,21 +594,22 @@ export namespace BML {
             return this.node.getAttribute("invisible") === "invisible";
         }
         public set invisible(v: boolean) {
-            const videoContainer = globalThis.document.getElementById("arib-video-container") as globalThis.HTMLDivElement;
-            const s = globalThis.document.getElementById("arib-video-invisible-container")?.style;
+            const videoContainer = bmlNodeToNode(this.ownerDocument.getElementById("arib-video-container")) as globalThis.HTMLDivElement;
+            const icontainer = bmlNodeToNode(this.ownerDocument.getElementById("arib-video-invisible-container")) as globalThis.HTMLDivElement;
+            const s = icontainer?.style;
             if (v) {
                 if (s) {
                     s.setProperty("display", "", "important");
                     s.setProperty("z-index", "999", "important");
                 }
-                globalThis.document.getElementById("arib-video-invisible-container")?.appendChild(videoContainer);
+                icontainer?.appendChild(videoContainer);
                 this.node.setAttribute("invisible", "invisible");
             } else {
                 if (s) {
                     s.setProperty("display", "none", "important");
                     s.setProperty("z-index", "-1", "important");
                 }
-                const obj = globalThis.document.body.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
+                const obj = (bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
                 if (obj != null) {
                     obj.appendChild(videoContainer);
                 }
@@ -630,10 +641,10 @@ export namespace BML {
             return this.node.accessKey;
         }
         public blur(): void {
-            blur(this);
+            blur(this, this.ownerDocument, this.ownerDocument.eventQueue);
         }
         public focus(): void {
-            focus(this);
+            focus(this, this.ownerDocument, this.ownerDocument.eventQueue);
         }
     }
 
@@ -657,18 +668,18 @@ export namespace BML {
             return this.node.accessKey;
         }
         public blur(): void {
-            blur(this);
+            blur(this, this.ownerDocument, this.ownerDocument.eventQueue);
         }
         public focus(): void {
-            focus(this);
+            focus(this, this.ownerDocument, this.ownerDocument.eventQueue);
         }
     }
 
     // impl
     export class HTMLMetaElement extends HTMLElement {
         protected node: globalThis.HTMLMetaElement;
-        constructor(node: globalThis.HTMLMetaElement) {
-            super(node);
+        constructor(node: globalThis.HTMLMetaElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
             this.node = node;
         }
         public get content(): string {
@@ -682,8 +693,8 @@ export namespace BML {
     // impl
     export class HTMLTitleElement extends HTMLElement {
         protected node: globalThis.HTMLTitleElement;
-        constructor(node: globalThis.HTMLTitleElement) {
-            super(node);
+        constructor(node: globalThis.HTMLTitleElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
             this.node = node;
         }
         public get text(): string {
@@ -896,5 +907,4 @@ export namespace BML {
             return feature.toUpperCase() === "BML" && version === "1.0";
         }
     }
-    export const document = nodeToBMLNode(window.document);
 }

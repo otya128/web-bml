@@ -1,50 +1,78 @@
 export { };
 import * as resource from "./resource";
 // @ts-ignore
-import { JSInterpreter } from "./interpreter/js_interpreter";
-import { browser, browserState } from "./browser";
-import { launchDocument } from "./document";
-import { ResponseMessage } from "../server/ws_api";
+import { EPGStationRecordedParam, MirakLiveParam, Param, ResponseMessage } from "../server/ws_api";
 import { MP4VideoPlayer } from "./player/mp4";
 import { MPEGTSVideoPlayer } from "./player/mpegts";
 import { HLSVideoPlayer } from "./player/hls";
 import { NullVideoPlayer } from "./player/null";
-
-// const interpreter = new NativeInterpreter(browser);
-const interpreter = new JSInterpreter(browser);
-browserState.interpreter = interpreter;
-resource.fetchResourceAsync("/40/0000").then(() => {
-    if (resource.fetchLockedResource("/40/0000/startup.bml")) {
-        launchDocument("/40/0000/startup.bml");
-    } else {
-        launchDocument("/40/0000");
+import { BMLBrowser } from "./bml_browser";
+import { VideoPlayer } from "./player/video_player";
+function getParametersFromUrl(url: string): Param | {} {
+    const pathname = new URL(url).pathname;
+    const demultiplexServiceId = Number.parseInt(new URL(url).searchParams.get("demultiplexServiceId") ?? "");
+    const baseParam = { demultiplexServiceId: undefined as (number | undefined) };
+    if (Number.isInteger(demultiplexServiceId)) {
+        baseParam.demultiplexServiceId = demultiplexServiceId;
     }
-});
+    const mirakGroups = /^\/channels\/(?<type>.+?)\/(?<channel>.+?)\/(services\/(?<serviceId>.+?)\/)?stream\/*$/.exec(pathname)?.groups;
+    if (mirakGroups != null) {
+        const type = decodeURIComponent(mirakGroups.type);
+        const channel = decodeURIComponent(mirakGroups.channel);
+        const serviceId = Number.parseInt(decodeURIComponent(mirakGroups.serviceId));
+        return {
+            type: "mirakLive",
+            channel,
+            channelType: type,
+            serviceId: Number.isNaN(serviceId) ? undefined : serviceId,
+            ...baseParam
+        } as MirakLiveParam;
+    } else {
+        const epgGroups = /^\/videos\/(?<videoId>.+?)\/*$/.exec(pathname)?.groups;
+        if (epgGroups != null) {
+            const videoFileId = Number.parseInt(decodeURIComponent(epgGroups.videoId));
+            if (!Number.isNaN(videoFileId)) {
+                return {
+                    type: "epgStationRecorded",
+                    videoFileId,
+                    ...baseParam
+                } as EPGStationRecordedParam;
+            }
+        }
+    }
+    return baseParam;
+}
 
-resource.resourceEventTarget.addEventListener("message", ((event: CustomEvent) => {
-    const msg = event.detail as ResponseMessage;
+const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/ws?param=" + encodeURIComponent(JSON.stringify(getParametersFromUrl(location.href))));
+
+let player: VideoPlayer | undefined;
+const videoContainer = document.querySelector("#arib-video-container")! as HTMLElement;
+const bmlBrowser = new BMLBrowser(document.body, videoContainer);
+ws.addEventListener("message", (event) => {
+    const msg = JSON.parse(event.data) as ResponseMessage;
+    bmlBrowser.onMessage(msg);
+
     if (msg.type === "videoStreamUrl") {
-        const videoElement = document.querySelector("video") as HTMLVideoElement; // a
+        const videoElement = videoContainer.querySelector("video") as HTMLVideoElement; // a
         const container = document.querySelector("#arib-video-cc-container") as HTMLElement;
         switch (new URLSearchParams(location.search).get("format")) {
             case "mp4":
-                browserState.player = new MP4VideoPlayer(videoElement, container);
+                player = new MP4VideoPlayer(videoElement, container);
                 break;
             case "hls":
-                browserState.player = new HLSVideoPlayer(videoElement, container);
+                player = new HLSVideoPlayer(videoElement, container);
                 break;
             case "null":
-                browserState.player = new NullVideoPlayer(videoElement, container);
+                player = new NullVideoPlayer(videoElement, container);
                 break;
             default:
             case "mpegts-h264":
-                browserState.player = new MPEGTSVideoPlayer(videoElement, container);
+                player = new MPEGTSVideoPlayer(videoElement, container);
                 break;
         }
-        browserState.player.setSource(msg.videoStreamUrl);
-        browserState.player.play();
+        player.setSource(msg.videoStreamUrl);
+        player.play();
         videoElement.style.display = "";
     }
-}) as EventListener);
-
-browserState.broadcasterDatabase.openDatabase();
+});
+bmlBrowser.launchStartupDocument();

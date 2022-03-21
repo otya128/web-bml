@@ -43,6 +43,10 @@ import { broadcaster6 } from "./broadcaster_6";
 import { broadcaster7 } from "./broadcaster_7";
 
 export class BroadcasterDatabase {
+    private resources: resource.Resources; // iru?
+    public constructor(resources: resource.Resources) {
+        this.resources = resources;
+    }
     private broadcastersPrefix = "broadcasters_";
     private affiliationsPrefix = "affiliations_";
     // 録画再生時に上書きしたら困るので分ける
@@ -119,13 +123,26 @@ export class BroadcasterDatabase {
         this.loadDatabase();
         // broadcasters_<originalNetworkId>
         // affiliations_<originalNetworkId>.<broadcasterId>
-        resource.resourceEventTarget.addEventListener("message", ((event: CustomEvent) => {
-            const msg = event.detail as ResponseMessage;
-            if (msg.type === "bit") {
-                const lastUpdated = resource.currentTime?.timeUnixMillis;
-                for (const broadcaster of msg.broadcasters) {
-                    if (broadcaster.broadcasterId === 255) {
-                        const key = `${msg.originalNetworkId}.${broadcaster.broadcasterId}`;
+    }
+    public onMessage(msg: ResponseMessage) {
+        if (msg.type === "bit") {
+            const lastUpdated = this.resources.getCurrentTimeUnixMillis();
+            for (const broadcaster of msg.broadcasters) {
+                if (broadcaster.broadcasterId === 255) {
+                    const key = `${msg.originalNetworkId}.${broadcaster.broadcasterId}`;
+                    const v = { affiliations: broadcaster.affiliations, lastUpdated: lastUpdated ?? new Date().getTime() };
+                    this.affiliations.set(key, v);
+                    if (lastUpdated != null) {
+                        const prev = this.localStorageAffiliations.get(key);
+                        if (prev == null || !affiliationsEquals(prev.affiliations, v.affiliations)) {
+                            this.localStorageAffiliations.set(key, v);
+                            if (prev == null || prev.lastUpdated < lastUpdated) {
+                                localStorage.setItem(this.affiliationsPrefix + key, JSON.stringify(v));
+                            }
+                        }
+                    }
+                    for (const b of broadcaster.affiliationBroadcasters) {
+                        const key = `${b.originalNetworkId}.${b.broadcasterId}`;
                         const v = { affiliations: broadcaster.affiliations, lastUpdated: lastUpdated ?? new Date().getTime() };
                         this.affiliations.set(key, v);
                         if (lastUpdated != null) {
@@ -137,144 +154,32 @@ export class BroadcasterDatabase {
                                 }
                             }
                         }
-                        for (const b of broadcaster.affiliationBroadcasters) {
-                            const key = `${b.originalNetworkId}.${b.broadcasterId}`;
-                            const v = { affiliations: broadcaster.affiliations, lastUpdated: lastUpdated ?? new Date().getTime() };
-                            this.affiliations.set(key, v);
-                            if (lastUpdated != null) {
-                                const prev = this.localStorageAffiliations.get(key);
-                                if (prev == null || !affiliationsEquals(prev.affiliations, v.affiliations)) {
-                                    this.localStorageAffiliations.set(key, v);
-                                    if (prev == null || prev.lastUpdated < lastUpdated) {
-                                        localStorage.setItem(this.affiliationsPrefix + key, JSON.stringify(v));
-                                    }
-                                }
-                            }
-                        }
-                        continue;
                     }
+                    continue;
                 }
-                const key = `${this.broadcastersPrefix}${msg.originalNetworkId}`;
-                const tbid = msg.broadcasters.filter(x => x.terrestrialBroadcasterId != null);
-                if (tbid.length > 1) {
-                    console.error(tbid);
-                }
-                const v: Broadcaster = {
-                    services: Object.fromEntries(msg.broadcasters.flatMap(x => x.services.map(y => [`${y.serviceId}`, { broadcasterId: x.broadcasterId }]))),
-                    terrestrialBroadcasterId: tbid[0]?.terrestrialBroadcasterId,
-                    lastUpdated: lastUpdated ?? new Date().getTime(),
-                };
-                this.broadcasters.set(msg.originalNetworkId, v);
-                if (lastUpdated != null) {
-                    const prev = this.localStorageBroadcasters.get(msg.originalNetworkId);
-                    if (prev == null || !broadcasterEquals(v, prev)) {
-                        this.localStorageBroadcasters.set(msg.originalNetworkId, v);
-                        if (prev == null || prev.lastUpdated < lastUpdated) {
-                            localStorage.setItem(key, JSON.stringify(v));
-                        }
+            }
+            const key = `${this.broadcastersPrefix}${msg.originalNetworkId}`;
+            const tbid = msg.broadcasters.filter(x => x.terrestrialBroadcasterId != null);
+            if (tbid.length > 1) {
+                console.error(tbid);
+            }
+            const v: Broadcaster = {
+                services: Object.fromEntries(msg.broadcasters.flatMap(x => x.services.map(y => [`${y.serviceId}`, { broadcasterId: x.broadcasterId }]))),
+                terrestrialBroadcasterId: tbid[0]?.terrestrialBroadcasterId,
+                lastUpdated: lastUpdated ?? new Date().getTime(),
+            };
+            this.broadcasters.set(msg.originalNetworkId, v);
+            if (lastUpdated != null) {
+                const prev = this.localStorageBroadcasters.get(msg.originalNetworkId);
+                if (prev == null || !broadcasterEquals(v, prev)) {
+                    this.localStorageBroadcasters.set(msg.originalNetworkId, v);
+                    if (prev == null || prev.lastUpdated < lastUpdated) {
+                        localStorage.setItem(key, JSON.stringify(v));
                     }
                 }
             }
-        }) as EventListener);
-    }
-}
-
-
-
-/*
-type OriginalNetworkIdServiceId = string;
-type BroadcasterId = number;
-const broadcasters = new Map<OriginalNetworkIdServiceId, BroadcasterId>();
-
-type OriginalNetworkIdBroadcasterId = string;
-type AffiliationId = number[];
-const affiliations = new Map<OriginalNetworkIdBroadcasterId, AffiliationId>();
-
-function sameAffiliations(lhs: number[] | undefined, rhs: number[]) {
-    if (lhs == null) {
-        return false;
-    }
-    return lhs.length === rhs.length && lhs.every(x => rhs.indexOf(x) !== -1);
-}
-
-export function openDatabase() {
-    const req = window.indexedDB.open("broadcaster", 2);
-    req.onupgradeneeded = () => {
-        req.result.createObjectStore("broadcasters");
-        req.result.createObjectStore("affiliations");
-    };
-
-    req.onsuccess = () => {
-        {
-            const tx = req.result.transaction(["broadcasters", "affiliations"], "readonly");
-            const broadcastersStore = tx.objectStore("broadcasters");
-            const broadcastersCursor = broadcastersStore.openCursor();
-            broadcastersCursor.onsuccess = () => {
-                if (!broadcastersCursor.result) {
-                    return;
-                }
-                broadcasters.set(broadcastersCursor.result.key as string, broadcastersCursor.result.value.broadcasterId);
-                broadcastersCursor.result.continue();
-            };
-            const affiliationsStore = tx.objectStore("affiliations");
-            const affiliationsCursor = affiliationsStore.openCursor();
-            affiliationsCursor.onsuccess = () => {
-                if (!affiliationsCursor.result) {
-                    return;
-                }
-                affiliations.set(affiliationsCursor.result.key as string, affiliationsCursor.result.value.affiliations);
-                affiliationsCursor.result.continue();
-            };
         }
-        resource.resourceEventTarget.addEventListener("message", ((event: CustomEvent) => {
-            const msg = event.detail as ResponseMessage;
-            if (msg.type === "bit") {
-                const affiliationItems: [string, number[]][] = [];
-                const broadcasterItems: [string, number][] = [];
-                for (const broadcaster of msg.broadcasters) {
-                    if (broadcaster.broadcasterId === 255) {
-                        const key = `${msg.originalNetworkId}.${broadcaster.broadcasterId}`;
-                        if (!sameAffiliations(affiliations.get(key), broadcaster.affiliations)) {
-                            affiliations.set(key, broadcaster.affiliations);
-                            affiliationItems.push([key, broadcaster.affiliations]);
-                        }
-                        for (const b of broadcaster.affiliationBroadcasters) {
-                            const key = `${b.originalNetworkId}.${b.broadcasterId}`;
-                            if (!sameAffiliations(affiliations.get(key), broadcaster.affiliations)) {
-                                affiliations.set(key, broadcaster.affiliations);
-                                affiliationItems.push([key, broadcaster.affiliations]);
-                            }
-                        }
-                        continue;
-                    }
-                    for (const service of broadcaster.services) {
-                        const key = `${msg.originalNetworkId}.${service.serviceId}`;
-                        if (broadcasters.get(key) === broadcaster.broadcasterId) {
-                            continue;
-                        }
-                        broadcasterItems.push([key, broadcaster.broadcasterId]);
-                        broadcasters.set(key, broadcaster.broadcasterId);
-                    }
-                }
-                if (affiliationItems.length !== 0) {
-                    const tx = req.result.transaction("affiliations", "readwrite");
-                    const store = tx.objectStore("affiliations");
-                    const lastUpdated = new Date().getTime();
-                    for (const [k, v] of affiliationItems) {
-                        store.put({ affiliations: v, lastUpdated }, k);
-                    }
-                }
-                if (broadcasterItems.length !== 0) {
-                    const tx = req.result.transaction("broadcasters", "readwrite");
-                    const store = tx.objectStore("broadcasters");
-                    const lastUpdated = new Date().getTime();
-                    for (const [k, v] of broadcasterItems) {
-                        store.put({ broadcasterId: v, lastUpdated }, k);
-                    }
-                }
-            }
-        }) as EventListener);
-
-    };
+    }
 }
-*/
+
+

@@ -1,10 +1,10 @@
-import { browserState } from "./browser";
-import { AribKeyCode, keyCodeToAribKey, processKeyDown, processKeyUp } from "./document";
+import { AribKeyCode, keyCodeToAribKey, BMLDocument } from "./document";
+import { VideoPlayer } from "./player/video_player";
 import { RemoteControllerMessage } from "./remote_controller";
 
 let currentRemoteControllerMessage: string | null = null;
 
-export function setRemoteControllerMessage(msg: string | null) {
+function setRemoteControllerMessage(msg: string | null) {
     const remote = remoteControllerFrame.contentDocument?.getElementById("active");
     if (remote != null) {
         remote.textContent = msg;
@@ -23,50 +23,56 @@ function createRemoteController(): HTMLIFrameElement {
     return controller;
 }
 
-window.addEventListener("message", (ev) => {
-    const remoteController = ev.data?.remoteController as (RemoteControllerMessage | undefined);
-    if (remoteController != null) {
-        if (remoteController.type === "unmute") {
-            browserState.player?.unmute();
-        } else if (remoteController.type === "mute") {
-            browserState.player?.mute();
-        } else if (remoteController.type === "pause") {
-            browserState.player?.pause();
-        } else if (remoteController.type === "play") {
-            browserState.player?.play();
-        } else if (remoteController.type === "cc") {
-            browserState.player?.showCC();
-        } else if (remoteController.type === "disable-cc") {
-            browserState.player?.hideCC();
-        } else if (remoteController.type === "zoom-100") {
-            document.documentElement.style.transform = "";
-            browserState.player?.scale(1);
-        } else if (remoteController.type === "zoom-150") {
-            document.documentElement.style.transform = "scale(150%)";
-            document.documentElement.style.transformOrigin = "left top";
-            browserState.player?.scale(1.5);
-        } else if (remoteController.type === "zoom-200") {
-            document.documentElement.style.transform = "scale(200%)";
-            document.documentElement.style.transformOrigin = "left top";
-            browserState.player?.scale(2);
-        } else if (remoteController.type === "button") {
-            processKeyDown(remoteController.keyCode as AribKeyCode);
-            processKeyUp(remoteController.keyCode as AribKeyCode);
-        } else if (remoteController.type === "keydown") {
-            const k = keyCodeToAribKey(remoteController.key);
-            if (k != -1) {
-                processKeyDown(k);
+class RemoteControl {
+    bmlDocument: BMLDocument;
+    constructor(bmlDocument: BMLDocument, player: VideoPlayer) {
+        this.bmlDocument = bmlDocument;
+        window.addEventListener("message", (ev) => {
+            const remoteController = ev.data?.remoteController as (RemoteControllerMessage | undefined);
+            if (remoteController != null) {
+                if (remoteController.type === "unmute") {
+                    player?.unmute();
+                } else if (remoteController.type === "mute") {
+                    player?.mute();
+                } else if (remoteController.type === "pause") {
+                    player?.pause();
+                } else if (remoteController.type === "play") {
+                    player?.play();
+                } else if (remoteController.type === "cc") {
+                    player?.showCC();
+                } else if (remoteController.type === "disable-cc") {
+                    player?.hideCC();
+                } else if (remoteController.type === "zoom-100") {
+                    document.documentElement.style.transform = "";
+                    player?.scale(1);
+                } else if (remoteController.type === "zoom-150") {
+                    document.documentElement.style.transform = "scale(150%)";
+                    document.documentElement.style.transformOrigin = "left top";
+                    player?.scale(1.5);
+                } else if (remoteController.type === "zoom-200") {
+                    document.documentElement.style.transform = "scale(200%)";
+                    document.documentElement.style.transformOrigin = "left top";
+                    player?.scale(2);
+                } else if (remoteController.type === "button") {
+                    bmlDocument.processKeyDown(remoteController.keyCode as AribKeyCode);
+                    bmlDocument.processKeyUp(remoteController.keyCode as AribKeyCode);
+                } else if (remoteController.type === "keydown") {
+                    const k = keyCodeToAribKey(remoteController.key);
+                    if (k != -1) {
+                        bmlDocument.processKeyDown(k);
+                    }
+                } else if (remoteController.type === "keyup") {
+                    const k = keyCodeToAribKey(remoteController.key);
+                    if (k != -1) {
+                        bmlDocument.processKeyUp(k);
+                    }
+                } else if (remoteController.type === "load") {
+                    setRemoteControllerMessage(currentRemoteControllerMessage);
+                }
             }
-        } else if (remoteController.type === "keyup") {
-            const k = keyCodeToAribKey(remoteController.key);
-            if (k != -1) {
-                processKeyUp(k);
-            }
-        } else if (remoteController.type === "load") {
-            setRemoteControllerMessage(currentRemoteControllerMessage);
-        }
-    }
-});
+        });
 
-const remoteControllerFrame = createRemoteController();
-document.documentElement.append(remoteControllerFrame);
+        const remoteControllerFrame = createRemoteController();
+        document.documentElement.append(remoteControllerFrame);
+    }
+}

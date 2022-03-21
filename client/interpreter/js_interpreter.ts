@@ -1,10 +1,10 @@
 const { Interpreter }: { Interpreter: any } = require("../../JS-Interpreter/interpreter");
 import * as BT from "../binary_table";
-import { IInterpreter } from "./interpreter";
+import { Interpreter } from "./interpreter";
 import * as context from "../context";
-import { launchDocument as documentLaunchDocument } from "../document";
+import { BMLDocument } from "../document";
 import { getTrace, getLog } from "../util/trace";
-import * as resource from "../resource";
+import { Resources } from "../resource";
 
 const domTrace = getTrace("js-interpreter.dom");
 const eventTrace = getTrace("js-interpreter.event");
@@ -21,18 +21,6 @@ function sleep(ms: number, callback: (result: any, resolveValue: any) => void) {
 
 const LAUNCH_DOCUMENT_CALLED = {};
 
-function launchDocument(documentName: string, transitionStyle: string | undefined, callback: (result: any, promiseValue: any) => void): void {
-    browserLog("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
-    const r = documentLaunchDocument(documentName);
-    callback(r, LAUNCH_DOCUMENT_CALLED);
-}
-
-function reloadActiveDocument(callback: (result: any, promiseValue: any) => void): void {
-    browserLog("%creloadActiveDocument", "font-size: 4em");
-    const r = documentLaunchDocument(browser.getActiveDocument()!);
-    callback(r, LAUNCH_DOCUMENT_CALLED);
-}
-
 function unlockScreen(callback: (result: any, promiseValue: any) => void) {
     requestAnimationFrame(() => {
         callback(1, undefined);
@@ -48,17 +36,6 @@ function unlockScreen(callback: (result: any, promiseValue: any) => void) {
  * Number
  * Date
  * Math (運用しない)
- * document
- *   close()
- *   getElementById()
- *   currentFocus R
- *   currentEvent R
- * HTMLElement
- *   id R
- *   className R
- * HTMLAnchorElement
- *   accessKey R
- *   href RW
  * CSVTable (運用しない)
  * BinaryTable
  * browser
@@ -68,91 +45,10 @@ function unlockScreen(callback: (result: any, promiseValue: any) => void) {
 
 import { BML } from "../interface/DOM";
 import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
-import { browser, Browser } from "../browser";
-import { fetchResourceAsync } from "../resource";
+import { Browser } from "../browser";
 import * as bmlDate from "../date";
 import * as bmlNumber from "../number";
 import * as bmlString from "../string";
-
-function initDate(interpreter: any, globalObject: any) {
-    var thisInterpreter = interpreter;
-    var wrapper;
-    // Date constructor.
-    wrapper = function Date(this: { data: Date }, value: any, _var_args: any) {
-        if (!thisInterpreter.calledWithNew()) {
-            // Called as `Date()`.
-            // Calling Date() as a function returns a string, no arguments are heeded.
-            console.error("Date()");
-            return Interpreter.nativeGlobal.Date();
-        }
-        // Called as `new Date(...)`.
-        var args = [null].concat(Array.from(arguments));
-        if (args.length <= 1 && value == null && resource.currentTime?.timeUnixMillis != null) {
-            // currentDateMode=1ならtimeUnixMillisを取得した時間からオフセット追加とかが理想かもしれない
-            browserLog("new Date()");
-            this.data = new Interpreter.nativeGlobal.Date(resource.currentTime?.timeUnixMillis);
-        } else {
-            this.data = new (Function.prototype.bind.apply(
-                Interpreter.nativeGlobal.Date, args as any));
-        }
-        return this;
-    };
-    interpreter.DATE = interpreter.createNativeFunction(wrapper, true);
-    interpreter.DATE_PROTO = interpreter.DATE.properties['prototype'];
-    interpreter.setProperty(globalObject, 'Date', interpreter.DATE,
-        Interpreter.NONENUMERABLE_DESCRIPTOR);
-
-    // Static methods on Date.
-    interpreter.setProperty(interpreter.DATE, 'now', interpreter.createNativeFunction(Date.now, false),
-        Interpreter.NONENUMERABLE_DESCRIPTOR);
-
-    interpreter.setProperty(interpreter.DATE, 'parse',
-        interpreter.createNativeFunction(Date.parse, false),
-        Interpreter.NONENUMERABLE_DESCRIPTOR);
-
-    interpreter.setProperty(interpreter.DATE, 'UTC', interpreter.createNativeFunction(Date.UTC, false),
-        Interpreter.NONENUMERABLE_DESCRIPTOR);
-
-    // Instance methods on Date.
-    var functions = ['getDate', 'getDay', 'getFullYear', 'getHours',
-        'getMilliseconds', 'getMinutes', 'getMonth', 'getSeconds', 'getTime',
-        'getTimezoneOffset', 'getUTCDate', 'getUTCDay', 'getUTCFullYear',
-        'getUTCHours', 'getUTCMilliseconds', 'getUTCMinutes', 'getUTCMonth',
-        'getUTCSeconds', 'getYear',
-        'setDate', 'setFullYear', 'setHours', 'setMilliseconds',
-        'setMinutes', 'setMonth', 'setSeconds', 'setTime', 'setUTCDate',
-        'setUTCFullYear', 'setUTCHours', 'setUTCMilliseconds', 'setUTCMinutes',
-        'setUTCMonth', 'setUTCSeconds', 'setYear',
-        'toDateString', 'toISOString', 'toJSON', 'toGMTString',
-        'toLocaleDateString', 'toLocaleString', 'toLocaleTimeString',
-        'toTimeString', 'toUTCString'];
-    for (var i = 0; i < functions.length; i++) {
-        wrapper = (function (nativeFunc) {
-            return function (this: { data: Date }, _var_args: any) {
-                var date = this.data;
-                if (!(date instanceof Date)) {
-                    thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
-                        nativeFunc + ' not called on a Date');
-                }
-                var args = [];
-                for (var i = 0; i < arguments.length; i++) {
-                    args[i] = thisInterpreter.pseudoToNative(arguments[i]);
-                }
-                return (date as any)[nativeFunc].apply(date, args);
-            };
-        })(functions[i]);
-        interpreter.setNativeFunctionPrototype(interpreter.DATE, functions[i], wrapper);
-    }
-    interpreter.setNativeFunctionPrototype(interpreter.DATE, "toString", function (this: { data: Date }) {
-        return bmlDate.toString.call(this.data);
-    });
-    interpreter.setNativeFunctionPrototype(interpreter.DATE, "toLocaleString", function (this: { data: Date }) {
-        return bmlDate.toString.call(this.data);
-    });
-    interpreter.setNativeFunctionPrototype(interpreter.DATE, "toUTCString", function (this: { data: Date }) {
-        return bmlDate.toUTCString.call(this.data);
-    });
-}
 
 function initNumber(interpreter: any, globalObject: any) {
     var thisInterpreter = interpreter;
@@ -188,7 +84,7 @@ function initNumber(interpreter: any, globalObject: any) {
     interpreter.setNativeFunctionPrototype(interpreter.NUMBER, 'toString', wrapper);
 }
 
-export class JSInterpreter implements IInterpreter {
+export class JSInterpreter implements Interpreter {
     interpreter: any;
 
     nativeProtoToPseudoObject = new Map<any, any>();
@@ -325,6 +221,18 @@ export class JSInterpreter implements IInterpreter {
     }
 
     public reset() {
+        const bmlDocument = this.bmlDocument;
+        function launchDocument(documentName: string, transitionStyle: string | undefined, callback: (result: any, promiseValue: any) => void): void {
+            browserLog("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
+            const r = bmlDocument.launchDocument(documentName);
+            callback(r, LAUNCH_DOCUMENT_CALLED);
+        }
+        
+        function reloadActiveDocument(callback: (result: any, promiseValue: any) => void): void {
+            browserLog("%creloadActiveDocument", "font-size: 4em");
+            const r = bmlDocument.launchDocument(browser.getActiveDocument()!);
+            callback(r, LAUNCH_DOCUMENT_CALLED);
+        }
         const browser = this.browser;
         this.interpreter = new Interpreter("", (interpreter: any, globalObject: any) => {
             interpreter.setProperty(globalObject, "___log", interpreter.createNativeFunction(function log(log: string) {
@@ -368,18 +276,19 @@ export class JSInterpreter implements IInterpreter {
             interpreter.setProperty(pseudoBrowser, "writePersistentArray", interpreter.createNativeFunction(function writePersistentArray(filename: string, structure: string, data: any[], period?: Date): number {
                 return browser.writePersistentArray(filename, structure, interpreter.arrayPseudoToNative(data), period);
             }));
+            const resources = this.resources;
             interpreter.setProperty(pseudoBrowser, "getProgramID", interpreter.createAsyncFunction(function getProgramID(type: number, callback: (result: any, promiseValue: any) => void) {
-                resource.getProgramInfoAsync().then(_ => {
+                resources.getProgramInfoAsync().then(_ => {
                     const pid = browser.getProgramID(type);
                     callback(pid, undefined);
                 });
             }));
 
             this.registerDOMClasses(interpreter, globalObject);
-            interpreter.setProperty(globalObject, "document", this.domObjectToPseudo(interpreter, BML.document));
+            interpreter.setProperty(globalObject, "document", this.domObjectToPseudo(interpreter, this.bmlDocument.bmlDocument));
 
             const pseudoBinaryTable = interpreter.createAsyncFunction(function BinaryTable(this: any, table_ref: string, structure: string, callback: (result: any, resolveValue: any) => void) {
-                fetchResourceAsync(table_ref).then(res => {
+                resources.fetchResourceAsync(table_ref).then(res => {
                     if (!res) {
                         browserLog("BinaryTable", table_ref, "not found");
                         callback(null, undefined);
@@ -429,7 +338,85 @@ export class JSInterpreter implements IInterpreter {
                 })
             });
             interpreter.setProperty(globalObject, "BinaryTable", pseudoBinaryTable);
-            initDate(interpreter, globalObject);
+            function initDate(interpreter: any, globalObject: any) {
+                var thisInterpreter = interpreter;
+                var wrapper;
+                // Date constructor.
+                wrapper = function Date(this: { data: Date }, value: any, _var_args: any) {
+                    if (!thisInterpreter.calledWithNew()) {
+                        // Called as `Date()`.
+                        // Calling Date() as a function returns a string, no arguments are heeded.
+                        console.error("Date()");
+                        return Interpreter.nativeGlobal.Date();
+                    }
+                    // Called as `new Date(...)`.
+                    var args = [null].concat(Array.from(arguments));
+                    if (args.length <= 1 && value == null && resources.getCurrentTimeUnixMillis() != null) {
+                        // currentDateMode=1ならtimeUnixMillisを取得した時間からオフセット追加とかが理想かもしれない
+                        browserLog("new Date()");
+                        this.data = new Interpreter.nativeGlobal.Date(resources.getCurrentTimeUnixMillis());
+                    } else {
+                        this.data = new (Function.prototype.bind.apply(
+                            Interpreter.nativeGlobal.Date, args as any));
+                    }
+                    return this;
+                };
+                interpreter.DATE = interpreter.createNativeFunction(wrapper, true);
+                interpreter.DATE_PROTO = interpreter.DATE.properties['prototype'];
+                interpreter.setProperty(globalObject, 'Date', interpreter.DATE,
+                    Interpreter.NONENUMERABLE_DESCRIPTOR);
+            
+                // Static methods on Date.
+                interpreter.setProperty(interpreter.DATE, 'now', interpreter.createNativeFunction(Date.now, false),
+                    Interpreter.NONENUMERABLE_DESCRIPTOR);
+            
+                interpreter.setProperty(interpreter.DATE, 'parse',
+                    interpreter.createNativeFunction(Date.parse, false),
+                    Interpreter.NONENUMERABLE_DESCRIPTOR);
+            
+                interpreter.setProperty(interpreter.DATE, 'UTC', interpreter.createNativeFunction(Date.UTC, false),
+                    Interpreter.NONENUMERABLE_DESCRIPTOR);
+            
+                // Instance methods on Date.
+                var functions = ['getDate', 'getDay', 'getFullYear', 'getHours',
+                    'getMilliseconds', 'getMinutes', 'getMonth', 'getSeconds', 'getTime',
+                    'getTimezoneOffset', 'getUTCDate', 'getUTCDay', 'getUTCFullYear',
+                    'getUTCHours', 'getUTCMilliseconds', 'getUTCMinutes', 'getUTCMonth',
+                    'getUTCSeconds', 'getYear',
+                    'setDate', 'setFullYear', 'setHours', 'setMilliseconds',
+                    'setMinutes', 'setMonth', 'setSeconds', 'setTime', 'setUTCDate',
+                    'setUTCFullYear', 'setUTCHours', 'setUTCMilliseconds', 'setUTCMinutes',
+                    'setUTCMonth', 'setUTCSeconds', 'setYear',
+                    'toDateString', 'toISOString', 'toJSON', 'toGMTString',
+                    'toLocaleDateString', 'toLocaleString', 'toLocaleTimeString',
+                    'toTimeString', 'toUTCString'];
+                for (var i = 0; i < functions.length; i++) {
+                    wrapper = (function (nativeFunc) {
+                        return function (this: { data: Date }, _var_args: any) {
+                            var date = this.data;
+                            if (!(date instanceof Date)) {
+                                thisInterpreter.throwException(thisInterpreter.TYPE_ERROR,
+                                    nativeFunc + ' not called on a Date');
+                            }
+                            var args = [];
+                            for (var i = 0; i < arguments.length; i++) {
+                                args[i] = thisInterpreter.pseudoToNative(arguments[i]);
+                            }
+                            return (date as any)[nativeFunc].apply(date, args);
+                        };
+                    })(functions[i]);
+                    interpreter.setNativeFunctionPrototype(interpreter.DATE, functions[i], wrapper);
+                }
+                interpreter.setNativeFunctionPrototype(interpreter.DATE, "toString", function (this: { data: Date }) {
+                    return bmlDate.toString.call(this.data);
+                });
+                interpreter.setNativeFunctionPrototype(interpreter.DATE, "toLocaleString", function (this: { data: Date }) {
+                    return bmlDate.toString.call(this.data);
+                });
+                interpreter.setNativeFunctionPrototype(interpreter.DATE, "toUTCString", function (this: { data: Date }) {
+                    return bmlDate.toUTCString.call(this.data);
+                });
+            }            
             interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.eucJPFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
             interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.eucJPCharCodeAt);
             initNumber(interpreter, globalObject);
@@ -438,10 +425,19 @@ export class JSInterpreter implements IInterpreter {
     }
 
     _isExecuting: boolean;
-    browser: Browser;
-    public constructor(browser: any) {
+    // lazyinit
+    browser: Browser = null!;
+    resources: Resources = null!;
+    bmlDocument: BMLDocument = null!;
+    public constructor() {
+        this._isExecuting = false;
+    }
+
+    public setupEnvironment(browser: Browser, resources: Resources, bmlDocument: BMLDocument): void {
         this.browser = browser;
         this._isExecuting = false;
+        this.resources = resources;
+        this.bmlDocument = bmlDocument;
         this.reset();
     }
 

@@ -1,7 +1,7 @@
 // /documents/nvram.md参照
 import { parseBinaryStructure, readBinaryFields, writeBinaryFields } from "./binary_table";
-import { currentProgramInfo } from "./resource";
-import { browserState } from "./browser";
+import { BroadcasterDatabase } from "./broadcaster_database";
+import { Resources } from "./resource";
 
 const nvramPrefix = "nvram_";
 
@@ -244,183 +244,191 @@ type AccessInfo = {
 };
 
 
-function getBroadcasterInfo(): BroadcasterInfo {
-    const bid = browserState.broadcasterDatabase.getBroadcasterId(currentProgramInfo?.originalNetworkId, currentProgramInfo?.serviceId);
-    return {
-        originalNetworkId: currentProgramInfo?.originalNetworkId,
-        affiliationId: browserState.broadcasterDatabase.getAffiliationIdList(currentProgramInfo?.originalNetworkId, bid),
-        broadcasterId: bid,
-    };
-}
+export class NVRAM {
+    resources: Resources;
+    broadcasterDatabase: BroadcasterDatabase;
+    constructor(resources: Resources, broadcasterDatabase: BroadcasterDatabase) {
+        this.resources = resources;
+        this.broadcasterDatabase = broadcasterDatabase;
+    }
 
+    private getBroadcasterInfo(): BroadcasterInfo {
+        const bid = this.broadcasterDatabase.getBroadcasterId(this.resources.originalNetworkId, this.resources.serviceId);
+        return {
+            originalNetworkId: this.resources.originalNetworkId,
+            affiliationId: this.broadcasterDatabase.getAffiliationIdList(this.resources.originalNetworkId, bid),
+            broadcasterId: bid,
+        };
+    }
 
-function findNvramArea(url: string, broadcasterInfo: BroadcasterInfo): [AccessInfo, NvramArea] | null {
-    const match = url.match(/^nvrams?:\/\/((?<affiliationId>[0-9a-fA-F]{2});)?(?<prefix>.+)\/(?<block>\d+)$/);
-    if (!match?.groups) {
-        return null;
-    }
-    const isSecure = url.startsWith("nvrams://");
-    let affiliationId: number | null = parseInt(match?.groups.affiliationId, 16);
-    if (!Number.isFinite(affiliationId)) {
-        affiliationId = null;
-    }
-    const prefix = match?.groups.prefix;
-    const block = parseInt(match?.groups.block) ?? -1;
-    for (const area of nvramAreas) {
-        if (prefix === area.prefix) {
-            if (area.startBlock <= block && area.lastBlock >= block) {
-                return [
-                    { block, affiliationId, originalNetworkId: broadcasterInfo.originalNetworkId, broadcasterId: broadcasterInfo.broadcasterId, broadcastType: broadcasterInfo.broadcastType },
-                    area
-                ];
-            }
-        }
-    }
-    return null;
-}
-
-function getLocalStorageKey(broadcasterInfo: BroadcasterInfo, accessInfo: AccessInfo, nvramArea: NvramArea): string | null {
-    const params = new URLSearchParams();
-    for (const a of nvramArea.accessId) {
-        if (a === "affiliation_id") {
-            if (broadcasterInfo.affiliationId == null) {
-                console.error("affiliationId == null!");
-                params.append("affiliation_id", String(accessInfo.affiliationId));
-            } else if (broadcasterInfo.affiliationId.includes(accessInfo.affiliationId!)) {
-                params.append("affiliation_id", String(accessInfo.affiliationId));
-            } else {
-                console.error("permission denied (affiliationId)", broadcasterInfo.affiliationId, accessInfo.affiliationId);
-                return null;
-            }
-        } else if (a === "broadcaster_id") {
-            if (accessInfo.broadcasterId == null) {
-                console.error("broadcasterId == null!");
-                params.append("broadcaster_id", "null");
-            } else {
-                params.append("broadcaster_id", String(accessInfo.broadcasterId));
-            }
-        } else if (a === "original_network_id") {
-            if (accessInfo.originalNetworkId == null) {
-                console.error("originalNetworkId == null!");
-                params.append("original_network_id", "null");
-            } else {
-                params.append("original_network_id", String(accessInfo.originalNetworkId));
-            }
-        }
-    }
-    params.append("prefix", nvramArea.prefix);
-    if (accessInfo.block != null) {
-        params.append("block", String(accessInfo.block));
-    }
-    if (nvramArea.isSecure) {
-        params.append("secure", "true");
-    }
-    return params.toString();
-}
-
-function readNVRAM(uri: string): Uint8Array | null {
-    let strg: string | null;
-    let isFixed: boolean;
-    let size: number;
-    if (uri === "nvram://receiverinfo/zipcode") {
-        strg = localStorage.getItem(nvramPrefix + "prefix=receiverinfo%2Fzipcode");
-        isFixed = true;
-        size = 7;
-    } else {
-        const binfo = getBroadcasterInfo();
-        const result = findNvramArea(uri, binfo);
-        if (!result) {
-            console.error("readNVRAM: findNvramArea failed", uri);
+    private findNvramArea(url: string, broadcasterInfo: BroadcasterInfo): [AccessInfo, NvramArea] | null {
+        const match = url.match(/^nvrams?:\/\/((?<affiliationId>[0-9a-fA-F]{2});)?(?<prefix>.+)\/(?<block>\d+)$/);
+        if (!match?.groups) {
             return null;
         }
-        const [id, area] = result;
-        const k = getLocalStorageKey(binfo, id, area);
-        if (!k) {
-            console.error("readNVRAM: access denied", uri);
+        const isSecure = url.startsWith("nvrams://");
+        let affiliationId: number | null = parseInt(match?.groups.affiliationId, 16);
+        if (!Number.isFinite(affiliationId)) {
+            affiliationId = null;
         }
-        strg = localStorage.getItem(nvramPrefix + k);
-        isFixed = area.isFixed;
-        size = area.size;
-    }
-    if (!strg) {
-        return new Uint8Array(isFixed ? size : 0);
-    }
-    const a = Uint8Array.from(window.atob(strg), c => c.charCodeAt(0));
-    if (isFixed) {
-        if (a.length > size) {
-            return a.subarray(0, size);
-        } else if (a.length < size) {
-            const fixed = new Uint8Array(size);
-            fixed.set(a);
-            return fixed;
+        const prefix = match?.groups.prefix;
+        const block = parseInt(match?.groups.block) ?? -1;
+        for (const area of nvramAreas) {
+            if (prefix === area.prefix) {
+                if (area.startBlock <= block && area.lastBlock >= block) {
+                    return [
+                        { block, affiliationId, originalNetworkId: broadcasterInfo.originalNetworkId, broadcasterId: broadcasterInfo.broadcasterId, broadcastType: broadcasterInfo.broadcastType },
+                        area
+                    ];
+                }
+            }
         }
+        return null;
     }
-    return a;
-}
 
-function writeNVRAM(uri: string, data: Uint8Array): number {
-    // 書き込めない (TR-B14 第二分冊 5.2.7 表5-2参照)
-    if (uri === "nvram://receiverinfo/prefecture") {
-        return NaN;
-    } else if (uri === "nvram://receiverinfo/regioncode") {
-        return NaN;
-    // 書き込める (TR-B14 第二分冊 5.2.7 表5-2参照)
-    } else if (uri === "nvram://receiverinfo/zipcode") {
-        localStorage.setItem(nvramPrefix + "prefix=receiverinfo%2Fzipcode", window.btoa(String.fromCharCode(...data).substring(0, 7)));
-        return NaN;
+    private getLocalStorageKey(broadcasterInfo: BroadcasterInfo, accessInfo: AccessInfo, nvramArea: NvramArea): string | null {
+        const params = new URLSearchParams();
+        for (const a of nvramArea.accessId) {
+            if (a === "affiliation_id") {
+                if (broadcasterInfo.affiliationId == null) {
+                    console.error("affiliationId == null!");
+                    params.append("affiliation_id", String(accessInfo.affiliationId));
+                } else if (broadcasterInfo.affiliationId.includes(accessInfo.affiliationId!)) {
+                    params.append("affiliation_id", String(accessInfo.affiliationId));
+                } else {
+                    console.error("permission denied (affiliationId)", broadcasterInfo.affiliationId, accessInfo.affiliationId);
+                    return null;
+                }
+            } else if (a === "broadcaster_id") {
+                if (accessInfo.broadcasterId == null) {
+                    console.error("broadcasterId == null!");
+                    params.append("broadcaster_id", "null");
+                } else {
+                    params.append("broadcaster_id", String(accessInfo.broadcasterId));
+                }
+            } else if (a === "original_network_id") {
+                if (accessInfo.originalNetworkId == null) {
+                    console.error("originalNetworkId == null!");
+                    params.append("original_network_id", "null");
+                } else {
+                    params.append("original_network_id", String(accessInfo.originalNetworkId));
+                }
+            }
+        }
+        params.append("prefix", nvramArea.prefix);
+        if (accessInfo.block != null) {
+            params.append("block", String(accessInfo.block));
+        }
+        if (nvramArea.isSecure) {
+            params.append("secure", "true");
+        }
+        return params.toString();
     }
-    const binfo = getBroadcasterInfo();
-    const result = findNvramArea(uri, binfo);
-    if (!result) {
-        console.error("writeNVRAM: findNvramArea failed", uri);
-        return NaN;
+
+    private readNVRAM(uri: string): Uint8Array | null {
+        let strg: string | null;
+        let isFixed: boolean;
+        let size: number;
+        if (uri === "nvram://receiverinfo/zipcode") {
+            strg = localStorage.getItem(nvramPrefix + "prefix=receiverinfo%2Fzipcode");
+            isFixed = true;
+            size = 7;
+        } else {
+            const binfo = this.getBroadcasterInfo();
+            const result = this.findNvramArea(uri, binfo);
+            if (!result) {
+                console.error("readNVRAM: findNvramArea failed", uri);
+                return null;
+            }
+            const [id, area] = result;
+            const k = this.getLocalStorageKey(binfo, id, area);
+            if (!k) {
+                console.error("readNVRAM: access denied", uri);
+            }
+            strg = localStorage.getItem(nvramPrefix + k);
+            isFixed = area.isFixed;
+            size = area.size;
+        }
+        if (!strg) {
+            return new Uint8Array(isFixed ? size : 0);
+        }
+        const a = Uint8Array.from(window.atob(strg), c => c.charCodeAt(0));
+        if (isFixed) {
+            if (a.length > size) {
+                return a.subarray(0, size);
+            } else if (a.length < size) {
+                const fixed = new Uint8Array(size);
+                fixed.set(a);
+                return fixed;
+            }
+        }
+        return a;
     }
-    const [id, area] = result;
-    if (area.isFixed) {
-        if (data.length > area.size) {
-            console.error("writeNVRAM: too large data", uri, data.length, area);
+
+    private writeNVRAM(uri: string, data: Uint8Array): number {
+        // 書き込めない (TR-B14 第二分冊 5.2.7 表5-2参照)
+        if (uri === "nvram://receiverinfo/prefecture") {
+            return NaN;
+        } else if (uri === "nvram://receiverinfo/regioncode") {
+            return NaN;
+            // 書き込める (TR-B14 第二分冊 5.2.7 表5-2参照)
+        } else if (uri === "nvram://receiverinfo/zipcode") {
+            localStorage.setItem(nvramPrefix + "prefix=receiverinfo%2Fzipcode", window.btoa(String.fromCharCode(...data).substring(0, 7)));
             return NaN;
         }
+        const binfo = this.getBroadcasterInfo();
+        const result = this.findNvramArea(uri, binfo);
+        if (!result) {
+            console.error("writeNVRAM: findNvramArea failed", uri);
+            return NaN;
+        }
+        const [id, area] = result;
+        if (area.isFixed) {
+            if (data.length > area.size) {
+                console.error("writeNVRAM: too large data", uri, data.length, area);
+                return NaN;
+            }
+        }
+        const k = this.getLocalStorageKey(binfo, id, area);
+        if (!k) {
+            console.error("writeNVRAM: access denied", uri);
+            return NaN;
+        }
+        localStorage.setItem(nvramPrefix + k, window.btoa(String.fromCharCode(...data)));
+        return data.length;
     }
-    const k = getLocalStorageKey(binfo, id, area);
-    if (!k) {
-        console.error("writeNVRAM: access denied", uri);
-        return NaN;
+
+    public readPersistentArray(filename: string, structure: string): any[] | null {
+        // TR-B14 5.2.7
+        // FIXME: 郵便番号から算出すべきかも
+        // ただし都道府県は郵便番号から一意に定まらないし多くの受像機だと別に設定できるようになってそう
+        if (filename === "nvram://receiverinfo/prefecture") {
+            return [255];
+        } else if (filename === "nvram://receiverinfo/regioncode") {
+            return [0];
+        }
+        const fields = parseBinaryStructure(structure);
+        if (!fields) {
+            return null;
+        }
+        const a = this.readNVRAM(filename);
+        if (!a) {
+            return null;
+        }
+        let [result, _] = readBinaryFields(a, fields);
+        return result;
     }
-    localStorage.setItem(nvramPrefix + k, window.btoa(String.fromCharCode(...data)));
-    return data.length;
+
+    public writePersistentArray(filename: string, structure: string, data: any[], period?: Date): number {
+        const fields = parseBinaryStructure(structure);
+        if (!fields) {
+            return NaN;
+        }
+        if (fields.length > data.length) {
+            console.error("writePersistentArray: fields.length > data.length");
+            return NaN;
+        }
+        let bin = writeBinaryFields(data, fields);
+        return this.writeNVRAM(filename, bin);
+    }
 }
-
-export function readPersistentArray(filename: string, structure: string): any[] | null {
-    // TR-B14 5.2.7
-    // FIXME: 郵便番号から算出すべきかも
-    // ただし都道府県は郵便番号から一意に定まらないし多くの受像機だと別に設定できるようになってそう
-    if (filename === "nvram://receiverinfo/prefecture") {
-        return [255];
-    } else if (filename === "nvram://receiverinfo/regioncode") {
-        return [0];
-    }
-    const fields = parseBinaryStructure(structure);
-    if (!fields) {
-        return null;
-    }
-    const a = readNVRAM(filename);
-    if (!a) {
-        return null;
-    }
-    let [result, _] = readBinaryFields(a, fields);
-    return result;
-};
-
-export function writePersistentArray(filename: string, structure: string, data: any[], period?: Date): number {
-    const fields = parseBinaryStructure(structure);
-    if (!fields) {
-        return NaN;
-    }
-    if (fields.length > data.length) {
-        console.error("writePersistentArray: fields.length > data.length");
-        return NaN;
-    }
-    let bin = writeBinaryFields(data, fields);
-    return writeNVRAM(filename, bin);
-};

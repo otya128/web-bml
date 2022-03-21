@@ -1,15 +1,13 @@
-import { readPersistentArray, writePersistentArray } from "./nvram";
+import { NVRAM } from "./nvram";
 import * as resource from "./resource";
-import { activeDocument, fetchLockedResource, lockCachedModule, parseURLEx } from "./resource";
 import { Buffer } from "buffer";
 import * as drcs from "./drcs";
-import { IInterpreter } from "./interpreter/interpreter";
-import { bmlClearInterval, bmlSetInterval, eventQueueOnModuleLocked, executeEventHandler, processEventQueue, queueAsyncEvent } from "./event";
-import { launchDocument as documentLaunchDocument } from "./document";
-import { ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
+import { Interpreter } from "./interpreter/interpreter";
+import { EventDispatcher, EventQueue } from "./event";
+import { BMLDocument } from "./document";
+import { ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
-import { VideoPlayer } from "./player/video_player";
-import { BroadcasterDatabase } from "./broadcaster_database";
+import { BML } from "./interface/DOM";
 // browser疑似オブジェクト
 
 export type LockedModuleInfo = [moduleName: string, func: number, status: number];
@@ -185,367 +183,384 @@ export interface Browser {
     // オプション
 }
 
-export const browser: Browser = {
-    Ureg: [...new Array(64)].map(_ => ""),
-    Greg: [...new Array(64)].map(_ => ""),
-    setCurrentDateMode(time_mode: number): number {
-        console.log("setCurrentDateMode", time_mode);
-        if (time_mode == 0) {
-            browserState.currentDateMode = 0;
-        } else if (time_mode == 1) {
-            browserState.currentDateMode = 1;
-        } else {
+export class BrowserAPI {
+    private resources: resource.Resources;
+    private eventQueue: EventQueue;
+    private eventDispatcher: EventDispatcher;
+    private bmlDocument: BMLDocument;
+    private nvram: NVRAM;
+    private _currentDateMode: number = 0;
+    private interpreter: Interpreter;
+
+    public set currentDateMode(timeMode: number) {
+        this._currentDateMode = timeMode;
+    }
+
+    public get currentDateMode(): number {
+        return this._currentDateMode;
+    }
+
+    constructor(resources: resource.Resources, eventQueue: EventQueue, eventDispatcher: EventDispatcher, bmlDocument: BMLDocument, nvram: NVRAM, interpreter: Interpreter) {
+        this.resources = resources;
+        this.eventQueue = eventQueue;
+        this.eventDispatcher = eventDispatcher;
+        this.bmlDocument = bmlDocument;
+        this.nvram = nvram;
+        this.interpreter = interpreter;
+    }
+    browser: Browser = {
+        Ureg: [...new Array(64)].map(_ => ""),
+        Greg: [...new Array(64)].map(_ => ""),
+        setCurrentDateMode: (time_mode: number): number => {
+            console.log("setCurrentDateMode", time_mode);
+            if (time_mode == 0) {
+                this.currentDateMode = 0;
+            } else if (time_mode == 1) {
+                this.currentDateMode = 1;
+            } else {
+                return NaN;
+            }
+            return 1; // 成功
+        },
+        getProgramRelativeTime(): number {
+            console.log("getProgramRelativeTime");
+            return 10; // 秒
+        },
+        subDate(target: Date, base: Date, unit: number) {
+            const sub = target.getTime() - base.getTime();
+            if (unit == 1) {
+                return (sub / 1000) | 0;
+            } else if (unit == 2) {
+                return (sub / (1000 * 60)) | 0;
+            } else if (unit == 3) {
+                return (sub / (1000 * 60 * 60)) | 0;
+            } else if (unit == 4) {
+                return (sub / (1000 * 60 * 60 * 24)) | 0;
+            } else if (unit == 5) {
+                return (sub / (1000 * 60 * 60 * 24 * 7)) | 0;
+            }
+            return sub | 0;
+        },
+        addDate(base: Date, time: number, unit: number): Date | number {
+            if (Number.isNaN(time)) {
+                return base;
+            }
+            if (unit == 0) {
+                return new Date(base.getTime() + time);
+            } else if (unit == 1) {
+                return new Date(base.getTime() + (time * 1000));
+            } else if (unit == 2) {
+                return new Date(base.getTime() + (time * 1000 * 60));
+            } else if (unit == 3) {
+                return new Date(base.getTime() + (time * 1000 * 60 * 60));
+            } else if (unit == 4) {
+                return new Date(base.getTime() + (time * 1000 * 60 * 60 * 24));
+            } else if (unit == 5) {
+                return new Date(base.getTime() + (time * 1000 * 60 * 60 * 24 * 7));
+            }
             return NaN;
-        }
-        return 1; // 成功
-    },
-    getProgramRelativeTime(): number {
-        console.log("getProgramRelativeTime");
-        return 10; // 秒
-    },
-    subDate(target: Date, base: Date, unit: number) {
-        const sub = target.getTime() - base.getTime();
-        if (unit == 1) {
-            return (sub / 1000) | 0;
-        } else if (unit == 2) {
-            return (sub / (1000 * 60)) | 0;
-        } else if (unit == 3) {
-            return (sub / (1000 * 60 * 60)) | 0;
-        } else if (unit == 4) {
-            return (sub / (1000 * 60 * 60 * 24)) | 0;
-        } else if (unit == 5) {
-            return (sub / (1000 * 60 * 60 * 24 * 7)) | 0;
-        }
-        return sub | 0;
-    },
-    addDate(base: Date, time: number, unit: number): Date | number {
-        if (Number.isNaN(time)) {
-            return base;
-        }
-        if (unit == 0) {
-            return new Date(base.getTime() + time);
-        } else if (unit == 1) {
-            return new Date(base.getTime() + (time * 1000));
-        } else if (unit == 2) {
-            return new Date(base.getTime() + (time * 1000 * 60));
-        } else if (unit == 3) {
-            return new Date(base.getTime() + (time * 1000 * 60 * 60));
-        } else if (unit == 4) {
-            return new Date(base.getTime() + (time * 1000 * 60 * 60 * 24));
-        } else if (unit == 5) {
-            return new Date(base.getTime() + (time * 1000 * 60 * 60 * 24 * 7));
-        }
-        return NaN;
-    },
-    unlockModuleOnMemory(module: string): number {
-        console.log("unlockModuleOnMemory", module);
-        const { componentId, moduleId } = parseURLEx(module);
-        if (componentId == null || moduleId == null) {
-            return NaN;
-        }
-        return resource.unlockModule(componentId, moduleId, false) ? 1 : NaN;
-    },
-    unlockModuleOnMemoryEx(module: string): number {
-        console.log("unlockModuleOnMemoryEx", module);
-        const { componentId, moduleId } = parseURLEx(module);
-        if (componentId == null || moduleId == null) {
-            return NaN;
-        }
-        return resource.unlockModule(componentId, moduleId, true) ? 1 : NaN;
-    },
-    unlockAllModulesOnMemory(): number {
-        console.log("unlockAllModulesOnMemory");
-        resource.unlockAllModule();
-        return 1; // NaN => fail
-    },
-    lockModuleOnMemory(module: string): number {
-        console.log("lockModuleOnMemory", module);
-        const { componentId, moduleId } = parseURLEx(module);
-        if (componentId == null || moduleId == null) {
-            return NaN;
-        }
-        // exと違ってロック済みならイベント発生しないはず
-        if (resource.isModuleLocked(componentId, moduleId)) {
+        },
+        unlockModuleOnMemory: (module: string): number => {
+            console.log("unlockModuleOnMemory", module);
+            const { componentId, moduleId } = this.resources.parseURLEx(module);
+            if (componentId == null || moduleId == null) {
+                return NaN;
+            }
+            return this.resources.unlockModule(componentId, moduleId, false) ? 1 : NaN;
+        },
+        unlockModuleOnMemoryEx: (module: string): number => {
+            console.log("unlockModuleOnMemoryEx", module);
+            const { componentId, moduleId } = this.resources.parseURLEx(module);
+            if (componentId == null || moduleId == null) {
+                return NaN;
+            }
+            return this.resources.unlockModule(componentId, moduleId, true) ? 1 : NaN;
+        },
+        unlockAllModulesOnMemory: (): number => {
+            console.log("unlockAllModulesOnMemory");
+            this.resources.unlockAllModule();
+            return 1; // NaN => fail
+        },
+        lockModuleOnMemory: (module: string): number => {
+            console.log("lockModuleOnMemory", module);
+            const { componentId, moduleId } = this.resources.parseURLEx(module);
+            if (componentId == null || moduleId == null) {
+                return NaN;
+            }
+            // exと違ってロック済みならイベント発生しないはず
+            if (this.resources.isModuleLocked(componentId, moduleId)) {
+                return 1;
+            }
+            if (!this.resources.getPMTComponent(componentId)) {
+                console.error("lockModuleOnMemory: component does not exist in PMT", module);
+                return -1;
+            }
+            if (!this.resources.moduleExistsInDownloadInfo(componentId, moduleId)) {
+                console.error("lockModuleOnMemory: component does not exist in DII", module);
+                return -1;
+            }
+            const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemory");
+            if (!cachedModule) {
+                console.error("lockModuleOnMemory: module not cached", module);
+                this.resources.requestLockModule(module, componentId, moduleId, false);
+                return 1;
+            }
+            // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
+            this.eventDispatcher.eventQueueOnModuleLocked(module, false, 0);
             return 1;
-        }
-        if (!resource.getPMTComponent(componentId)) {
-            console.error("lockModuleOnMemory: component does not exist in PMT", module);
-            return -1;
-        }
-        if (!resource.moduleExistsInDownloadInfo(componentId, moduleId)) {
-            console.error("lockModuleOnMemory: component does not exist in DII", module);
-            return -1;
-        }
-        const cachedModule = lockCachedModule(componentId, moduleId, "lockModuleOnMemory");
-        if (!cachedModule) {
-            console.error("lockModuleOnMemory: module not cached", module);
-            resource.requestLockModule(module, componentId, moduleId, false);
+        },
+        lockModuleOnMemoryEx: (module: string): number => {
+            console.log("lockModuleOnMemoryEx", module);
+            const { componentId, moduleId } = this.resources.parseURLEx(module);
+            if (componentId == null || moduleId == null) {
+                return NaN;
+            }
+            if (!this.resources.getPMTComponent(componentId)) {
+                console.error("lockModuleOnMemoryEx: component does not exist in PMT", module);
+                return -3;
+            }
+            if (!this.resources.moduleExistsInDownloadInfo(componentId, moduleId)) {
+                console.error("lockModuleOnMemoryEx: component does not exist in DII", module);
+                this.eventDispatcher.eventQueueOnModuleLocked(module, true, -2);
+                return 1;
+            }
+            const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
+            if (!cachedModule) {
+                console.error("lockModuleOnMemoryEx: module not cached", module);
+                this.resources.requestLockModule(module, componentId, moduleId, true);
+                // OnModuleLockedのstatusで返ってくる
+                return 1;
+            }
+            // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
+            this.eventDispatcher.eventQueueOnModuleLocked(module, true, 0);
             return 1;
-        }
-        // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
-        eventQueueOnModuleLocked(module, false, 0);
-        return 1;
-    },
-    lockModuleOnMemoryEx(module: string): number {
-        console.log("lockModuleOnMemoryEx", module);
-        const { componentId, moduleId } = parseURLEx(module);
-        if (componentId == null || moduleId == null) {
-            return NaN;
-        }
-        if (!resource.getPMTComponent(componentId)) {
-            console.error("lockModuleOnMemoryEx: component does not exist in PMT", module);
-            return -3;
-        }
-        if (!resource.moduleExistsInDownloadInfo(componentId, moduleId)) {
-            console.error("lockModuleOnMemoryEx: component does not exist in DII", module);
-            eventQueueOnModuleLocked(module, true, -2);
+        },
+        lockScreen() {
+            console.log("lockScreen");
             return 1;
-        }
-        const cachedModule = lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
-        if (!cachedModule) {
-            console.error("lockModuleOnMemoryEx: module not cached", module);
-            resource.requestLockModule(module, componentId, moduleId, true);
-            // OnModuleLockedのstatusで返ってくる
+        },
+        unlockScreen() {
+            console.log("unlockScreen");
             return 1;
-        }
-        // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
-        eventQueueOnModuleLocked(module, true, 0);
-        return 1;
-    },
-    lockScreen() {
-        console.log("lockScreen");
-        return 1;
-    },
-    unlockScreen() {
-        console.log("unlockScreen");
-        return 1;
-    },
-    getBrowserSupport(sProvider: string, functionname: string, additionalinfo?: string): number {
-        console.log("getBrowserSupport", sProvider, functionname, additionalinfo);
-        if (sProvider === "ARIB") {
-            if (functionname === "BMLversion") {
-                if (additionalinfo == null) {
-                    return 1;
-                } else {
-                    const [major, minor] = additionalinfo.split(".").map(x => Number.parseInt(x));
-                    if (major == null || minor == null) {
+        },
+        getBrowserSupport(sProvider: string, functionname: string, additionalinfo?: string): number {
+            console.log("getBrowserSupport", sProvider, functionname, additionalinfo);
+            if (sProvider === "ARIB") {
+                if (functionname === "BMLversion") {
+                    if (additionalinfo == null) {
+                        return 1;
+                    } else {
+                        const [major, minor] = additionalinfo.split(".").map(x => Number.parseInt(x));
+                        if (major == null || minor == null) {
+                            return 0;
+                        }
+                        if ((major < 3 && major >= 0) || (major === 3 && minor === 0)) {
+                            return 1;
+                        }
                         return 0;
                     }
-                    if ((major < 3 && major >= 0) || (major === 3 && minor === 0)) {
+                } else if (functionname === "APIGroup") {
+                    if (additionalinfo === "Ctrl.Basic") {
+                        return 1;
+                    } else if (additionalinfo === "Ctrl.Screen") {
+                        return 1;
+                    } else if (additionalinfo === "Ctrl.Cache2") {
+                        return 1;
+                    } else if (additionalinfo === "Ctrl.Version") {
+                        return 1;
+                    } else if (additionalinfo === "Ctrl.Basic2") {
+                        // detectComponent
                         return 1;
                     }
-                    return 0;
                 }
-            } else if (functionname === "APIGroup") {
-                if (additionalinfo === "Ctrl.Basic") {
-                    return 1;
-                } else if (additionalinfo === "Ctrl.Screen") {
-                    return 1;
-                } else if (additionalinfo === "Ctrl.Cache2") {
-                    return 1;
-                } else if (additionalinfo === "Ctrl.Version") {
-                    return 1;
-                } else if (additionalinfo === "Ctrl.Basic2") {
-                    // detectComponent
-                    return 1;
-                }
-            }
-        } else if (sProvider === "nvram") {
-            if (functionname === "NumberOfBSBroadcasters") {
-                if (additionalinfo === "23") {
-                    return 1;
-                }
-            } else if (functionname === "BSspecifiedExtension") {
-                if (additionalinfo === "48") {
-                    return 1;
-                }
-            } else if (functionname === "NumberOfCSBroadcasters") {
-                if (additionalinfo === "23") {
-                    return 1;
+            } else if (sProvider === "nvram") {
+                if (functionname === "NumberOfBSBroadcasters") {
+                    if (additionalinfo === "23") {
+                        return 1;
+                    }
+                } else if (functionname === "BSspecifiedExtension") {
+                    if (additionalinfo === "48") {
+                        return 1;
+                    }
+                } else if (functionname === "NumberOfCSBroadcasters") {
+                    if (additionalinfo === "23") {
+                        return 1;
+                    }
                 }
             }
-        }
-        return 0;
-    },
-    getBrowserStatus(sProvider: string, functionname: string, additionalinfo: string): number {
-        console.log("getBrowserStatus", sProvider, functionname, additionalinfo);
-        return 0;
-    },
-    launchDocument(documentName: string, transitionStyle?: string): number {
-        console.log("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
-        documentLaunchDocument(documentName);
-        browserState.interpreter.destroyStack();
-        throw new Error("unreachable!!");
-    },
-    reloadActiveDocument(): number {
-        console.log("reloadActiveDocument");
-        return browser.launchDocument(browser.getActiveDocument()!);
-    },
-    readPersistentArray(filename: string, structure: string): any[] | null {
-        console.log("readPersistentArray", filename, structure);
-        return readPersistentArray(filename, structure);
-    },
-    writePersistentArray(filename: string, structure: string, data: any[], period?: Date): number {
-        console.log("writePersistentArray", filename, structure, data, period);
-        return writePersistentArray(filename, structure, data, period);
-    },
-    random(num: number): number {
-        return Math.floor(Math.random() * num) + 1;
-    },
-    getActiveDocument(): string | null {
-        return activeDocument;
-    },
-    getResidentAppVersion(appName: string): any[] | null {
-        console.log("getResidentAppVersion", appName);
-        return null;
-    },
-    getLockedModuleInfo(): LockedModuleInfo[] | null {
-        console.log("getLockedModuleInfo");
-        const l: LockedModuleInfo[] = [];
-        for (const { module, isEx } of resource.getLockedModules()) {
-            l.push([module, isEx ? 2 : 1, 1]);
-        }
-        return l;
-    },
-    detectComponent(component_ref: string) {
-        const { componentId } = parseURLEx(component_ref);
-        if (componentId == null) {
-            return NaN;
-        }
-        if (resource.getPMTComponent(componentId)) {
-            return 1;
-        } else {
             return 0;
-        }
-    },
-    getProgramID(type: number): string | null {
-        function toHex(n: number | null | undefined, d: number): string | null {
-            if (n == null) {
-                return null;
+        },
+        getBrowserStatus(sProvider: string, functionname: string, additionalinfo: string): number {
+            console.log("getBrowserStatus", sProvider, functionname, additionalinfo);
+            return 0;
+        },
+        launchDocument: (documentName: string, transitionStyle?: string): number => {
+            console.log("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
+            this.bmlDocument.launchDocument(documentName);
+            this.interpreter.destroyStack();
+            throw new Error("unreachable!!");
+        },
+        reloadActiveDocument: (): number => {
+            console.log("reloadActiveDocument");
+            return this.browser.launchDocument(this.browser.getActiveDocument()!);
+        },
+        readPersistentArray: (filename: string, structure: string): any[] | null => {
+            console.log("readPersistentArray", filename, structure);
+            return this.nvram.readPersistentArray(filename, structure);
+        },
+        writePersistentArray: (filename: string, structure: string, data: any[], period?: Date): number => {
+            console.log("writePersistentArray", filename, structure, data, period);
+            return this.nvram.writePersistentArray(filename, structure, data, period);
+        },
+        random(num: number): number {
+            return Math.floor(Math.random() * num) + 1;
+        },
+        getActiveDocument: (): string | null => {
+            return this.resources.activeDocument;
+        },
+        getResidentAppVersion(appName: string): any[] | null {
+            console.log("getResidentAppVersion", appName);
+            return null;
+        },
+        getLockedModuleInfo: (): LockedModuleInfo[] | null => {
+            console.log("getLockedModuleInfo");
+            const l: LockedModuleInfo[] = [];
+            for (const { module, isEx } of this.resources.getLockedModules()) {
+                l.push([module, isEx ? 2 : 1, 1]);
             }
-            return "0x" + n.toString(16).padStart(d, "0");
-        }
-        if (type == 1) {
-            return toHex(resource.currentProgramInfo?.eventId, 4);
-        } else if (type == 2) {
-            return toHex(resource.currentProgramInfo?.serviceId, 4);
-        } else if (type == 3) {
-            return toHex(resource.currentProgramInfo?.originalNetworkId, 4);
-        } else if (type == 4) {
-            return toHex(resource.currentProgramInfo?.transportStreamId, 4);
-        }
-        return null;
-    },
-    sleep(interval: number): number | null {
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", "/api/sleep?ms=" + interval, false);
-        xhr.send(null);
-        return 1;
-    },
-    loadDRCS(DRCS_ref: string): number {
-        console.log("loadDRCS", DRCS_ref);
-        const { componentId, moduleId, filename } = parseURLEx(DRCS_ref);
-        if (componentId == null || moduleId == null) {
-            return NaN;
-        }
-        const res = fetchLockedResource(DRCS_ref);
-        if (res?.data == null) {
-            return NaN;
-        }
-        const id = `drcs-${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(2, "0")}/${filename}`;
-        const css = document.getElementById(id);
-        if (!css) {
-            const style = document.createElement("style");
-            style.id = id;
-            let tc = "";
-            for (const [id, fontFamily] of [
-                [1, "丸ゴシック"],
-                [2, "角ゴシック"],
-                [3, "太丸ゴシック"],
-            ]) {
-                const glyph = drcs.loadDRCS(Buffer.from(res.data), id as number);
-                const ttf = drcs.toTTF(glyph);
-                const url = URL.createObjectURL(new Blob([ttf.buffer]));
-                tc += `@font-face {
+            return l;
+        },
+        detectComponent: (component_ref: string) => {
+            const { componentId } = this.resources.parseURLEx(component_ref);
+            if (componentId == null) {
+                return NaN;
+            }
+            if (this.resources.getPMTComponent(componentId)) {
+                return 1;
+            } else {
+                return 0;
+            }
+        },
+        getProgramID: (type: number): string | null => {
+            function toHex(n: number | null | undefined, d: number): string | null {
+                if (n == null) {
+                    return null;
+                }
+                return "0x" + n.toString(16).padStart(d, "0");
+            }
+            if (type == 1) {
+                return toHex(this.resources.eventId, 4);
+            } else if (type == 2) {
+                return toHex(this.resources.serviceId, 4);
+            } else if (type == 3) {
+                return toHex(this.resources.originalNetworkId, 4);
+            } else if (type == 4) {
+                return toHex(this.resources.transportStreamId, 4);
+            }
+            return null;
+        },
+        sleep(interval: number): number | null {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "/api/sleep?ms=" + interval, false);
+            xhr.send(null);
+            return 1;
+        },
+        loadDRCS: (DRCS_ref: string): number => {
+            console.log("loadDRCS", DRCS_ref);
+            const { componentId, moduleId, filename } = this.resources.parseURLEx(DRCS_ref);
+            if (componentId == null || moduleId == null) {
+                return NaN;
+            }
+            const res = this.resources.fetchLockedResource(DRCS_ref);
+            if (res?.data == null) {
+                return NaN;
+            }
+            const id = `drcs-${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(2, "0")}/${filename}`;
+            const css = this.bmlDocument.bmlDocument.getElementById(id);
+            if (!css) {
+                const style = document.createElement("style");
+                style.id = id;
+                let tc = "";
+                for (const [id, fontFamily] of [
+                    [1, "丸ゴシック"],
+                    [2, "角ゴシック"],
+                    [3, "太丸ゴシック"],
+                ]) {
+                    const glyph = drcs.loadDRCS(Buffer.from(res.data), id as number);
+                    const ttf = drcs.toTTF(glyph);
+                    const url = URL.createObjectURL(new Blob([ttf.buffer]));
+                    tc += `@font-face {
     font-family: "${fontFamily}";
     src: url("${url}");
     unicode-range: U+EC00-FE00;
 }
 `;
+                }
+                style.textContent = tc;
+                BML.bmlNodeToNode(this.bmlDocument.bmlDocument.documentElement)?.appendChild(style);
             }
-            style.textContent = tc;
-            document.head.appendChild(style);
-        }
-        return 1;
-    },
-    playRomSound(soundID: string): number {
-        console.log("playRomSound", soundID);
-        const groups = /romsound:\/\/(?<soundID>\d+)/.exec(soundID)?.groups;
-        if (groups != null) {
-            playRomSound(Number.parseInt(groups.soundID));
-        }
-        return 1;
-    },
-    getBrowserVersion(): string[] {
-        return ["BMLHTML", "BMLHTML", "001", "000"];
-    },
-    getIRDID(type: number): string | null {
-        console.log("getIRDID", type);
-        if (type === 5) {
-            return "00000000000000000000";
-        }
-        return null;
-    },
-    isIPConnected(): number {
-        console.log("isIPConnected");
-        return 0;
-    },
-    getConnectionType(): number {
-        console.log("getConnectionType");
-        return NaN;
-    },
-    setInterval(evalCode: string, msec: number, iteration: number): number {
-        const handle = bmlSetInterval(() => {
-            iteration--;
-            if (iteration === 0) {
-                bmlClearInterval(handle);
+            return 1;
+        },
+        playRomSound(soundID: string): number {
+            console.log("playRomSound", soundID);
+            const groups = /romsound:\/\/(?<soundID>\d+)/.exec(soundID)?.groups;
+            if (groups != null) {
+                playRomSound(Number.parseInt(groups.soundID));
             }
-            queueAsyncEvent(async () => {
-                return await executeEventHandler(evalCode);
-            });
-            processEventQueue();
-        }, msec);
-        console.log("setInterval", evalCode, msec, iteration, handle);
-        return handle;
-    },
-    clearTimer(timerID: number): number {
-        console.log("clearTimer", timerID);
-        bmlClearInterval(timerID);
-        return 1;
-    },
-} as Browser;
-
-
-export const browserState = {
-    currentDateMode: 0,
-    interpreter: null! as IInterpreter,
-    currentProgramInfo: null as (ProgramInfoMessage | null),
-    player: null as (VideoPlayer | null),
-    broadcasterDatabase: new BroadcasterDatabase(),
-};
-
-resource.resourceEventTarget.addEventListener("message", ((event: CustomEvent) => {
-    const msg = event.detail as ResponseMessage;
-    if (msg.type === "programInfo") {
-        if (msg.serviceId != null && msg.serviceId !== browserState.currentProgramInfo?.serviceId) {
-            // TR-B14 第二分冊 5.12.6.1
-            if (browserState.currentProgramInfo != null) {
-                console.log("serviceId changed", msg.serviceId, browserState.currentProgramInfo?.serviceId)
+            return 1;
+        },
+        getBrowserVersion(): string[] {
+            return ["BMLHTML", "BMLHTML", "001", "000"];
+        },
+        getIRDID(type: number): string | null {
+            console.log("getIRDID", type);
+            if (type === 5) {
+                return "00000000000000000000";
             }
-            browser.Ureg![0] = "0x" + msg.serviceId.toString(16).padStart(4);
-            for (let i = 1; i < 64; i++) { // FIXME
-                browser.Ureg![i] = "";
+            return null;
+        },
+        isIPConnected(): number {
+            console.log("isIPConnected");
+            return 0;
+        },
+        getConnectionType(): number {
+            console.log("getConnectionType");
+            return NaN;
+        },
+        setInterval: (evalCode: string, msec: number, iteration: number): number => {
+            const handle = this.eventQueue.bmlSetInterval(() => {
+                iteration--;
+                if (iteration === 0) {
+                    this.eventQueue.bmlClearInterval(handle);
+                }
+                this.eventQueue.queueAsyncEvent(async () => {
+                    return await this.eventQueue.executeEventHandler(evalCode);
+                });
+                this.eventQueue.processEventQueue();
+            }, msec);
+            console.log("setInterval", evalCode, msec, iteration, handle);
+            return handle;
+        },
+        clearTimer: (timerID: number): number => {
+            console.log("clearTimer", timerID);
+            this.eventQueue.bmlClearInterval(timerID);
+            return 1;
+        },
+    } as Browser;
+
+    serviceId?: number;
+    public onMessage(msg: ResponseMessage) {
+        if (msg.type === "programInfo") {
+            if (msg.serviceId != null && msg.serviceId !== this.serviceId) {
+                // TR-B14 第二分冊 5.12.6.1
+                if (this.serviceId != null) {
+                    console.log("serviceId changed", msg.serviceId, this.serviceId)
+                }
+                this.browser.Ureg![0] = "0x" + msg.serviceId.toString(16).padStart(4);
+                for (let i = 1; i < 64; i++) { // FIXME
+                    this.browser.Ureg![i] = "";
+                }
             }
         }
     }
-}) as EventListener);
+}

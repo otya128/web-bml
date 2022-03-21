@@ -1,5 +1,4 @@
 import { decodeEUCJP } from "./euc_jp";
-import { fetchLockedResource } from "./resource";
 import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
 import { eucJPCharCodeAt } from "./string";
 
@@ -405,18 +404,8 @@ export class BinaryTable implements IBinaryTable {
     rows: any[][];
     fields: BinaryTableField[];
 
-    constructor(table_ref: string | Uint8Array, structure: string) {
-        let buffer: Uint8Array;
-        if (table_ref instanceof Uint8Array) {
-            buffer = table_ref;
-        } else {
-            const res = fetchLockedResource(table_ref);
-            if (!res) {
-                throw new Error("FIXME");
-            }
-            buffer = res.data;
-        }
-        const { rows, fields } = BinaryTable.constructBinaryTable(buffer, structure);
+    constructor(table: Uint8Array, structure: string) {
+        const { rows, fields } = BinaryTable.constructBinaryTable(table, structure);
         this.rows = rows;
         this.fields = fields;
     }

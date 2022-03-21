@@ -62,7 +62,7 @@ function overrideDate() {
     Date.prototype.toUTCString = bmlDate.toUTCString;
 }
 
-export class NativeInterpreter implements IInterpreter {
+export class NativeInterpreter implements Interpreter {
     _isExecuting: boolean;
     windowKeys: Set<string>;
     public constructor(browser: Browser) {
