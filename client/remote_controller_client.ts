@@ -1,16 +1,7 @@
+import { Indicator } from "./bml_browser";
 import { AribKeyCode, keyCodeToAribKey, BMLDocument } from "./document";
 import { VideoPlayer } from "./player/video_player";
 import { RemoteControllerMessage } from "./remote_controller";
-
-let currentRemoteControllerMessage: string | null = null;
-
-function setRemoteControllerMessage(msg: string | null) {
-    const remote = remoteControllerFrame.contentDocument?.getElementById("active");
-    if (remote != null) {
-        remote.textContent = msg;
-    }
-    currentRemoteControllerMessage = msg;
-}
 
 function createRemoteController(): HTMLIFrameElement {
     const controller = document.createElement("iframe");
@@ -23,7 +14,7 @@ function createRemoteController(): HTMLIFrameElement {
     return controller;
 }
 
-class RemoteControl {
+class RemoteControl implements Indicator {
     bmlDocument: BMLDocument;
     constructor(bmlDocument: BMLDocument, player: VideoPlayer) {
         this.bmlDocument = bmlDocument;
@@ -74,5 +65,21 @@ class RemoteControl {
 
         const remoteControllerFrame = createRemoteController();
         document.documentElement.append(remoteControllerFrame);
+    }
+    url = "";
+    receiving = false;
+    eventName = "";
+    setUrl(name: string, loading: boolean): void {
+        const remote = remoteControllerFrame.contentDocument?.getElementById("active");
+        if (remote != null) {
+            remote.textContent = msg;
+        }
+        currentRemoteControllerMessage = msg;
+    }
+    setReceivingStatus(receiving: boolean): void {
+        throw new Error("Method not implemented.");
+    }
+    setEventName(eventName: string): void {
+        throw new Error("Method not implemented.");
     }
 }

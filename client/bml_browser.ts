@@ -19,6 +19,22 @@ export interface Indicator {
     // 番組名
     setEventName(eventName: string): void;
 }
+
+interface BMLBrowserEventMap {
+    // 解像度が変わったとき
+    "resolution": CustomEvent<{ width: number, height: number }>;
+    // invisibleが設定されているときtrue
+    "invisible": CustomEvent<boolean>;
+}
+
+interface CustomEventTarget<M> {
+    addEventListener<K extends keyof M>(type: K, callback: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean): void;
+    dispatchEvent<K extends keyof M>(event: M[K]): boolean;
+    removeEventListener<K extends keyof M>(type: K, callback: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean): void;
+}
+
+export type BMLBrowserEventTarget = CustomEventTarget<BMLBrowserEventMap>;
+
 export class BMLBrowser {
     private containerElement: HTMLElement;
     private shadowRoot: ShadowRoot;
@@ -34,6 +50,7 @@ export class BMLBrowser {
     private bmlDocument: BMLDocument;
     private bmlDomDocument: BML.BMLDocument;
     private indicator?: Indicator;
+    private eventTarget = new EventTarget() as BMLBrowserEventTarget;
     public constructor(containerElement: HTMLElement, mediaElement: HTMLElement, indicator?: Indicator) {
         this.containerElement = containerElement;
         this.mediaElement = mediaElement;
@@ -51,9 +68,9 @@ export class BMLBrowser {
         this.nvram = new NVRAM(this.resources, this.broadcasterDatabase);
         this.interpreter = new JSInterpreter();
         this.eventQueue = new EventQueue(this.resources, this.interpreter);
-        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources);
+        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget);
         this.eventDispatcher = new EventDispatcher(this.resources, this.eventQueue, this.bmlDomDocument);
-        this.bmlDocument = new BMLDocument(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.indicator);
+        this.bmlDocument = new BMLDocument(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator);
         this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.bmlDocument, this.nvram, this.interpreter);
 
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
@@ -77,5 +94,17 @@ export class BMLBrowser {
         this.broadcasterDatabase.onMessage(msg);
         this.browserAPI.onMessage(msg);
         this.bmlDocument.onMessage(msg);
+    }
+
+    public addEventListener<K extends keyof BMLBrowserEventMap>(type: K, callback: (this: undefined, evt: BMLBrowserEventMap[K]) => void, options?: AddEventListenerOptions | boolean) {
+        this.eventTarget.addEventListener(type, callback as EventListener, options);
+    }
+
+    public removeEventListener<K extends keyof BMLBrowserEventMap>(type: K, callback: (this: undefined, evt: BMLBrowserEventMap[K]) => void, options?: AddEventListenerOptions | boolean) {
+        this.eventTarget.removeEventListener(type, callback as EventListener, options);
+    }
+
+    public getVideoElement(): HTMLElement | null {
+        return this.documentElement.querySelector("object[arib-type=\"video/X-arib-mpeg2\"]");
     }
 }

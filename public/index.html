@@ -3,20 +3,37 @@
     PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja">
 
-<div id="arib-video-invisible-container" style="z-index: 999!important; width: 960px; height: 540px; display: none; position: absolute; left: 0px; top: 0px;">
-    <div id="arib-video-container" style="width: 100%; height: 100%; max-height: 100vh; max-width: 100vw; display: block !important; visibility: visible !important;">
-        <video muted="muted" autoplay="autoplay" style="width: 100%; height: 100%; max-height: 100vh; max-width: 100vw; display: block !important; visibility: visible !important;"
-            id="arib-video" controls="controls"></video>
-    </div>
-</div>
-
-<div id="arib-video-cc-container" style="width: 960px; height: 540px; display: none !important; position: absolute; left: 0px; top: 0px;">
-</div>
-
 <head>
     <title>
         データ放送ブラウザ
     </title>
+    <style>
+        /* STD-B24 第二分冊(2/2) 第二編 付属2 4.4.8 */
+        @font-face {
+            font-family: "丸ゴシック";
+            src: url("/KosugiMaru-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+        }
+
+        @font-face {
+            font-family: "太丸ゴシック";
+            src: url("/KosugiMaru-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+        }
+
+        @font-face {
+            font-family: "角ゴシック";
+            src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+        }
+
+        @font-face {
+            font-family: "太ゴシック";
+            src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+        }
+
+        @font-face {
+            font-family: "ゴシック";
+            src: url("/Kosugi-Regular.ttf"), url("/rounded-mplus-1m-arib.ttf"), local('MS Gothic');
+        }
+    </style>
 </head>
 
 <body>
@@ -25,6 +42,24 @@
     </h1>
     <div id="ui-main">
         読み込み中...
+    </div>
+    <div id="data-broadcasting-browser">
+        <div class="arib-video-invisible-container"
+            style="z-index: 999!important; width: 960px; height: 540px; display: none; position: absolute; left: 0px; top: 0px;">
+            <div class="arib-video-container"
+                style="width: 100%; height: 100%; max-height: 100vh; max-width: 100vw; display: block !important; visibility: visible !important;">
+                <video muted="muted" autoplay="autoplay"
+                    style="width: 100%; height: 100%; max-height: 100vh; max-width: 100vw; display: block !important; visibility: visible !important;"
+                    id="arib-video" controls="controls"></video>
+            </div>
+        </div>
+
+        <div class="arib-video-cc-container"
+            style="width: 960px; height: 540px; display: none !important; position: absolute; left: 0px; top: 0px;">
+        </div>
+
+        <div class="data-broadcasting-browser-content">
+        </div>
     </div>
     <script src="/arib.js"></script>
 </body>

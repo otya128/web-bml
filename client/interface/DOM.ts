@@ -6,7 +6,8 @@ import { readCLUT } from "../clut";
 import { defaultCLUT } from "../default_clut";
 import { parseCSSValue } from "../transpile_css";
 import { Buffer } from "buffer";
-import { IInterpreter } from "../interpreter/interpreter";
+import { Interpreter } from "../interpreter/interpreter";
+import { BMLBrowserEventTarget } from "../bml_browser";
 
 export namespace BML {
     type DOMString = string;
@@ -241,15 +242,17 @@ export namespace BML {
     export class BMLDocument extends HTMLDocument {
         _currentFocus: HTMLElement | null = null;
         _currentEvent: BMLEvent | null = null;
-        public interpreter: IInterpreter;
+        public interpreter: Interpreter;
         public eventQueue: EventQueue;
         public resources: Resources;
-        public constructor(node: globalThis.HTMLElement, interpreter: IInterpreter, eventQueue: EventQueue, resources: Resources) {
+        public browserEventTarget: BMLBrowserEventTarget;
+        public constructor(node: globalThis.HTMLElement, interpreter: Interpreter, eventQueue: EventQueue, resources: Resources, browserEventTarget: BMLBrowserEventTarget) {
             super(node as any, null!); // !
             this.ownerDocument = this; // !!
             this.interpreter = interpreter;
             this.eventQueue = eventQueue;
             this.resources = resources;
+            this.browserEventTarget = browserEventTarget;
         }
 
         public get documentElement(): HTMLElement {
@@ -594,27 +597,12 @@ export namespace BML {
             return this.node.getAttribute("invisible") === "invisible";
         }
         public set invisible(v: boolean) {
-            const videoContainer = bmlNodeToNode(this.ownerDocument.getElementById("arib-video-container")) as globalThis.HTMLDivElement;
-            const icontainer = bmlNodeToNode(this.ownerDocument.getElementById("arib-video-invisible-container")) as globalThis.HTMLDivElement;
-            const s = icontainer?.style;
             if (v) {
-                if (s) {
-                    s.setProperty("display", "", "important");
-                    s.setProperty("z-index", "999", "important");
-                }
-                icontainer?.appendChild(videoContainer);
                 this.node.setAttribute("invisible", "invisible");
             } else {
-                if (s) {
-                    s.setProperty("display", "none", "important");
-                    s.setProperty("z-index", "-1", "important");
-                }
-                const obj = (bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
-                if (obj != null) {
-                    obj.appendChild(videoContainer);
-                }
                 this.node.removeAttribute("invisible");
             }
+            this.ownerDocument.browserEventTarget.dispatchEvent<"invisible">(new CustomEvent("invisible", { detail: v }));
         }
         public get normalStyle(): BMLCSS2Properties {
             return getNormalStyle(this.node);

@@ -216,8 +216,14 @@ object[type="image/X-arib-png"] {
 
 body[arib-loading] { display: none !important; }
 
-:where(:root) {
+:where(html, bml) {
     line-height: 1; /* Firefox */
+}
+
+html {
+    position: absolute;
+    top: 0px;
+    left: 0px;
 }
 
 /* 継承しない拡張特性の初期値 */

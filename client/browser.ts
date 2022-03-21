@@ -189,16 +189,7 @@ export class BrowserAPI {
     private eventDispatcher: EventDispatcher;
     private bmlDocument: BMLDocument;
     private nvram: NVRAM;
-    private _currentDateMode: number = 0;
     private interpreter: Interpreter;
-
-    public set currentDateMode(timeMode: number) {
-        this._currentDateMode = timeMode;
-    }
-
-    public get currentDateMode(): number {
-        return this._currentDateMode;
-    }
 
     constructor(resources: resource.Resources, eventQueue: EventQueue, eventDispatcher: EventDispatcher, bmlDocument: BMLDocument, nvram: NVRAM, interpreter: Interpreter) {
         this.resources = resources;
@@ -214,9 +205,9 @@ export class BrowserAPI {
         setCurrentDateMode: (time_mode: number): number => {
             console.log("setCurrentDateMode", time_mode);
             if (time_mode == 0) {
-                this.currentDateMode = 0;
+                this.bmlDocument.currentDateMode = 0;
             } else if (time_mode == 1) {
-                this.currentDateMode = 1;
+                this.bmlDocument.currentDateMode = 1;
             } else {
                 return NaN;
             }

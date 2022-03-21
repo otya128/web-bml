@@ -227,7 +227,7 @@ export class JSInterpreter implements Interpreter {
             const r = bmlDocument.launchDocument(documentName);
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }
-        
+
         function reloadActiveDocument(callback: (result: any, promiseValue: any) => void): void {
             browserLog("%creloadActiveDocument", "font-size: 4em");
             const r = bmlDocument.launchDocument(browser.getActiveDocument()!);
@@ -365,18 +365,18 @@ export class JSInterpreter implements Interpreter {
                 interpreter.DATE_PROTO = interpreter.DATE.properties['prototype'];
                 interpreter.setProperty(globalObject, 'Date', interpreter.DATE,
                     Interpreter.NONENUMERABLE_DESCRIPTOR);
-            
+
                 // Static methods on Date.
                 interpreter.setProperty(interpreter.DATE, 'now', interpreter.createNativeFunction(Date.now, false),
                     Interpreter.NONENUMERABLE_DESCRIPTOR);
-            
+
                 interpreter.setProperty(interpreter.DATE, 'parse',
                     interpreter.createNativeFunction(Date.parse, false),
                     Interpreter.NONENUMERABLE_DESCRIPTOR);
-            
+
                 interpreter.setProperty(interpreter.DATE, 'UTC', interpreter.createNativeFunction(Date.UTC, false),
                     Interpreter.NONENUMERABLE_DESCRIPTOR);
-            
+
                 // Instance methods on Date.
                 var functions = ['getDate', 'getDay', 'getFullYear', 'getHours',
                     'getMilliseconds', 'getMinutes', 'getMonth', 'getSeconds', 'getTime',
@@ -416,7 +416,7 @@ export class JSInterpreter implements Interpreter {
                 interpreter.setNativeFunctionPrototype(interpreter.DATE, "toUTCString", function (this: { data: Date }) {
                     return bmlDate.toUTCString.call(this.data);
                 });
-            }            
+            }
             interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.eucJPFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
             interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.eucJPCharCodeAt);
             initNumber(interpreter, globalObject);
@@ -442,12 +442,6 @@ export class JSInterpreter implements Interpreter {
     }
 
     public addScript(script: string, src?: string): Promise<boolean> {
-        const elem = document.createElement("arib-script");
-        elem.textContent = script;
-        if (src != null) {
-            elem.setAttribute("src", src);
-        }
-        document.body.appendChild(elem);
         this.interpreter.appendCode(script, src);
         return this.runScript();
     }

@@ -11,7 +11,7 @@ import { bmlToXHTMLFXP } from "./bml_to_xhtml";
 import { ResponseMessage } from "../server/ws_api";
 import { EventDispatcher, EventQueue } from "./event";
 import { Interpreter } from "./interpreter/interpreter";
-import { Indicator } from "./bml_browser";
+import { BMLBrowserEventTarget, Indicator } from "./bml_browser";
 
 export enum AribKeyCode {
     Up = 1,
@@ -151,8 +151,17 @@ export class BMLDocument {
     private interpreter: Interpreter;
     public readonly bmlDocument: BML.BMLDocument;
     private videoContainer: HTMLElement;
+    private bmlEventTarget: BMLBrowserEventTarget;
     private indicator?: Indicator;
-    public constructor(bmlDocument: BML.BMLDocument, documentElement: HTMLElement, resources: Resources, eventQueue: EventQueue, eventDispatcher: EventDispatcher, interpreter: Interpreter, videoContainer: HTMLElement, indicator?: Indicator) {
+    public constructor(bmlDocument: BML.BMLDocument,
+        documentElement: HTMLElement,
+        resources: Resources,
+        eventQueue: EventQueue,
+        eventDispatcher: EventDispatcher,
+        interpreter: Interpreter,
+        videoContainer: HTMLElement,
+        bmlEventTarget: BMLBrowserEventTarget,
+        indicator?: Indicator) {
         this.bmlDocument = bmlDocument;
         this.documentElement = documentElement;
         this.resources = resources;
@@ -160,8 +169,10 @@ export class BMLDocument {
         this.eventDispatcher = eventDispatcher;
         this.interpreter = interpreter;
         this.videoContainer = videoContainer;
+        this.bmlEventTarget = bmlEventTarget;
         this.indicator = indicator;
 
+        // FIXME
         window.addEventListener("keydown", (event) => {
             if (event.altKey || event.ctrlKey || event.metaKey) {
                 return;
@@ -185,11 +196,21 @@ export class BMLDocument {
             event.preventDefault();
             this.processKeyUp(k);
         });
-
     }
+
+    private _currentDateMode: number = 0;
+    public set currentDateMode(timeMode: number) {
+        this._currentDateMode = timeMode;
+    }
+
+    public get currentDateMode(): number {
+        return this._currentDateMode;
+    }
+
     private getBody() {
         return this.documentElement.querySelector("body");
     }
+
     private loadDocumentToDOM(data: string) {
         const documentElement = document.createElement("html");
         documentElement.innerHTML = bmlToXHTMLFXP(data);
@@ -263,8 +284,7 @@ export class BMLDocument {
         this.resources.activeDocument = documentName;
         this.bmlDocument._currentFocus = null;
         this.resources.unlockAllModule();
-        // FIXME
-        // this.browser.currentDateMode = 0;
+        this.currentDateMode = 0;
         try {
             this.eventQueue.lockSyncEventQueue();
             await requestAnimationFrameAsync();
@@ -273,8 +293,26 @@ export class BMLDocument {
         } finally {
             this.eventQueue.resetEventQueue();
         }
-        const body = (BML.nodeToBMLNode(this.documentElement.querySelector("body")!, this.bmlDocument) as BML.BMLBodyElement);
-        body.invisible = body.invisible;
+        let width: number = 960;
+        let height: number = 540;
+        const body = this.getBody()!;
+        const bmlBody = BML.nodeToBMLNode(body, this.bmlDocument) as BML.BMLBodyElement;
+        const bodyStyle = window.getComputedStyle(body);
+        const resolution = bodyStyle.getPropertyValue("resolution");
+        const displayAspectRatio = bodyStyle.getPropertyValue("display-aspect-ratio");
+        if (resolution === "720x480") {
+            if (displayAspectRatio === "4v3") {
+                [width, height] = [720, 480];
+            } else {
+                [width, height] = [853, 480]; // ?
+            }
+        }
+        this.bmlEventTarget.dispatchEvent<"resolution">(new CustomEvent("resolution", { detail: { width, height } }));
+        body.style.maxWidth = width + "px";
+        body.style.minWidth = width + "px";
+        body.style.maxHeight = height + "px";
+        body.style.minHeight = height + "px";
+        bmlBody.invisible = bmlBody.invisible;
         // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
         // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
         this.eventQueue.lockSyncEventQueue();
