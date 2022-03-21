@@ -21,8 +21,8 @@ export interface Indicator {
 }
 
 interface BMLBrowserEventMap {
-    // 解像度が変わったとき
-    "resolution": CustomEvent<{ width: number, height: number }>;
+    // 読み込まれたとき
+    "load": CustomEvent<{ resolution: { width: number, height: number } }>;
     // invisibleが設定されているときtrue
     "invisible": CustomEvent<boolean>;
 }
@@ -34,6 +34,30 @@ interface CustomEventTarget<M> {
 }
 
 export type BMLBrowserEventTarget = CustomEventTarget<BMLBrowserEventMap>;
+
+/* STD-B24 第二分冊(2/2) 第二編 付属2 4.4.8 */
+export type BMLBrowserFontFace = { source: string | BinaryData, descriptors?: FontFaceDescriptors | undefined };
+export type BMLBrowserFonts = {
+    roundGothic?: BMLBrowserFontFace;
+    boldRoundGothic?: BMLBrowserFontFace;
+    squareGothic?: BMLBrowserFontFace;
+};
+
+export const bmlBrowserFontNames = Object.freeze({
+    roundGothic: "丸ゴシック",
+    boldRoundGothic: "太丸ゴシック",
+    squareGothic: "角ゴシック",
+});
+
+export type BMLBrowserOptions = {
+    // 親要素
+    containerElement: HTMLElement;
+    // 動画の要素
+    mediaElement: HTMLElement;
+    // 番組名などを表示
+    indicator?: Indicator;
+    fonts?: BMLBrowserFonts;
+};
 
 export class BMLBrowser {
     private containerElement: HTMLElement;
@@ -51,11 +75,11 @@ export class BMLBrowser {
     private bmlDomDocument: BML.BMLDocument;
     private indicator?: Indicator;
     private eventTarget = new EventTarget() as BMLBrowserEventTarget;
-    public constructor(containerElement: HTMLElement, mediaElement: HTMLElement, indicator?: Indicator) {
-        this.containerElement = containerElement;
-        this.mediaElement = mediaElement;
-        this.indicator = indicator;
-        this.shadowRoot = containerElement.attachShadow({ mode: "closed" });
+    public constructor(options: BMLBrowserOptions) {
+        this.containerElement = options.containerElement;
+        this.mediaElement = options.mediaElement;
+        this.indicator = options.indicator;
+        this.shadowRoot = options.containerElement.attachShadow({ mode: "closed" });
         const uaStyle = document.createElement("style");
         uaStyle.textContent = defaultCSS;
         this.shadowRoot.appendChild(uaStyle);
@@ -76,6 +100,15 @@ export class BMLBrowser {
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
         this.interpreter.setupEnvironment(this.browserAPI.browser, this.resources, this.bmlDocument);
+        if (options.fonts?.roundGothic) {
+            document.fonts.add(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));
+        }
+        if (options.fonts?.boldRoundGothic) {
+            document.fonts.add(new FontFace(bmlBrowserFontNames.boldRoundGothic, options.fonts?.boldRoundGothic.source, options.fonts?.boldRoundGothic.descriptors));
+        }
+        if (options.fonts?.squareGothic) {
+            document.fonts.add(new FontFace(bmlBrowserFontNames.squareGothic, options.fonts?.squareGothic.source, options.fonts?.squareGothic.descriptors));
+        }
     }
     // スタートアップ文書を表示させる
     public async launchStartupDocument(): Promise<void> {

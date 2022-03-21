@@ -6,7 +6,7 @@ import { MP4VideoPlayer } from "./player/mp4";
 import { MPEGTSVideoPlayer } from "./player/mpegts";
 import { HLSVideoPlayer } from "./player/hls";
 import { NullVideoPlayer } from "./player/null";
-import { BMLBrowser } from "./bml_browser";
+import { BMLBrowser, BMLBrowserFontFace } from "./bml_browser";
 import { VideoPlayer } from "./player/video_player";
 
 function getParametersFromUrl(url: string): Param | {} {
@@ -52,7 +52,18 @@ const browserElement = document.getElementById("data-broadcasting-browser")!;
 const videoContainer = browserElement.querySelector(".arib-video-container") as HTMLElement;
 const invisibleVideoContainer = browserElement.querySelector(".arib-video-invisible-container") as HTMLElement;
 const contentElement = browserElement.querySelector(".data-broadcasting-browser-content") as HTMLElement;
-const bmlBrowser = new BMLBrowser(contentElement, videoContainer);
+const roundGothic: BMLBrowserFontFace = { source: "url('/KosugiMaru-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
+const boldRoundGothic: BMLBrowserFontFace = { source: "url('/KosugiMaru-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
+const squareGothic: BMLBrowserFontFace = { source: "url('/Kosugi-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
+const bmlBrowser = new BMLBrowser({
+    containerElement: contentElement,
+    mediaElement: videoContainer,
+    fonts: {
+        roundGothic,
+        boldRoundGothic,
+        squareGothic
+    }
+});
 
 // trueであればデータ放送の上に動画を表示させる非表示状態
 bmlBrowser.addEventListener("invisible", (evt) => {
@@ -76,9 +87,8 @@ bmlBrowser.addEventListener("invisible", (evt) => {
     }
 });
 
-// データ放送自体の解像度
-bmlBrowser.addEventListener("resolution", (evt) => {
-    console.log("resolution", evt.detail);
+bmlBrowser.addEventListener("load", (evt) => {
+    console.log("load", evt.detail);
 });
 
 ws.addEventListener("message", (event) => {

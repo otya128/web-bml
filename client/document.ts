@@ -307,7 +307,7 @@ export class BMLDocument {
                 [width, height] = [853, 480]; // ?
             }
         }
-        this.bmlEventTarget.dispatchEvent<"resolution">(new CustomEvent("resolution", { detail: { width, height } }));
+        this.bmlEventTarget.dispatchEvent<"load">(new CustomEvent("load", { detail: { resolution: { width, height } } }));
         body.style.maxWidth = width + "px";
         body.style.minWidth = width + "px";
         body.style.maxHeight = height + "px";
