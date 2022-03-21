@@ -202,6 +202,10 @@ export class BrowserAPI {
     browser: Browser = {
         Ureg: [...new Array(64)].map(_ => ""),
         Greg: [...new Array(64)].map(_ => ""),
+        epgGetEventStartTime: (event_ref: string): Date | null => {
+            console.error("epgGetEventStartTime: not implemented", event_ref);
+            return null;
+        },
         setCurrentDateMode: (time_mode: number): number => {
             console.log("setCurrentDateMode", time_mode);
             if (time_mode == 0) {
