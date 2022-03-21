@@ -61,7 +61,6 @@ export class BMLBrowser {
         this.shadowRoot.appendChild(uaStyle);
         this.documentElement = document.createElement("html");
         this.shadowRoot.appendChild(this.documentElement);
-        this.documentElement.appendChild(mediaElement);
         this.resources = new Resources();
         this.broadcasterDatabase = new BroadcasterDatabase(this.resources);
         this.broadcasterDatabase.openDatabase();

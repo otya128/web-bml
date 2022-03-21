@@ -298,8 +298,8 @@ export class BMLDocument {
         const body = this.getBody()!;
         const bmlBody = BML.nodeToBMLNode(body, this.bmlDocument) as BML.BMLBodyElement;
         const bodyStyle = window.getComputedStyle(body);
-        const resolution = bodyStyle.getPropertyValue("resolution");
-        const displayAspectRatio = bodyStyle.getPropertyValue("display-aspect-ratio");
+        const resolution = bodyStyle.getPropertyValue("--resolution").trim();
+        const displayAspectRatio = bodyStyle.getPropertyValue("--display-aspect-ratio").trim();
         if (resolution === "720x480") {
             if (displayAspectRatio === "4v3") {
                 [width, height] = [720, 480];
