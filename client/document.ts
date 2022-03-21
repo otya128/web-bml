@@ -212,16 +212,17 @@ export class BMLDocument {
     }
 
     private loadDocumentToDOM(data: string) {
-        const documentElement = document.createElement("html");
+        const xhtmlDocument = new DOMParser().parseFromString(`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja"></html>`, "application/xhtml+xml");
+        const documentElement = xhtmlDocument.createElement("html");
         documentElement.innerHTML = bmlToXHTMLFXP(data);
-        const p = Array.from(this.documentElement.childNodes).filter(x => x.nodeName === "body" || x.nodeName === "head");
+        const p = Array.from(this.documentElement.childNodes).filter(x => x.nodeName.toLowerCase() === "body" || x.nodeName.toLowerCase() === "head");
         const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
         const prevBody = this.getBody();
         const newBody = documentElement.querySelector("body")!;
         prevBody?.setAttribute("arib-loading", "arib-loading");
         newBody.setAttribute("arib-loading", "arib-loading");
         documentElement.querySelectorAll("arib-style, arib-link").forEach(style => {
-            if (style.nodeName === "arib-link") {
+            if (style.nodeName.toLowerCase() === "arib-link") {
                 const href = style.getAttribute("href");
                 if (href != null) {
                     const newStyle = document.createElement("style");

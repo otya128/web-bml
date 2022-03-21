@@ -183,17 +183,17 @@ router.get("/", async ctx => {
 
 router.get("/channels/:channelType/:channel/stream", async ctx => {
     ctx.body = fs.createReadStream("public/index.html");
-    ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
+    ctx.set("Content-Type", "text/html; charset=utf-8");
 });
 
 router.get("/channels/:channelType/:channel/services/:id/stream", async ctx => {
     ctx.body = fs.createReadStream("public/index.html");
-    ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
+    ctx.set("Content-Type", "text/html; charset=utf-8");
 });
 
 router.get("/videos/:videoFileId", async ctx => {
     ctx.body = fs.createReadStream("public/index.html");
-    ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
+    ctx.set("Content-Type", "text/html; charset=utf-8");
 });
 
 router.get("/play", async ctx => {

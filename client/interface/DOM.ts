@@ -97,9 +97,9 @@ export namespace BML {
             return HTMLMetaElement;
         } else if (node instanceof globalThis.HTMLStyleElement) {
             return HTMLStyleElement;
-        } else if (node instanceof globalThis.HTMLElement && node.nodeName === "bevent") {
+        } else if (node instanceof globalThis.HTMLElement && node.nodeName.toLowerCase() === "bevent") {
             return BMLBeventElement;
-        } else if (node instanceof globalThis.HTMLElement && node.nodeName === "beitem") {
+        } else if (node instanceof globalThis.HTMLElement && node.nodeName.toLowerCase() === "beitem") {
             return BMLBeitemElement;
         } else if (node instanceof globalThis.HTMLBodyElement) {
             return BMLBodyElement;
