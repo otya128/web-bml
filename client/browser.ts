@@ -500,7 +500,10 @@ export class BrowserAPI {
         getIRDID(type: number): string | null {
             console.log("getIRDID", type);
             if (type === 5) {
-                return "00000000000000000000";
+                // 20桁のB-CAS番号のうち後ろ5桁のチェックサムを除去したもの
+                const cardID = "000012345678901";
+                // 16進表記に変換 
+                return BigInt(cardID.substring(0, 20 - 5)).toString(16).padStart(12, "0");
             }
             return null;
         },
