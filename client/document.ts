@@ -73,6 +73,16 @@ const keyCodeToKeyGroup = new Map<AribKeyCode, KeyGroup>([
     [AribKeyCode.Digit12, "numeric-tuning"],
 ]);
 
+const keyCodeToAccessKey = new Map<AribKeyCode, string>([
+    [AribKeyCode.Back, "X"],
+    [AribKeyCode.BlueButton, "B"],
+    [AribKeyCode.RedButton, "R"],
+    [AribKeyCode.GreenButton, "G"],
+    [AribKeyCode.YellowButton, "Y"],
+    [AribKeyCode.DataButton1, "E"],
+    [AribKeyCode.DataButton2, "F"],
+]);
+
 export function keyCodeToAribKey(keyCode: string): AribKeyCode | -1 {
     // STD B-24 第二分冊(2/2) 第二編 A2 Table 5-9
     switch (keyCode) {
@@ -482,7 +492,7 @@ export class BMLDocument {
                 if (next != null) {
                     nextFocusStyle = window.getComputedStyle(next);
                     // 非表示要素であれば飛ばされる (STD-B24 第二分冊 (1/2 第二編) 5.4.13.3参照)
-                    if (nextFocusStyle.visibility === "hidden") {
+                    if (!BML.isFocusable(next)) {
                         continue;
                     }
                     this.focusHelper(next);
@@ -495,9 +505,6 @@ export class BMLDocument {
             return;
         }
         const onkeydown = focusElement.getAttribute("onkeydown");
-        if (!onkeydown && k != AribKeyCode.Enter) {
-            return;
-        }
         this.eventQueue.queueAsyncEvent(async () => {
             if (onkeydown) {
                 this.eventDispatcher.setCurrentIntrinsicEvent({
@@ -518,9 +525,63 @@ export class BMLDocument {
                 }
                 this.eventDispatcher.resetCurrentEvent();
             }
+            // STD-B24 第二分冊 (2/2) 第二編 付属1 5.4.2.3参照
+            const accessKey = keyCodeToAccessKey.get(k);
+            if (accessKey != null) {
+                const elem = this.documentElement.querySelector(`[accesskey="${accessKey}"]`) as HTMLElement;
+                if (elem != null && BML.isFocusable(elem)) {
+                    this.focusHelper(elem);
+                    console.warn("accesskey is half implemented.");
+                    // [6] 疑似的にkeyup割り込み事象が発生 keyCode = アクセスキー
+                    const onkeyup = elem.getAttribute("onkeyup");
+                    if (onkeyup != null) {
+                        this.eventDispatcher.setCurrentIntrinsicEvent({
+                            keyCode: k as number,
+                            type: "keyup",
+                            target: elem,
+                        });
+                        let exit = false;
+                        try {
+                            this.eventQueue.lockSyncEventQueue();
+                            if (exit = await this.eventQueue.executeEventHandler(onkeyup)) {
+                                return true;
+                            }
+                        } finally {
+                            if (!exit) {
+                                this.eventQueue.unlockSyncEventQueue();
+                            }
+                        }
+                        this.eventDispatcher.resetCurrentEvent();
+                    }
+                    // [6] 疑似的にkeydown割り込み事象が発生 keyCode = 決定キー
+                    const onkeydown = elem.getAttribute("onkeydown");
+                    k = AribKeyCode.Enter;
+                    if (onkeydown != null) {
+                        this.eventDispatcher.setCurrentIntrinsicEvent({
+                            keyCode: k as number,
+                            type: "keydown",
+                            target: elem,
+                        });
+                        let exit = false;
+                        try {
+                            this.eventQueue.lockSyncEventQueue();
+                            if (exit = await this.eventQueue.executeEventHandler(onkeydown)) {
+                                return true;
+                            }
+                        } finally {
+                            if (!exit) {
+                                this.eventQueue.unlockSyncEventQueue();
+                            }
+                        }
+                        this.eventDispatcher.resetCurrentEvent();
+                    }
+                }
+            }
+            focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
             if (k == AribKeyCode.Enter && focusElement) {
                 this.eventQueue.queueSyncEvent({ type: "click", target: focusElement });
             }
+            // FIXME: [11] accessKeyの場合focusElementに対し決定キーのkeyupを発生させる必要がある
             return false;
         });
         this.eventQueue.processEventQueue();

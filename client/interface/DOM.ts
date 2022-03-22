@@ -138,12 +138,26 @@ export namespace BML {
         console.error("activeStyle is not implemented");
         return new BMLCSS2Properties(window.getComputedStyle(node), node.style);
     }
+
+    export function isFocusable(elem: globalThis.Element) {
+        if (elem instanceof globalThis.HTMLInputElement) {
+            if (elem.disabled) {
+                return false;
+            }
+        }
+        const style = window.getComputedStyle(elem);
+        if (style.visibility === "hidden") {
+            return false;
+        }
+        return true;
+    }
+
     function focus(node: HTMLElement, ownerDocument: BMLDocument, eventQueue: EventQueue) {
         const prevFocus = ownerDocument.currentFocus;
         if (prevFocus === node) {
             return;
         }
-        if (window.getComputedStyle(node["node"]).visibility === "hidden") {
+        if (!isFocusable(node["node"])) {
             return;
         }
         ownerDocument._currentFocus = node;
