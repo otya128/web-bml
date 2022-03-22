@@ -203,7 +203,15 @@ export class BrowserAPI {
         Ureg: [...new Array(64)].map(_ => ""),
         Greg: [...new Array(64)].map(_ => ""),
         epgGetEventStartTime: (event_ref: string): Date | null => {
-            console.error("epgGetEventStartTime: not implemented", event_ref);
+            if (event_ref == this.resources.eventURI) {
+                console.log("epgGetEventStartTime", event_ref);
+                const time = this.resources.startTimeUnixMillis;
+                if (time == null) {
+                    return null;
+                }
+                return new Date(time);
+            }
+            console.error("epgGetEventStartTime: not implemented", event_ref, this.resources.eventId);
             return null;
         },
         setCurrentDateMode: (time_mode: number): number => {
@@ -217,9 +225,15 @@ export class BrowserAPI {
             }
             return 1; // 成功
         },
-        getProgramRelativeTime(): number {
+        getProgramRelativeTime: (): number => {
             console.log("getProgramRelativeTime");
-            return 10; // 秒
+            const ct = this.resources.currentTimeUnixMillis;
+            const st = this.resources.startTimeUnixMillis;
+            if (ct == null || st == null) {
+                return NaN;
+            } else {
+                return Math.floor((ct - st) / 1000); // 秒
+            }
         },
         subDate(target: Date, base: Date, unit: number) {
             const sub = target.getTime() - base.getTime();
