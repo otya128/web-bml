@@ -9,7 +9,7 @@ import { newContext } from "./context";
 import { BML } from "./interface/DOM";
 import { bmlToXHTMLFXP } from "./bml_to_xhtml";
 import { ResponseMessage } from "../server/ws_api";
-import { EventDispatcher, EventQueue } from "./event";
+import { EventDispatcher, EventQueue } from "./event_queue";
 import { Interpreter } from "./interpreter/interpreter";
 import { BMLBrowserEventTarget, Indicator } from "./bml_browser";
 
@@ -391,12 +391,12 @@ export class BMLDocument {
                 }
                 if (this.resources.moduleExistsInDownloadInfo(componentId, moduleId)) {
                     if ((beitem as any).__prevStatus !== 2) {
-                        this.eventDispatcher.eventQueueOnModuleUpdated(moduleRef, 2);
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 2);
                         (beitem as any).__prevStatus = 2;
                     }
                 } else {
                     if ((beitem as any).__prevStatus !== 1) {
-                        this.eventDispatcher.eventQueueOnModuleUpdated(moduleRef, 1);
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 1);
                         (beitem as any).__prevStatus = 1;
                     }
                 }
@@ -450,7 +450,7 @@ export class BMLDocument {
     public processKeyDown(k: AribKeyCode) {
         if (k === AribKeyCode.DataButton) {
             // データボタンの場合DataButtonPressedのみが発生する
-            this.eventDispatcher.dispatchDataButtonPressed();
+            this.eventDispatcher.dispatchDataButtonPressedEvent();
             return;
         }
         let focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];

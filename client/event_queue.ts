@@ -1,8 +1,6 @@
-import * as resource from "./resource";
 // @ts-ignore
 import { BML } from "./interface/DOM";
 import { Interpreter } from "./interpreter/interpreter";
-import { Resources } from "./resource";
 
 interface BMLEvent {
     type: string;
@@ -51,8 +49,8 @@ export type SyncClickEvent = {
 export type SyncEvent = SyncFocusEvent | SyncBlurEvent | SyncClickEvent;
 
 export class EventDispatcher {
-    eventQueue: EventQueue;
-    bmlDocument: BML.BMLDocument;
+    private readonly eventQueue: EventQueue;
+    private readonly bmlDocument: BML.BMLDocument;
     public constructor(eventQueue: EventQueue, bmlDocument: BML.BMLDocument) {
         this.eventQueue = eventQueue;
         this.bmlDocument = bmlDocument;
@@ -80,7 +78,7 @@ export class EventDispatcher {
         this.bmlDocument._currentEvent = null;
     }
 
-    public eventQueueOnModuleLocked(module: string, isEx: boolean, status: number) {
+    public dispatchModuleLockedEvent(module: string, isEx: boolean, status: number) {
         console.log("ModuleLocked", module);
         const moduleLocked = (BML.bmlNodeToNode(this.bmlDocument.documentElement) as HTMLElement).querySelectorAll("beitem[type=\"ModuleLocked\"]");
         for (const beitem of Array.from(moduleLocked)) {
@@ -122,7 +120,7 @@ export class EventDispatcher {
         }
     }
 
-    public eventQueueOnModuleUpdated(module: string, status: number) {
+    public dispatchModuleUpdatedEvent(module: string, status: number) {
         console.log("ModuleUpdated", module, status);
         const moduleLocked = (BML.bmlNodeToNode(this.bmlDocument.documentElement) as HTMLElement).querySelectorAll("beitem[type=\"ModuleUpdated\"]");
         for (const beitem of Array.from(moduleLocked)) {
@@ -164,7 +162,7 @@ export class EventDispatcher {
         }
     }
 
-    public dispatchDataButtonPressed() {
+    public dispatchDataButtonPressedEvent() {
         console.log("DataButtonPressed");
         const moduleLocked = (BML.bmlNodeToNode(this.bmlDocument.documentElement) as HTMLElement).querySelectorAll("beitem[type=\"DataButtonPressed\"]");
         for (const beitem of Array.from(moduleLocked)) {
@@ -269,7 +267,7 @@ export class EventQueue {
     }
 
     public async executeEventHandler(handler: string): Promise<boolean> {
-        if (/^\s * $ /.exec(handler)) {
+        if (/^\s*$/.exec(handler)) {
             return false;
         }
         const groups = /^\s*(?<funcName>[a-zA-Z_][0-9a-zA-Z_]*)\s*\(\s*\)\s*;?\s*$/.exec(handler)?.groups;

@@ -32,13 +32,6 @@ type DownloadComponentInfo = {
     modules: Set<number>,
 };
 
-type LockModuleRequest = {
-    moduleRef: string,
-    componentId: number,
-    moduleId: number,
-    isEx: boolean,
-};
-
 // `${componentId}/${moduleId}`がダウンロードされたらコールバックを実行する
 type ComponentRequest = {
     moduleRequests: Map<number, ModuleRequest[]>
@@ -55,16 +48,15 @@ function moduleAndComponentToString(componentId: number, moduleId: number) {
 
 export class Resources {
     private _activeDocument: null | string = null;
-    // FIXME
-    public documentLoaded() {
-        return this.activeDocument != null;
-    }
+
     public set activeDocument(doc: string | null) {
         this._activeDocument = doc;
     }
+
     public get activeDocument(): string | null {
         return this._activeDocument;
     }
+
     private cachedComponents = new Map<number, CachedComponent>();
 
     private downloadComponents = new Map<number, DownloadComponentInfo>();
@@ -85,7 +77,7 @@ export class Resources {
     private pmtComponents = new Map<number, ComponentPMT>();
     private pmtRetrieved = false;
 
-    getCachedModule(componentId: number, moduleId: number): CachedModule | undefined {
+    private getCachedModule(componentId: number, moduleId: number): CachedModule | undefined {
         const cachedComponent = this.cachedComponents.get(componentId);
         if (cachedComponent == null) {
             return undefined;
@@ -255,13 +247,6 @@ export class Resources {
         } else if (msg.type === "pmt") {
             this.pmtRetrieved = true;
             this.pmtComponents = new Map(msg.components.map(x => [x.componentId, x]));
-            if (!this.documentLoaded()) {
-                for (const component of msg.components) {
-                    if (component.bxmlInfo.entryPointFlag) {
-                        // this.entryPointComponentId = component.componentId;
-                    }
-                }
-            }
         } else if (msg.type === "programInfo") {
             this.currentProgramInfo = msg;
             const callbacks = this.programInfoCallbacks.slice();

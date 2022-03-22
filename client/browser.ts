@@ -3,7 +3,7 @@ import * as resource from "./resource";
 import { Buffer } from "buffer";
 import * as drcs from "./drcs";
 import { Interpreter } from "./interpreter/interpreter";
-import { EventDispatcher, EventQueue } from "./event";
+import { EventDispatcher, EventQueue } from "./event_queue";
 import { BMLDocument } from "./document";
 import { ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
@@ -323,12 +323,12 @@ export class BrowserAPI {
                         // 発生しない?
                         return;
                     }
-                    this.eventDispatcher.eventQueueOnModuleLocked(module, false, 0);
+                    this.eventDispatcher.dispatchModuleLockedEvent(module, false, 0);
                 });
                 return 1;
             }
             // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
-            this.eventDispatcher.eventQueueOnModuleLocked(module, false, 0);
+            this.eventDispatcher.dispatchModuleLockedEvent(module, false, 0);
             return 1;
         },
         lockModuleOnMemoryEx: (module: string): number => {
@@ -343,7 +343,7 @@ export class BrowserAPI {
             }
             if (!this.resources.moduleExistsInDownloadInfo(componentId, moduleId)) {
                 console.error("lockModuleOnMemoryEx: component does not exist in DII", module);
-                this.eventDispatcher.eventQueueOnModuleLocked(module, true, -2);
+                this.eventDispatcher.dispatchModuleLockedEvent(module, true, -2);
                 return 1;
             }
             const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
@@ -351,12 +351,12 @@ export class BrowserAPI {
                 console.warn("lockModuleOnMemoryEx: module not cached", module);
                 this.resources.fetchResourceAsync(module).then(() => {
                     const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
-                    this.eventDispatcher.eventQueueOnModuleLocked(module, true, cachedModule == null ? -2 : 0);
+                    this.eventDispatcher.dispatchModuleLockedEvent(module, true, cachedModule == null ? -2 : 0);
                 });
                 return 1;
             }
             // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
-            this.eventDispatcher.eventQueueOnModuleLocked(module, true, 0);
+            this.eventDispatcher.dispatchModuleLockedEvent(module, true, 0);
             return 1;
         },
         lockScreen() {

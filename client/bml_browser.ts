@@ -2,7 +2,7 @@ import { ResponseMessage } from "../server/ws_api";
 import { BroadcasterDatabase } from "./broadcaster_database";
 import { BrowserAPI } from "./browser";
 import { BMLDocument } from "./document";
-import { EventDispatcher, EventQueue } from "./event";
+import { EventDispatcher, EventQueue } from "./event_queue";
 import { BML } from "./interface/DOM";
 import { Interpreter } from "./interpreter/interpreter";
 import { JSInterpreter } from "./interpreter/js_interpreter";

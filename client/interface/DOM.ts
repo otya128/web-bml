@@ -1,4 +1,4 @@
-import { EventQueue } from "../event";
+import { EventQueue } from "../event_queue";
 import { BMLCSS2Properties } from "./BMLCSS2Properties";
 import { Resources } from "../resource";
 import { aribPNGToPNG } from "../arib_png";
