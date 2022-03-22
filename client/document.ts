@@ -365,7 +365,7 @@ export class BMLDocument {
         }
         console.debug("END PROC EVQ");
         // 雑だけど動きはする
-        this.eventQueue.bmlSetInterval(() => {
+        this.eventQueue.setInterval(() => {
             const moduleLocked = this.documentElement.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
             moduleLocked.forEach(beitem => {
                 if (beitem.getAttribute("subscribe") !== "subscribe") {
@@ -692,7 +692,7 @@ export class BMLDocument {
             });
         }
     }
-    
+
     public addDRCSFont(font: FontFace) {
         this.fonts.push(font);
         document.fonts.add(font);

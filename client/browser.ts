@@ -516,10 +516,10 @@ export class BrowserAPI {
             return NaN;
         },
         setInterval: (evalCode: string, msec: number, iteration: number): number => {
-            const handle = this.eventQueue.bmlSetInterval(() => {
+            const handle = this.eventQueue.setInterval(() => {
                 iteration--;
                 if (iteration === 0) {
-                    this.eventQueue.bmlClearInterval(handle);
+                    this.eventQueue.clearInterval(handle);
                 }
                 this.eventQueue.queueAsyncEvent(async () => {
                     return await this.eventQueue.executeEventHandler(evalCode);
@@ -531,8 +531,15 @@ export class BrowserAPI {
         },
         clearTimer: (timerID: number): number => {
             console.log("clearTimer", timerID);
-            this.eventQueue.bmlClearInterval(timerID);
-            return 1;
+            return this.eventQueue.clearInterval(timerID) ? 1 : NaN;
+        },
+        pauseTimer: (timerID: number): number => {
+            console.log("pauseTimer", timerID);
+            return this.eventQueue.pauseTimer(timerID) ? 1 : NaN;
+        },
+        resumeTimer: (timerID: number): number => {
+            console.log("resumeTimer", timerID);
+            return this.eventQueue.resumeTimer(timerID) ? 1 : NaN;
         },
     } as Browser;
 

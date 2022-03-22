@@ -253,15 +253,22 @@ export class EventDispatcher {
     }
 
 }
+
+type Timer = {
+    handle: number | null,
+    handler: TimerHandler,
+    timeout: number,
+};
+
+type BMLTimerID = number;
+
 export class EventQueue {
-    private resources: resource.Resources;
     private interpreter: Interpreter;
     public dispatchFocus = (_event: SyncFocusEvent): Promise<boolean> => Promise.resolve(false);
     public dispatchBlur = (_event: SyncBlurEvent): Promise<boolean> => Promise.resolve(false);
     public dispatchClick = (_event: SyncClickEvent): Promise<boolean> => Promise.resolve(false);
 
-    constructor(resources: resource.Resources, interpreter: Interpreter) {
-        this.resources = resources;
+    constructor(interpreter: Interpreter) {
         this.interpreter = interpreter;
     }
 
@@ -279,22 +286,51 @@ export class EventQueue {
         return result;
     }
 
-    timerHandles = new Set<number>();
-    public bmlSetTimeout(handler: TimerHandler, timeout: number, ...args: any[]): number {
-        const handle = window.setTimeout(handler, timeout, ...args);
-        this.timerHandles.add(handle);
-        return handle;
-    }
+    private readonly timerHandles = new Map<BMLTimerID, Timer>();
 
-    public bmlSetInterval(handler: TimerHandler, timeout: number, ...args: any[]): number {
+    public setInterval(handler: TimerHandler, timeout: number, ...args: any[]): BMLTimerID {
         const handle = window.setInterval(handler, timeout, ...args);
-        this.timerHandles.add(handle);
+        this.timerHandles.set(handle, {
+            handle,
+            handler,
+            timeout,
+        });
         return handle;
     }
 
-    public bmlClearInterval(handle: number): void {
-        window.clearInterval(handle);
-        this.timerHandles.delete(handle);
+    public pauseTimer(timerID: BMLTimerID): boolean {
+        const timer = this.timerHandles.get(timerID);
+        if (timer == null) {
+            return false;
+        }
+        if (timer.handle != null) {
+            window.clearInterval(timer.handle);
+            timer.handle = null;
+        }
+        return true;
+    }
+
+    public resumeTimer(timerID: BMLTimerID): boolean {
+        const timer = this.timerHandles.get(timerID);
+        if (timer == null) {
+            return false;
+        }
+        if (timer.handle == null) {
+            timer.handle = window.setInterval(timer.handler, timer.timeout);
+        }
+        return true;
+    }
+
+    public clearInterval(timerID: BMLTimerID): boolean {
+        const timer = this.timerHandles.get(timerID);
+        if (timer == null) {
+            return false;
+        }
+        if (timer.handle != null) {
+            window.clearInterval(timer.handle);
+        }
+        this.timerHandles.delete(timerID);
+        return true;
     }
 
     asyncEventQueue: (() => Promise<boolean>)[] = [];
@@ -374,10 +410,9 @@ export class EventQueue {
     public resetEventQueue() {
         this.asyncEventQueue.splice(0, this.asyncEventQueue.length);
         this.syncEventQueue.splice(0, this.syncEventQueue.length);
-        for (const i of this.timerHandles.values()) {
-            window.clearInterval(i);
+        for (const i of this.timerHandles.keys()) {
+            this.clearInterval(i);
         }
-        this.timerHandles.clear();
         this.syncEventQueueLockCount = 0;
     }
 }
