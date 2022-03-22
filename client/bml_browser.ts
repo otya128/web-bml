@@ -104,7 +104,7 @@ export class BMLBrowser {
         this.interpreter = new JSInterpreter();
         this.eventQueue = new EventQueue(this.interpreter);
         this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget);
-        this.eventDispatcher = new EventDispatcher(this.resources, this.eventQueue, this.bmlDomDocument);
+        this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument);
         this.bmlDocument = new BMLDocument(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator);
         this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.bmlDocument, this.nvram, this.interpreter);
 

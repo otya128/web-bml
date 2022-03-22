@@ -53,13 +53,9 @@ export type SyncEvent = SyncFocusEvent | SyncBlurEvent | SyncClickEvent;
 export class EventDispatcher {
     eventQueue: EventQueue;
     bmlDocument: BML.BMLDocument;
-    public constructor(resources: Resources, eventQueue: EventQueue, bmlDocument: BML.BMLDocument) {
+    public constructor(eventQueue: EventQueue, bmlDocument: BML.BMLDocument) {
         this.eventQueue = eventQueue;
         this.bmlDocument = bmlDocument;
-        // FIXME
-        resources.registerOnModuleLockedHandler((module: string, isEx: boolean, status: number) => {
-            this.eventQueueOnModuleLocked(module, isEx, status);
-        });
     }
 
     public setCurrentEvent(a: BMLEvent) {

@@ -140,20 +140,6 @@ export class Resources {
         return dcomp.modules.has(moduleId);
     }
 
-
-    private lockModuleRequests: Map<string, LockModuleRequest> = new Map();
-
-    // うーん
-    onModuleLockedHandler: ((module: string, isEx: boolean, status: number) => void) | null = null;
-    public registerOnModuleLockedHandler(func: typeof this.onModuleLockedHandler) {
-        this.onModuleLockedHandler = func;
-    }
-
-    public requestLockModule(moduleRef: string, componentId: number, moduleId: number, isEx: boolean) {
-        // FIXME: リクエスト分イベント発火させるべきかも
-        this.lockModuleRequests.set(`${componentId}/${moduleId}`, { moduleRef, componentId, moduleId, isEx });
-    }
-
     private currentProgramInfo: ProgramInfoMessage | null = null;
 
     // STD-B24 第二分冊(1/2) 第二編 9.2.1.2
@@ -231,15 +217,6 @@ export class Resources {
             cachedComponent.modules.set(msg.moduleId, cachedModule);
             this.cachedComponents.set(msg.componentId, cachedComponent);
             // OnModuleUpdated
-            const k = `${msg.componentId}/${msg.moduleId}`;
-            const req = this.lockModuleRequests.get(k);
-            if (req != null) {
-                this.lockModuleRequests.delete(k);
-                this.lockCachedModule(msg.componentId, msg.moduleId, req.isEx ? "lockModuleOnMemoryEx" : "lockModuleOnMemory");
-                if (this.onModuleLockedHandler) {
-                    this.onModuleLockedHandler(req.moduleRef, req.isEx, 0);
-                }
-            }
             const str = moduleAndComponentToString(msg.componentId, msg.moduleId);
             const creq = this.componentRequests.get(msg.componentId);
             const callbacks = creq?.moduleRequests?.get(msg.moduleId);

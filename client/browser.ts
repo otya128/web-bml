@@ -7,7 +7,6 @@ import { EventDispatcher, EventQueue } from "./event";
 import { BMLDocument } from "./document";
 import { ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
-import { BML } from "./interface/DOM";
 // browser疑似オブジェクト
 
 export type LockedModuleInfo = [moduleName: string, func: number, status: number];
@@ -310,8 +309,15 @@ export class BrowserAPI {
             }
             const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemory");
             if (!cachedModule) {
-                console.error("lockModuleOnMemory: module not cached", module);
-                this.resources.requestLockModule(module, componentId, moduleId, false);
+                console.warn("lockModuleOnMemory: module not cached", module);
+                this.resources.fetchResourceAsync(module).then(() => {
+                    const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemory");
+                    if (cachedModule == null) {
+                        // 発生しない?
+                        return;
+                    }
+                    this.eventDispatcher.eventQueueOnModuleLocked(module, false, 0);
+                });
                 return 1;
             }
             // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
@@ -335,9 +341,11 @@ export class BrowserAPI {
             }
             const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
             if (!cachedModule) {
-                console.error("lockModuleOnMemoryEx: module not cached", module);
-                this.resources.requestLockModule(module, componentId, moduleId, true);
-                // OnModuleLockedのstatusで返ってくる
+                console.warn("lockModuleOnMemoryEx: module not cached", module);
+                this.resources.fetchResourceAsync(module).then(() => {
+                    const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
+                    this.eventDispatcher.eventQueueOnModuleLocked(module, true, cachedModule == null ? -2 : 0);
+                });
                 return 1;
             }
             // イベントハンドラではモジュール名の大文字小文字がそのままである必要がある?
