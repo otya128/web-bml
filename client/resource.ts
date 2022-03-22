@@ -1,6 +1,5 @@
-import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage, Param, MirakLiveParam, EPGStationRecordedParam } from "../server/ws_api";
+import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
 
-export class LongJump extends Error { }
 export type CachedComponent = {
     componentId: number,
     modules: Map<number, CachedModule>,
@@ -157,25 +156,61 @@ export class Resources {
 
     private currentProgramInfo: ProgramInfoMessage | null = null;
 
-    public get eventName(): string | null | undefined {
-        return this.currentProgramInfo?.eventName;
+    // STD-B24 第二分冊(1/2) 第二編 9.2.1.2
+    public get dataCarouselURI() {
+        let url = `arib-dc://${this.originalNetworkId ?? -1}.${this.transportStreamId ?? -1}.${this.serviceId ?? -1}`;
+        if (this.contentId != null) {
+            url += ";" + this.contentId;
+        }
+        if (this.eventId != null) {
+            url += "." + this.eventId;
+        }
+        return url;
     }
-    public get eventId(): number | null | undefined {
-        return this.currentProgramInfo?.eventId;
+
+    // STD-B24 第二分冊(1/2) 第二編 9.2.5
+    public get serviceURI() {
+        return `arib://${this.originalNetworkId ?? -1}.${this.transportStreamId ?? -1}.${this.serviceId ?? -1}`;
     }
-    public get serviceId(): number | null | undefined {
-        return this.currentProgramInfo?.serviceId;
+
+    // STD-B24 第二分冊(1/2) 第二編 9.2.6
+    public get eventURI() {
+        return `arib://${this.originalNetworkId ?? -1}.${this.transportStreamId ?? -1}.${this.serviceId ?? -1}.${this.eventId ?? -1}`;
     }
-    public get originalNetworkId(): number | null | undefined {
-        return this.currentProgramInfo?.originalNetworkId;
+
+    public get eventName(): string | null {
+        return this.currentProgramInfo?.eventName ?? null;
     }
-    public get transportStreamId(): number | null | undefined {
-        return this.currentProgramInfo?.transportStreamId;
+
+    public get eventId(): number | null {
+        return this.currentProgramInfo?.eventId ?? null;
+    }
+
+    // not implemented
+    public get contentId(): number | null {
+        return null;
+    }
+
+    public get startTimeUnixMillis(): number | null {
+        return this.currentProgramInfo?.startTimeUnixMillis ?? null;
+    }
+
+    public get serviceId(): number | null {
+        return this.currentProgramInfo?.serviceId ?? null;
+    }
+
+    public get originalNetworkId(): number | null {
+        return this.currentProgramInfo?.originalNetworkId ?? null;
+    }
+
+    public get transportStreamId(): number | null {
+        return this.currentProgramInfo?.transportStreamId ?? null;
     }
 
     private currentTime: CurrentTime | null = null;
-    public getCurrentTimeUnixMillis(): number | undefined {
-        return this.currentTime?.timeUnixMillis;
+
+    public get currentTimeUnixMillis(): number | null {
+        return this.currentTime?.timeUnixMillis ?? null;
     }
 
     public onMessage(msg: ResponseMessage) {

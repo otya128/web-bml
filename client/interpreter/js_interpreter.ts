@@ -351,10 +351,10 @@ export class JSInterpreter implements Interpreter {
                     }
                     // Called as `new Date(...)`.
                     var args = [null].concat(Array.from(arguments));
-                    if (args.length <= 1 && value == null && resources.getCurrentTimeUnixMillis() != null) {
+                    if (args.length <= 1 && value == null && resources.currentTimeUnixMillis != null) {
                         // currentDateMode=1ならtimeUnixMillisを取得した時間からオフセット追加とかが理想かもしれない
                         browserLog("new Date()");
-                        this.data = new Interpreter.nativeGlobal.Date(resources.getCurrentTimeUnixMillis());
+                        this.data = new Interpreter.nativeGlobal.Date(resources.currentTimeUnixMillis);
                     } else {
                         this.data = new (Function.prototype.bind.apply(
                             Interpreter.nativeGlobal.Date, args as any));

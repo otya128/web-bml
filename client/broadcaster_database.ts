@@ -130,7 +130,7 @@ export class BroadcasterDatabase {
     }
     public onMessage(msg: ResponseMessage) {
         if (msg.type === "bit") {
-            const lastUpdated = this.resources.getCurrentTimeUnixMillis();
+            const lastUpdated = this.resources.currentTimeUnixMillis;
             for (const broadcaster of msg.broadcasters) {
                 if (broadcaster.broadcasterId === 255) {
                     const key = `${msg.originalNetworkId}.${broadcaster.broadcasterId}`;

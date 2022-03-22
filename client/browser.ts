@@ -451,7 +451,14 @@ export class BrowserAPI {
                 return toHex(this.resources.originalNetworkId, 4);
             } else if (type == 4) {
                 return toHex(this.resources.transportStreamId, 4);
+            } else if (type == 6) {
+                // STD-B24 第二分冊 (1/2) 9.2.6
+                return this.resources.eventURI;
+            } else if (type == 7) {
+                // STD-B24 第二分冊 (1/2) 9.2.5
+                return this.resources.serviceURI;
             }
+            console.error("getProgramID", type);
             return null;
         },
         sleep(interval: number): number | null {
