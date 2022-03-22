@@ -268,6 +268,13 @@ export class BrowserAPI {
             }
             return NaN;
         },
+        formatNumber(value: number): string | null {
+            const number = Number(value);
+            if (Number.isNaN(number)) {
+                return null;
+            }
+            return number.toLocaleString("en-US");
+        },
         unlockModuleOnMemory: (module: string): number => {
             console.log("unlockModuleOnMemory", module);
             const { componentId, moduleId } = this.resources.parseURLEx(module);
