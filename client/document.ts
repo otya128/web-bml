@@ -457,6 +457,18 @@ export class BMLDocument {
         if (!focusElement) {
             return;
         }
+        if (focusElement instanceof HTMLInputElement) {
+            if (k >= AribKeyCode.Digit0 && k <= AribKeyCode.Digit9) {
+                const num = (k - AribKeyCode.Digit0).toString();
+                if (focusElement.maxLength > focusElement.value.length) {
+                    focusElement.value += num;
+                }
+            } else if (k === AribKeyCode.Back) {
+                if (focusElement.value.length >= 1) {
+                    focusElement.value = focusElement.value.substring(0, focusElement.value.length - 1);
+                }
+            }
+        }
         const computedStyle = window.getComputedStyle(this.getBody()!);
         let nextFocus = "";
         const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
