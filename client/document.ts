@@ -720,18 +720,18 @@ export class BMLDocument {
                 }
                 for (const event of msg.events) {
                     // 即時イベントのみ実装
-                    if (event.time_mode !== 0) {
+                    if (event.timeMode !== 0) {
                         continue;
                     }
-                    const eventMessageId = event.event_msg_id >> 8;
-                    const eventMessageVersion = event.event_msg_id & 0xff;
+                    const eventMessageId = event.eventMessageId >> 8;
+                    const eventMessageVersion = event.eventMessageId & 0xff;
                     if (message_id === 255 || message_id === eventMessageId) {
                         if (message_version === 255 || message_version === eventMessageVersion) {
                             if ((beitem as any).__prevVersion === eventMessageVersion) {
                                 continue;
                             }
                             (beitem as any).__prevVersion = eventMessageVersion;
-                            const privateData = decodeEUCJP(Uint8Array.from(event.private_data_byte));
+                            const privateData = decodeEUCJP(Uint8Array.from(event.privateDataByte));
                             console.log("EventMessageFired", eventMessageId, eventMessageVersion, privateData);
                             this.eventQueue.queueAsyncEvent(async () => {
                                 this.eventDispatcher.setCurrentBeventEvent({
@@ -742,7 +742,7 @@ export class BMLDocument {
                                     esRef: "/" + componentId.toString(16).padStart(2, "0"),
                                     messageId: eventMessageId,
                                     messageVersion: eventMessageVersion,
-                                    messageGroupId: event.event_msg_group_id,
+                                    messageGroupId: event.eventMessageGroupId,
                                     moduleRef: "",
                                     languageTag: 0,//?
                                     registerId: 0,

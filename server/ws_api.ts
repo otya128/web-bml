@@ -83,20 +83,20 @@ export type ModuleListUpdatedMessage = {
 export type ESEvent = ESImmediateEvent | ESNPTEvent;
 
 export type ESImmediateEvent = {
-    event_msg_group_id: number,
-    time_mode: 0,
-    event_msg_type: number,
-    event_msg_id: number,
-    private_data_byte: number[],
+    eventMessageGroupId: number,
+    timeMode: 0,
+    eventMessageType: number,
+    eventMessageId: number,
+    privateDataByte: number[],
 };
 
 export type ESNPTEvent = {
-    event_msg_group_id: number,
-    time_mode: 2,
-    event_msg_NPT: number,
-    event_msg_type: number,
-    event_msg_id: number,
-    private_data_byte: number[],
+    eventMessageGroupId: number,
+    timeMode: 2,
+    eventMessageNPT: number,
+    eventMessageType: number,
+    eventMessageId: number,
+    privateDataByte: number[],
 };
 
 export type ESEventUpdatedMessage = {

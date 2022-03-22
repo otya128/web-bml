@@ -339,8 +339,8 @@ export function decodeTS(dbs: DataBroadcastingStream) {
         if (pid !== pcr_pid) {
             return;
         }
-        const program_clock_reference_base = data.adaptation_field.program_clock_reference_base;
-        const program_clock_reference_extension = data.adaptation_field.program_clock_reference_extension;
+        const program_clock_reference_base = data.adaptation_field?.program_clock_reference_base;
+        const program_clock_reference_extension = data.adaptation_field?.program_clock_reference_extension;
         // console.log(program_clock_reference_base);
     });
 
@@ -676,11 +676,11 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                     if (time_mode === 0) {
                         // 40bit reserved_future_use
                         events.push({
-                            event_msg_type,
-                            event_msg_group_id,
-                            event_msg_id,
-                            private_data_byte: Array.from(private_data_byte),
-                            time_mode
+                            eventMessageType: event_msg_type,
+                            eventMessageGroupId: event_msg_group_id,
+                            eventMessageId: event_msg_id,
+                            privateDataByte: Array.from(private_data_byte),
+                            timeMode: time_mode
                         });
                     } else if (time_mode === 0x01 || time_mode === 0x05) {
                         // event_msg_MJD_JST_time
@@ -689,12 +689,12 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                         // event_msg_NPT
                         const NPT = descriptor.readUInt32BE(4) | ((descriptor[3] & 1) * 0x100000000);
                         events.push({
-                            event_msg_type,
-                            event_msg_NPT: NPT,
-                            event_msg_group_id,
-                            event_msg_id,
-                            private_data_byte: Array.from(private_data_byte),
-                            time_mode
+                            eventMessageType: event_msg_type,
+                            eventMessageNPT: NPT,
+                            eventMessageGroupId: event_msg_group_id,
+                            eventMessageId: event_msg_id,
+                            privateDataByte: Array.from(private_data_byte),
+                            timeMode: time_mode
                         });
                     } else if (time_mode === 0x03) {
                         // 4bit reserved_future_use
