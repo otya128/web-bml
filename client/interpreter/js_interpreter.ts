@@ -408,15 +408,19 @@ export class JSInterpreter implements Interpreter {
                     interpreter.setNativeFunctionPrototype(interpreter.DATE, functions[i], wrapper);
                 }
                 interpreter.setNativeFunctionPrototype(interpreter.DATE, "toString", function (this: { data: Date }) {
+                    browserLog("Date.toString()", this.data);
                     return bmlDate.toString.call(this.data);
                 });
                 interpreter.setNativeFunctionPrototype(interpreter.DATE, "toLocaleString", function (this: { data: Date }) {
+                    browserLog("Date.toLocaleString()", this.data);
                     return bmlDate.toString.call(this.data);
                 });
                 interpreter.setNativeFunctionPrototype(interpreter.DATE, "toUTCString", function (this: { data: Date }) {
+                    browserLog("Date.toUTCString()", this.data);
                     return bmlDate.toUTCString.call(this.data);
                 });
             }
+            initDate(interpreter, globalObject);
             interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.eucJPFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
             interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.eucJPCharCodeAt);
             initNumber(interpreter, globalObject);
