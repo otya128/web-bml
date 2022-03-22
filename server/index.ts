@@ -198,7 +198,7 @@ router.get("/videos/:videoFileId", async ctx => {
 
 router.get("/play", async ctx => {
     ctx.body = fs.createReadStream("public/index.html");
-    ctx.set("Content-Type", "application/xhtml+xml; charset=utf-8");
+    ctx.set("Content-Type", "text/html; charset=utf-8");
 });
 
 function pipeAsync(from: stream.Readable, to: stream.Writable, options?: { end?: boolean }): Promise<void> {
