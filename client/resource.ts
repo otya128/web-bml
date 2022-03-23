@@ -389,4 +389,23 @@ export class Resources {
         });
     }
 
+    public parseServiceReference(serviceRef: string): { originalNetworkId: number | null, transportStreamId: number | null, serviceId: number | null } {
+        const groups = /^arib:\/\/(?<originalNetworkId>[0-9a-f]+|-1)\.(?<transportStreamId>[0-9a-f]+|-1)\.(?<serviceId>[0-9a-f]+|-1)\/?$/i.exec(serviceRef)?.groups;
+        if (groups == null) {
+            return { originalNetworkId: null, transportStreamId: null, serviceId: null };
+        }
+        let originalNetworkId: number | null = Number.parseInt(groups.originalNetworkId, 16);
+        let transportStreamId: number | null = Number.parseInt(groups.transportStreamId, 16);
+        let serviceId: number | null = Number.parseInt(groups.serviceId, 16);
+        if (originalNetworkId == -1) {
+            originalNetworkId = this.originalNetworkId;
+        }
+        if (transportStreamId == -1) {
+            transportStreamId = this.transportStreamId;
+        }
+        if (serviceId == -1) {
+            serviceId = this.serviceId;
+        }
+        return { originalNetworkId, transportStreamId, serviceId };
+    }
 }

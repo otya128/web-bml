@@ -20,6 +20,14 @@ export interface Indicator {
     setEventName(eventName: string | null): void;
 }
 
+export interface EPG {
+    // 指定されたサービスを選局する
+    // true: 成功, false: 失敗, never: ページ遷移などで帰らない
+    tune?(originalNetworkId: number, transportStreamId: number, serviceId: number): boolean | never;
+    // 指定されたサービスを選局して指定されたコンポーネントを表示する
+    tuneToComponent?(originalNetworkId: number, transportStreamId: number, serviceId: number, component: string): boolean | never;
+}
+
 interface BMLBrowserEventMap {
     // 読み込まれたとき
     "load": CustomEvent<{ resolution: { width: number, height: number } }>;
@@ -65,6 +73,7 @@ export type BMLBrowserOptions = {
     broadcasterDatabasePrefix?: string;
     // フォーカスを受け付けキー入力を受け取る
     tabIndex?: number;
+    epg?: EPG;
 };
 
 export class BMLBrowser {
@@ -84,6 +93,7 @@ export class BMLBrowser {
     private indicator?: Indicator;
     private eventTarget = new EventTarget() as BMLBrowserEventTarget;
     private fonts: FontFace[] = [];
+    private readonly epg: EPG;
     public constructor(options: BMLBrowserOptions) {
         this.containerElement = options.containerElement;
         this.mediaElement = options.mediaElement;
@@ -101,6 +111,7 @@ export class BMLBrowser {
         this.broadcasterDatabase = new BroadcasterDatabase(this.resources);
         this.broadcasterDatabase.openDatabase();
         this.nvram = new NVRAM(this.resources, this.broadcasterDatabase, options.nvramPrefix);
+        this.epg = options.epg ?? {};
         this.interpreter = new JSInterpreter();
         this.eventQueue = new EventQueue(this.interpreter);
         this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget);
@@ -111,7 +122,7 @@ export class BMLBrowser {
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
-        this.interpreter.setupEnvironment(this.browserAPI.browser, this.resources, this.bmlDocument);
+        this.interpreter.setupEnvironment(this.browserAPI.browser, this.resources, this.bmlDocument, this.epg);
         if (options.fonts?.roundGothic) {
             this.fonts.push(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));
         }
@@ -134,9 +145,8 @@ export class BMLBrowser {
             this.bmlDocument.launchDocument("/40/0000");
         }
     }
-    // そのうちID3とかにできればよさそう
 
-    public onMessage(msg: ResponseMessage) {
+    public emitMessage(msg: ResponseMessage) {
         if (msg.type === "programInfo") {
             this.indicator?.setEventName(msg.eventName);
         }

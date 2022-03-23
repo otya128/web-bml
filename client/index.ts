@@ -5,7 +5,7 @@ import { MP4VideoPlayer } from "./player/mp4";
 import { MPEGTSVideoPlayer } from "./player/mpegts";
 import { HLSVideoPlayer } from "./player/hls";
 import { NullVideoPlayer } from "./player/null";
-import { BMLBrowser, BMLBrowserFontFace } from "./bml_browser";
+import { BMLBrowser, BMLBrowserFontFace, EPG } from "./bml_browser";
 import { VideoPlayer } from "./player/video_player";
 import { RemoteControl } from "./remote_controller_client";
 import { keyCodeToAribKey } from "./document";
@@ -64,6 +64,14 @@ const squareGothic: BMLBrowserFontFace = { source: "url('/Kosugi-Regular.ttf'), 
 
 // リモコン
 const remoteControl = new RemoteControl(document.getElementById("remote-control")!);
+
+const epg: EPG = {
+    tune(originalNetworkId, transportStreamId, serviceId) {
+        console.error("tune", originalNetworkId, transportStreamId, serviceId);
+        return false;
+    }
+};
+
 const bmlBrowser = new BMLBrowser({
     containerElement: contentElement,
     mediaElement: videoContainer,
@@ -72,9 +80,9 @@ const bmlBrowser = new BMLBrowser({
         roundGothic,
         boldRoundGothic,
         squareGothic
-    }
+    },
+    epg,
 });
-
 
 remoteControl.bmlDocument = bmlBrowser.bmlDocument;
 // trueであればデータ放送の上に動画を表示させる非表示状態
@@ -127,7 +135,7 @@ window.addEventListener("keyup", (event) => {
 
 ws.addEventListener("message", (event) => {
     const msg = JSON.parse(event.data) as ResponseMessage;
-    bmlBrowser.onMessage(msg);
+    bmlBrowser.emitMessage(msg);
 
     if (msg.type === "videoStreamUrl") {
         const videoElement = videoContainer.querySelector("video") as HTMLVideoElement;

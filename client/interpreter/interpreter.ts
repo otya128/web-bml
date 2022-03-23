@@ -1,3 +1,4 @@
+import { EPG } from "../bml_browser";
 import { Browser } from "../browser";
 import { BMLDocument } from "../document";
 import { Resources } from "../resource";
@@ -11,5 +12,5 @@ export interface Interpreter {
     destroyStack(): void;
     resetStack(): void;
     get isExecuting(): boolean;
-    setupEnvironment(browser: Browser, resources: Resources, bmlDocument: BMLDocument): void;
+    setupEnvironment(browser: Browser, resources: Resources, bmlDocument: BMLDocument, epg: EPG): void;
 }

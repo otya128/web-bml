@@ -49,6 +49,7 @@ import { Browser } from "../browser";
 import * as bmlDate from "../date";
 import * as bmlNumber from "../number";
 import * as bmlString from "../string";
+import { EPG } from "../bml_browser";
 
 function initNumber(interpreter: any, globalObject: any) {
     var thisInterpreter = interpreter;
@@ -233,6 +234,19 @@ export class JSInterpreter implements Interpreter {
             const r = bmlDocument.launchDocument(browser.getActiveDocument()!);
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }
+
+        const epg = this.epg;
+        const resources = this.resources;
+        function epgTune(service_ref: string, callback: (result: any, promiseValue: any) => void): void {
+            browserLog("%cepgTune", "font-size: 4em", service_ref);
+            const { originalNetworkId, transportStreamId, serviceId } = resources.parseServiceReference(service_ref);
+            if (originalNetworkId == null || transportStreamId == null || serviceId == null) {
+                callback(NaN, LAUNCH_DOCUMENT_CALLED);
+            } else {
+                const r = epg.tune?.(originalNetworkId, transportStreamId, serviceId);
+                callback(r, LAUNCH_DOCUMENT_CALLED);
+            }
+        }
         const browser = this.browser;
         this.interpreter = new Interpreter("", (interpreter: any, globalObject: any) => {
             interpreter.setProperty(globalObject, "___log", interpreter.createNativeFunction(function log(log: string) {
@@ -269,6 +283,7 @@ export class JSInterpreter implements Interpreter {
             interpreter.setProperty(pseudoBrowser, "sleep", interpreter.createAsyncFunction(sleep));
             interpreter.setProperty(pseudoBrowser, "launchDocument", interpreter.createAsyncFunction(launchDocument));
             interpreter.setProperty(pseudoBrowser, "reloadActiveDocument", interpreter.createAsyncFunction(reloadActiveDocument));
+            interpreter.setProperty(pseudoBrowser, "epgTune", interpreter.createAsyncFunction(epgTune));
             interpreter.setProperty(pseudoBrowser, "unlockScreen", interpreter.createAsyncFunction(unlockScreen));
             interpreter.setProperty(pseudoBrowser, "readPersistentArray", interpreter.createNativeFunction(function readPersistentArray(filename: string, structure: string): any[] | null {
                 return interpreter.arrayNativeToPseudo(browser.readPersistentArray(filename, structure));
@@ -433,15 +448,17 @@ export class JSInterpreter implements Interpreter {
     browser: Browser = null!;
     resources: Resources = null!;
     bmlDocument: BMLDocument = null!;
+    epg: EPG = null!;
     public constructor() {
         this._isExecuting = false;
     }
 
-    public setupEnvironment(browser: Browser, resources: Resources, bmlDocument: BMLDocument): void {
+    public setupEnvironment(browser: Browser, resources: Resources, bmlDocument: BMLDocument, epg: EPG): void {
         this.browser = browser;
         this._isExecuting = false;
         this.resources = resources;
         this.bmlDocument = bmlDocument;
+        this.epg = epg;
         this.reset();
     }
 
