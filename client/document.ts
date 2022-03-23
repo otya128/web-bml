@@ -338,7 +338,7 @@ export class BMLDocument {
             for (const x of Array.from(this.documentElement.querySelectorAll("arib-script"))) {
                 const src = x.getAttribute("src");
                 if (src) {
-                    const res = this.resources.fetchLockedResource(src);
+                    const res = await this.resources.fetchResourceAsync(src);
                     if (res !== null) {
                         if (exit = await this.interpreter.addScript(decodeEUCJP(res.data), src)) {
                             return true;
@@ -373,22 +373,44 @@ export class BMLDocument {
         // 雑だけど動きはする
         this.eventQueue.setInterval(() => {
             const moduleLocked = this.documentElement.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
-            moduleLocked.forEach(beitem => {
-                if (beitem.getAttribute("subscribe") !== "subscribe") {
+            moduleLocked.forEach(elem => {
+                const beitem = BML.nodeToBMLNode(elem, this.bmlDocument) as BML.BMLBeitemElement;
+                if (beitem.subscribe) {
                     return;
                 }
-                const moduleRef = beitem.getAttribute("module_ref");
-                if (moduleRef == null) {
+                const moduleRef = beitem.moduleRef;
+                if (moduleRef === "") {
                     return;
                 }
                 const { moduleId, componentId } = this.resources.parseURLEx(moduleRef);
                 if (moduleId == null || componentId == null) {
                     return;
                 }
+                if (!this.resources.getPMTComponent(componentId)) {
+                    if ((beitem as any).__prevStatus !== 1) {
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 1);
+                        (beitem as any).__prevStatus = 1;
+                    }
+                    return;
+                }
+                // DII未受信
+                if (!this.resources.componentExistsInDownloadInfo(componentId)) {
+                    return;
+                }
                 if (this.resources.moduleExistsInDownloadInfo(componentId, moduleId)) {
                     if ((beitem as any).__prevStatus !== 2) {
                         this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 2);
                         (beitem as any).__prevStatus = 2;
+                    } else {
+                        const cachedModule = this.resources.getCachedModule(componentId, moduleId);
+                        if (cachedModule != null) {
+                            const version = cachedModule.version;
+                            if ((beitem as any).__prevVersion !== version) {
+                                this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 0);
+                                (beitem as any).__prevVersion = cachedModule;
+                            }
+
+                        }
                     }
                 } else {
                     if ((beitem as any).__prevStatus !== 1) {

@@ -72,6 +72,7 @@ export type ModuleDownloadedMessage = {
     componentId: number,
     moduleId: number,
     files: ModuleFile[],
+    version: number,
 };
 
 export type ModuleListUpdatedMessage = {
@@ -135,7 +136,7 @@ export type BITExtendedBroadcaster = {
     broadcasterId: number,
 };
 
-export type BITService = {  
+export type BITService = {
     serviceType: number,
     serviceId: number,
 };
@@ -155,4 +156,19 @@ export type BITMessage = {
     broadcasters: BITBroadcaster[],
 };
 
-export type ResponseMessage = PMTMessage | ModuleDownloadedMessage | ModuleListUpdatedMessage | ProgramInfoMessage | CurrentTime | VideoStreamUrlMessage | ErrorMessage | ESEventUpdatedMessage | BITMessage;
+export type PCRMessage = {
+    type: "pcr",
+     // 33-bit
+    pcrBase: number,
+    pcrExtension: number,
+}
+export type ResponseMessage = PMTMessage |
+    ModuleDownloadedMessage |
+    ModuleListUpdatedMessage |
+    ProgramInfoMessage |
+    CurrentTime |
+    VideoStreamUrlMessage |
+    ErrorMessage |
+    ESEventUpdatedMessage |
+    BITMessage |
+    PCRMessage;

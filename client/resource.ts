@@ -7,7 +7,8 @@ export type CachedComponent = {
 };
 export type CachedModule = {
     moduleId: number,
-    files: Map<string | null, CachedFile>
+    files: Map<string | null, CachedFile>,
+    version: number,
 };
 
 export type CachedFile = {
@@ -26,6 +27,7 @@ export type LockedModule = {
     moduleId: number,
     files: Map<string | null, CachedFile>,
     lockedBy: "system" | "lockModuleOnMemory" | "lockModuleOnMemoryEx",
+    version: number,
 };
 
 type DownloadComponentInfo = {
@@ -84,7 +86,7 @@ export class Resources {
     private pmtComponents = new Map<number, ComponentPMT>();
     private pmtRetrieved = false;
 
-    private getCachedModule(componentId: number, moduleId: number): CachedModule | undefined {
+    public getCachedModule(componentId: number, moduleId: number): CachedModule | undefined {
         const cachedComponent = this.cachedComponents.get(componentId);
         if (cachedComponent == null) {
             return undefined;
@@ -106,7 +108,7 @@ export class Resources {
             componentId,
             modules: new Map<number, LockedModule>(),
         };
-        lockedComponent.modules.set(moduleId, { files: cachedModule.files, lockedBy, moduleId: cachedModule.moduleId });
+        lockedComponent.modules.set(moduleId, { files: cachedModule.files, lockedBy, moduleId: cachedModule.moduleId, version: cachedModule.version });
         this.lockedComponents.set(componentId, lockedComponent);
         return true;
     }
@@ -130,11 +132,14 @@ export class Resources {
         return false;
     }
 
-    // FIXME
+    public componentExistsInDownloadInfo(componentId: number): boolean {
+        return this.downloadComponents.has(componentId);
+    }
+
     public moduleExistsInDownloadInfo(componentId: number, moduleId: number): boolean {
         const dcomp = this.downloadComponents.get(componentId);
         if (!dcomp) {
-            return true;
+            return false;
         }
         return dcomp.modules.has(moduleId);
     }
@@ -212,6 +217,7 @@ export class Resources {
                     data: Uint8Array.from(window.atob(file.dataBase64), c => c.charCodeAt(0)),
                     blobUrl: new Map(),
                 } as CachedFile]))),
+                version: msg.version,
             };
             cachedComponent.modules.set(msg.moduleId, cachedModule);
             this.cachedComponents.set(msg.componentId, cachedComponent);

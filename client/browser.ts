@@ -310,9 +310,11 @@ export class BrowserAPI {
                 console.error("lockModuleOnMemory: component does not exist in PMT", module);
                 return -1;
             }
-            if (!this.resources.moduleExistsInDownloadInfo(componentId, moduleId)) {
-                console.error("lockModuleOnMemory: component does not exist in DII", module);
-                return -1;
+            if (this.resources.componentExistsInDownloadInfo(componentId)) {
+                if (!this.resources.moduleExistsInDownloadInfo(componentId, moduleId)) {
+                    console.error("lockModuleOnMemory: component does not exist in DII", module);
+                    return -1;
+                }
             }
             const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemory");
             if (!cachedModule) {
@@ -341,10 +343,12 @@ export class BrowserAPI {
                 console.error("lockModuleOnMemoryEx: component does not exist in PMT", module);
                 return -3;
             }
-            if (!this.resources.moduleExistsInDownloadInfo(componentId, moduleId)) {
-                console.error("lockModuleOnMemoryEx: component does not exist in DII", module);
-                this.eventDispatcher.dispatchModuleLockedEvent(module, true, -2);
-                return 1;
+            if (this.resources.componentExistsInDownloadInfo(componentId)) {
+                if (!this.resources.moduleExistsInDownloadInfo(componentId, moduleId)) {
+                    console.error("lockModuleOnMemoryEx: component does not exist in DII", module);
+                    this.eventDispatcher.dispatchModuleLockedEvent(module, true, -2);
+                    return 1;
+                }
             }
             const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
             if (!cachedModule) {

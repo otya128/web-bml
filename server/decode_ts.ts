@@ -12,6 +12,7 @@ type DownloadComponentInfo = {
     transactionId: number,
     downloadedModuleCount: number,
     modules: Map<number, DownloadModuleInfo>,
+    dataEventId: number,
 };
 enum CompressionType {
     None = -1,
@@ -342,6 +343,13 @@ export function decodeTS(dbs: DataBroadcastingStream) {
         const program_clock_reference_base = data.adaptation_field?.program_clock_reference_base;
         const program_clock_reference_extension = data.adaptation_field?.program_clock_reference_extension;
         // console.log(program_clock_reference_base);
+        if (program_clock_reference_base != null && program_clock_reference_extension != null) {
+            unicast(ws, {
+                type: "pcr",
+                pcrBase: program_clock_reference_base,
+                pcrExtension: program_clock_reference_extension,
+            });
+        }
     });
 
     tsStream.on("bit", (_pid, data) => {
@@ -462,15 +470,16 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             if (downloadComponents.get(componentId)?.transactionId === data.message.transaction_id) {
                 return;
             }
+            const downloadId: number = message.downloadId;
+            // downloadIdの下位28ビットは常に1で運用される
+            const data_event_id = (downloadId >> 28) & 15;
             const componentInfo: DownloadComponentInfo = {
                 componentId,
                 modules,
                 transactionId,
                 downloadedModuleCount: 0,
+                dataEventId: data_event_id,
             };
-            const downloadId: number = message.downloadId;
-            // downloadIdの下位28ビットは常に1で運用される
-            const data_event_id = (downloadId >> 28) & 15;
             // console.log(`componentId: ${componentId.toString(16).padStart(2, "0")} downloadId: ${downloadId}`)
             // blockSizeは常に4066
             const blockSize: number = message.blockSize;
@@ -609,7 +618,8 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                                 contentType: x.contentType,
                                 contentLocation: x.contentLocation,
                                 dataBase64: x.data.toString("base64"),
-                            }))
+                            })),
+                            version: moduleVersion,
                         });
                     }
                 } else {
@@ -628,7 +638,8 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                             contentType: x.contentType,
                             contentLocation: x.contentLocation,
                             dataBase64: x.data.toString("base64"),
-                        }))
+                        })),
+                        version: moduleVersion,
                     });
                 }
                 cachedComponent.modules.set(moduleInfo.moduleId, cachedModule);
