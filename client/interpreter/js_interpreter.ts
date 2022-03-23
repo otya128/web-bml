@@ -224,13 +224,13 @@ export class JSInterpreter implements Interpreter {
     public reset() {
         const bmlDocument = this.bmlDocument;
         function launchDocument(documentName: string, transitionStyle: string | undefined, callback: (result: any, promiseValue: any) => void): void {
-            browserLog("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
+            browserLog("launchDocument", documentName, transitionStyle);
             const r = bmlDocument.launchDocument(documentName);
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }
 
         function reloadActiveDocument(callback: (result: any, promiseValue: any) => void): void {
-            browserLog("%creloadActiveDocument", "font-size: 4em");
+            browserLog("reloadActiveDocument");
             const r = bmlDocument.launchDocument(browser.getActiveDocument()!);
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }

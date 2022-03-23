@@ -73,12 +73,15 @@ export type ModuleDownloadedMessage = {
     moduleId: number,
     files: ModuleFile[],
     version: number,
+    dataEventId: number,
 };
 
 export type ModuleListUpdatedMessage = {
     type: "moduleListUpdated",
     componentId: number,
     modules: number[],
+    dataEventId: number,
+    returnToEntryFlag?: boolean,
 };
 
 export type ESEvent = ESImmediateEvent | ESNPTEvent;
@@ -104,7 +107,8 @@ export type ESEventUpdatedMessage = {
     type: "esEventUpdated",
     componentId: number,
     events: ESEvent[],
-}
+    dataEventId: number,
+};
 
 export type ProgramInfoMessage = {
     type: "programInfo",
@@ -161,7 +165,8 @@ export type PCRMessage = {
      // 33-bit
     pcrBase: number,
     pcrExtension: number,
-}
+};
+
 export type ResponseMessage = PMTMessage |
     ModuleDownloadedMessage |
     ModuleListUpdatedMessage |

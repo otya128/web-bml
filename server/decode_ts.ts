@@ -460,19 +460,19 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             const sectionNumber: number = data.section_number;
             const lastSectionNumber: number = data.last_section_number;
 
-            const modules = new Map<number, DownloadModuleInfo>();
             // dsmccMessageHeader
             // protocolDiscriminatorは常に0x11
             // dsmccTypeは常に0x03
             // messageIdは常に0x1002
             const message = data.message;
-            const transactionId: number = data.message.transaction_id;
-            if (downloadComponents.get(componentId)?.transactionId === data.message.transaction_id) {
-                return;
-            }
             const downloadId: number = message.downloadId;
             // downloadIdの下位28ビットは常に1で運用される
             const data_event_id = (downloadId >> 28) & 15;
+            const modules = new Map<number, DownloadModuleInfo>();
+            const transactionId: number = message.transaction_id;
+            if (downloadComponents.get(componentId)?.transactionId === data.message.transaction_id) {
+                return;
+            }
             const componentInfo: DownloadComponentInfo = {
                 componentId,
                 modules,
@@ -519,16 +519,23 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                     }
                 }
             }
+            let returnToEntryFlag: boolean | undefined;
+            for (const privateData of data.message.privateData) {
+                const descriptor_tag: number = privateData.descriptor_tag;
+                // arib_bxml_privatedata_descriptor
+                // STD-B24 第二分冊 (1/2) 第二編 9.3.4参照
+                if (descriptor_tag === 0xF0) {
+                    returnToEntryFlag = !!(privateData.descriptor[0] & 0x80);
+                }
+            }
             unicast(ws, {
                 type: "moduleListUpdated",
                 componentId,
                 modules: data.message.modules.map((x: any) => x.moduleId),
+                dataEventId: data_event_id,
+                returnToEntryFlag,
             });
             downloadComponents.set(componentId, componentInfo);
-            //for (const req of moduleLockRequests.filter(x => x.componentId === componentId)) {
-            //    if (req.)
-
-            //}
         } else if (data.table_id === 0x3c) {
             const componentInfo = downloadComponents.get(componentId);
             if (componentInfo == null) {
@@ -539,9 +546,17 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             const headerModuleVersionLow5bit: number = data.version_number;
             const headerBlockNumberLow8bit: number = data.section_number;
 
-            const moduleId = data.message.moduleId;
-            const moduleVersion = data.message.moduleVersion;
-            const blockNumber = data.message.blockNumber;
+            // dsmccMessageHeader
+            // protocolDiscriminatorは常に0x11
+            // dsmccTypeは常に0x03
+            // messageIdは常に0x1002
+            const message = data.message;
+            const downloadId: number = message.downloadId;
+            // downloadIdの下位28ビットは常に1で運用される
+            const data_event_id = (downloadId >> 28) & 15;
+            const moduleId = message.moduleId;
+            const moduleVersion = message.moduleVersion;
+            const blockNumber = message.blockNumber;
 
             const moduleInfo = componentInfo.modules.get(moduleId);
             // console.log(`download ${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`)
@@ -620,6 +635,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                                 dataBase64: x.data.toString("base64"),
                             })),
                             version: moduleVersion,
+                            dataEventId: data_event_id,
                         });
                     }
                 } else {
@@ -640,6 +656,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                             dataBase64: x.data.toString("base64"),
                         })),
                         version: moduleVersion,
+                        dataEventId: data_event_id,
                     });
                 }
                 cachedComponent.modules.set(moduleInfo.moduleId, cachedModule);
@@ -647,6 +664,8 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             }
         } else if (data.table_id === 0x3d) {
             // ストリーム記述子
+            const data_event_id = data.table_id_extension >> 12;
+            const event_msg_group_id = data.table_id_extension & 0b1111_1111_1111;
             const stream_descriptor: Buffer = data.stream_descriptor;
             const events: wsApi.ESEvent[] = [];
             for (let i = 0; i + 1 < stream_descriptor.length; i++) {
@@ -717,6 +736,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                 type: "esEventUpdated",
                 events,
                 componentId,
+                dataEventId: data_event_id,
             });
         }
     });

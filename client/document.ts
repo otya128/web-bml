@@ -207,6 +207,60 @@ export class BMLDocument {
             event.preventDefault();
             this.processKeyUp(k);
         });
+
+        this.resources.addEventListener("dataeventchanged", async (event) => {
+            const { component, returnToEntryFlag } = event.detail;
+            console.log("DataEventChanged", event.detail);
+            const { moduleId, componentId } = this.resources.parseURLEx(this.resources.activeDocument);
+            if (moduleId == null || componentId == null) {
+                return;
+            }
+            if (component.componentId === componentId) {
+                // Exは運用されない
+                const moduleLocked = this.documentElement.querySelectorAll("beitem[type=\"DataEventChanged\"]");
+                for (const elem of Array.from(moduleLocked)) {
+                    const beitem = BML.nodeToBMLNode(elem, this.bmlDocument) as BML.BMLBeitemElement;
+                    if (!beitem.subscribe) {
+                        continue;
+                    }
+                    const onoccur = elem.getAttribute("onoccur");
+                    if (onoccur == null) {
+                        continue;
+                    }
+                    this.eventDispatcher.setCurrentBeventEvent({
+                        type: "DataEventChanged",
+                        target: elem as HTMLElement,
+                        status: component.modules.size === 0 ? 1 : 0,
+                        privateData: "",
+                        esRef: "",
+                        messageId: 0,
+                        messageVersion: 0,
+                        messageGroupId: 0,
+                        moduleRef: "",
+                        languageTag: 0,//?
+                        registerId: 0,
+                        serviceId: 0,
+                        eventId: 0,
+                        peripheralRef: "",
+                        object: null,
+                        segmentId: null,
+                    });
+                    if (await this.eventQueue.executeEventHandler(onoccur)) {
+                        // DataEventChanged割り込み事象中で他の文書が読み込まれたならばスタートアップ文書は起動されない (TR-B14 第二分冊 2.3.1.7参照)
+                        return;
+                    }
+                    this.eventDispatcher.resetCurrentEvent();
+                }
+            }
+            // 現在視聴中のコンポーネントまたはエントリコンポーネント(固定)かつ引き戻しフラグであればスタートアップ文書を起動
+            if (component.componentId === componentId || (component.componentId === 0x40 && returnToEntryFlag)) {
+                console.log("launch startup (DataEventChanged)");
+                window.setTimeout(() => {
+                    this.resources.unlockAllModule(); // ?
+                    this.launchDocument("/40/0000/startup.bml");
+                }, 1);
+            }
+        });
     }
 
     private _currentDateMode: number = 0;
@@ -394,10 +448,14 @@ export class BMLDocument {
                     return;
                 }
                 // DII未受信
-                if (!this.resources.componentExistsInDownloadInfo(componentId)) {
+                const dii = this.resources.getDownloadComponentInfo(componentId);
+                if (dii == null) {
                     return;
                 }
-                if (this.resources.moduleExistsInDownloadInfo(componentId, moduleId)) {
+                const existsInDII = this.resources.moduleExistsInDownloadInfo(componentId, moduleId);
+                const prevDataEventDIINotExists = (beitem as any).__prevStatus === 1;
+                const prevDataEventDIIExists = (beitem as any).__prevStatus === 2;
+                if (existsInDII) {
                     if ((beitem as any).__prevStatus !== 2) {
                         this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 2);
                         (beitem as any).__prevStatus = 2;
@@ -405,11 +463,10 @@ export class BMLDocument {
                         const cachedModule = this.resources.getCachedModule(componentId, moduleId);
                         if (cachedModule != null) {
                             const version = cachedModule.version;
-                            if ((beitem as any).__prevVersion !== version) {
+                            if ((beitem as any).__prevVersion != null && (beitem as any).__prevVersion !== version) {
                                 this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 0);
-                                (beitem as any).__prevVersion = cachedModule;
                             }
-
+                            (beitem as any).__prevVersion = version;
                         }
                     }
                 } else {
@@ -418,13 +475,37 @@ export class BMLDocument {
                         (beitem as any).__prevStatus = 1;
                     }
                 }
+                if ((beitem as any).__prevDataEventId == null) {
+                    (beitem as any).__prevDataEventId = dii.dataEventId;
+                    // データイベントが更新された
+                } else if ((beitem as any).__prevDataEventId !== dii.dataEventId) {
+                    (beitem as any).__prevDataEventId = dii.dataEventId;
+                    if (prevDataEventDIINotExists && existsInDII) {
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 4);
+                    } else if (prevDataEventDIIExists && !existsInDII) {
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 5);
+                    } else if (prevDataEventDIIExists && existsInDII) {
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 6);
+                    }
+                }
             });
         }, 1000);
         this.indicator?.setUrl(this.resources.activeDocument, false);
         return false;
     }
 
+    private pendingLaunchDocument?: Promise<number>;
+
     public launchDocument(documentName: string) {
+        this.pendingLaunchDocument = this.launchDocumentAsync(documentName, this.pendingLaunchDocument);
+        return NaN;
+    }
+
+    private async launchDocumentAsync(documentName: string, pendingLaunchDocument?: Promise<number>) {
+        if (pendingLaunchDocument != null) {
+            await pendingLaunchDocument;
+        }
+        console.log("%claunchDocument", "font-size: 4em", documentName);
         this.eventQueue.discard();
         const { component, module, filename } = this.resources.parseURL(documentName);
         const componentId = Number.parseInt(component ?? "", 16);
@@ -440,13 +521,12 @@ export class BMLDocument {
         }
         this.indicator?.setUrl(normalizedDocument, true);
         if (!this.resources.lockCachedModule(componentId, moduleId, "system")) {
-            this.resources.fetchResourceAsync(documentName).then((res) => {
-                if (res == null) {
-                    console.error("document", documentName, "not found");
-                    return;
-                }
-                this.launchDocument(documentName);
-            });
+            const res = await this.resources.fetchResourceAsync(documentName);
+            if (res == null) {
+                console.error("document", documentName, "not found");
+                return NaN;
+            }
+            this.launchDocument(documentName);
             return NaN;
         }
         const res = this.resources.fetchLockedResource(documentName);
@@ -455,7 +535,7 @@ export class BMLDocument {
             return NaN;
         }
         const ad = this.resources.activeDocument;
-        this.loadDocument(res, normalizedDocument);
+        await this.loadDocument(res, normalizedDocument);
         console.log("return ", ad, documentName);
         return NaN;
     }

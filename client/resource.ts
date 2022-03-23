@@ -4,11 +4,13 @@ import { Indicator } from "./bml_browser";
 export type CachedComponent = {
     componentId: number,
     modules: Map<number, CachedModule>,
+    dataEventId: number,
 };
 export type CachedModule = {
     moduleId: number,
     files: Map<string | null, CachedFile>,
     version: number,
+    dataEventId: number,
 };
 
 export type CachedFile = {
@@ -21,6 +23,7 @@ export type CachedFile = {
 export type LockedComponent = {
     componentId: number,
     modules: Map<number, LockedModule>,
+    dataEventId: number,
 };
 
 export type LockedModule = {
@@ -28,11 +31,13 @@ export type LockedModule = {
     files: Map<string | null, CachedFile>,
     lockedBy: "system" | "lockModuleOnMemory" | "lockModuleOnMemoryEx",
     version: number,
+    dataEventId: number,
 };
 
-type DownloadComponentInfo = {
+export type DownloadComponentInfo = {
     componentId: number,
     modules: Set<number>,
+    dataEventId: number,
 };
 
 // `${componentId}/${moduleId}`がダウンロードされたらコールバックを実行する
@@ -49,8 +54,21 @@ function moduleAndComponentToString(componentId: number, moduleId: number) {
     return `${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
 }
 
+interface ResourcesEventMap {
+    "dataeventchanged": CustomEvent<{ prevComponent: DownloadComponentInfo, component: DownloadComponentInfo, returnToEntryFlag?: boolean }>;
+}
+
+interface CustomEventTarget<M> {
+    addEventListener<K extends keyof M>(type: K, callback: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean): void;
+    dispatchEvent<K extends keyof M>(event: M[K]): boolean;
+    removeEventListener<K extends keyof M>(type: K, callback: EventListenerOrEventListenerObject, options?: EventListenerOptions | boolean): void;
+}
+
+export type ResourcesEventTarget = CustomEventTarget<ResourcesEventMap>;
+
 export class Resources {
     private readonly indicator?: Indicator;
+    private readonly eventTarget: ResourcesEventTarget = new EventTarget();
 
     public constructor(indicator?: Indicator) {
         this.indicator = indicator;
@@ -104,11 +122,14 @@ export class Resources {
         if (cachedModule == null) {
             return false;
         }
+        const cachedComponent = this.cachedComponents.get(componentId)!;
         const lockedComponent = this.lockedComponents.get(componentId) ?? {
             componentId,
             modules: new Map<number, LockedModule>(),
+            dataEventId: cachedComponent.dataEventId,
         };
-        lockedComponent.modules.set(moduleId, { files: cachedModule.files, lockedBy, moduleId: cachedModule.moduleId, version: cachedModule.version });
+        lockedComponent.dataEventId = cachedComponent.dataEventId; // FIXME
+        lockedComponent.modules.set(moduleId, { files: cachedModule.files, lockedBy, moduleId: cachedModule.moduleId, version: cachedModule.version, dataEventId: cachedModule.dataEventId });
         this.lockedComponents.set(componentId, lockedComponent);
         return true;
     }
@@ -131,6 +152,10 @@ export class Resources {
 
     public componentExistsInDownloadInfo(componentId: number): boolean {
         return this.downloadComponents.has(componentId);
+    }
+
+    public getDownloadComponentInfo(componentId: number): DownloadComponentInfo | undefined {
+        return this.downloadComponents.get(componentId);
     }
 
     public moduleExistsInDownloadInfo(componentId: number, moduleId: number): boolean {
@@ -204,8 +229,10 @@ export class Resources {
         if (msg.type === "moduleDownloaded") {
             const cachedComponent = this.cachedComponents.get(msg.componentId) ?? {
                 componentId: msg.componentId,
-                modules: new Map()
+                modules: new Map(),
+                dataEventId: msg.dataEventId,
             };
+            cachedComponent.dataEventId = msg.dataEventId; // FIXME
             const cachedModule: CachedModule = {
                 moduleId: msg.moduleId,
                 files: new Map(msg.files.map(file => ([file.contentLocation?.toLowerCase() ?? null, {
@@ -215,6 +242,7 @@ export class Resources {
                     blobUrl: new Map(),
                 } as CachedFile]))),
                 version: msg.version,
+                dataEventId: msg.dataEventId,
             };
             cachedComponent.modules.set(msg.moduleId, cachedModule);
             this.cachedComponents.set(msg.componentId, cachedComponent);
@@ -237,10 +265,12 @@ export class Resources {
                 this.setReceivingStatus();
             }
         } else if (msg.type === "moduleListUpdated") {
-            const component = {
+            const component: DownloadComponentInfo = {
                 componentId: msg.componentId,
-                modules: new Set(msg.modules)
+                modules: new Set(msg.modules),
+                dataEventId: msg.dataEventId,
             };
+            const prevComponent = this.getDownloadComponentInfo(msg.componentId);
             this.downloadComponents.set(msg.componentId, component);
             const creqs = this.componentRequests.get(msg.componentId);
             if (creqs) {
@@ -255,6 +285,10 @@ export class Resources {
                     }
                 }
                 this.setReceivingStatus();
+            }
+            // DIIのdata_event_idが更新された
+            if (prevComponent != null && prevComponent.dataEventId !== component.dataEventId) {
+                this.dispatchDataEventChanged(prevComponent, component, msg.returnToEntryFlag);
             }
         } else if (msg.type === "pmt") {
             this.pmtRetrieved = true;
@@ -272,6 +306,10 @@ export class Resources {
         } else if (msg.type === "error") {
             console.error(msg);
         }
+    }
+
+    private dispatchDataEventChanged(prevComponent: DownloadComponentInfo, component: DownloadComponentInfo, returnToEntryFlag?: boolean) {
+        this.eventTarget.dispatchEvent<"dataeventchanged">(new CustomEvent("dataeventchanged", { detail: { prevComponent, component, returnToEntryFlag } }));
     }
 
     public parseURL(url: string | null | undefined): { component: string | null, module: string | null, filename: string | null } {
@@ -430,5 +468,13 @@ export class Resources {
         } else {
             this.indicator?.setReceivingStatus(false);
         }
+    }
+
+    public addEventListener<K extends keyof ResourcesEventMap>(type: K, callback: (this: undefined, evt: ResourcesEventMap[K]) => void, options?: AddEventListenerOptions | boolean) {
+        this.eventTarget.addEventListener(type, callback as EventListener, options);
+    }
+
+    public removeEventListener<K extends keyof ResourcesEventMap>(type: K, callback: (this: undefined, evt: ResourcesEventMap[K]) => void, options?: AddEventListenerOptions | boolean) {
+        this.eventTarget.removeEventListener(type, callback as EventListener, options);
     }
 }
