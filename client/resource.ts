@@ -1,4 +1,5 @@
 import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
+import { Indicator } from "./bml_browser";
 
 export type CachedComponent = {
     componentId: number,
@@ -47,6 +48,12 @@ function moduleAndComponentToString(componentId: number, moduleId: number) {
 }
 
 export class Resources {
+    private readonly indicator?: Indicator;
+
+    public constructor(indicator?: Indicator) {
+        this.indicator = indicator;
+    }
+
     private _activeDocument: null | string = null;
 
     public set activeDocument(doc: string | null) {
@@ -224,6 +231,7 @@ export class Resources {
                         cb.resolve(file ?? null);
                     }
                 }
+                this.setReceivingStatus();
             }
         } else if (msg.type === "moduleListUpdated") {
             const component = {
@@ -243,6 +251,7 @@ export class Resources {
                         mreqs.length = 0;
                     }
                 }
+                this.setReceivingStatus();
             }
         } else if (msg.type === "pmt") {
             this.pmtRetrieved = true;
@@ -254,6 +263,7 @@ export class Resources {
             for (const cb of callbacks) {
                 cb(msg);
             }
+            this.setReceivingStatus();
         } else if (msg.type === "currentTime") {
             this.currentTime = msg;
         } else if (msg.type === "error") {
@@ -363,6 +373,7 @@ export class Resources {
                     m.push(entry);
                 }
             }
+            this.setReceivingStatus();
         });
     }
 
@@ -386,6 +397,7 @@ export class Resources {
         }
         return new Promise<ProgramInfoMessage>((resolve, _) => {
             this.programInfoCallbacks.push(resolve);
+            this.setReceivingStatus();
         });
     }
 
@@ -407,5 +419,13 @@ export class Resources {
             serviceId = this.serviceId;
         }
         return { originalNetworkId, transportStreamId, serviceId };
+    }
+
+    private setReceivingStatus() {
+        if (this.programInfoCallbacks.length != 0 || [...this.componentRequests.values()].some(x => x.moduleRequests.size != 0)) {
+            this.indicator?.setReceivingStatus(true);
+        } else {
+            this.indicator?.setReceivingStatus(false);
+        }
     }
 }

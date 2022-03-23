@@ -7,10 +7,12 @@ export class RemoteControl implements Indicator {
     public bmlDocument?: BMLDocument;
     public player?: VideoPlayer;
     element: HTMLElement;
-    constructor(element: HTMLElement, bmlDocument?: BMLDocument, player?: VideoPlayer) {
+    receivingStatusElement: HTMLElement;
+    constructor(element: HTMLElement, receivingStatusElement: HTMLElement, bmlDocument?: BMLDocument, player?: VideoPlayer) {
         this.bmlDocument = bmlDocument;
         this.player = player;
         this.element = element;
+        this.receivingStatusElement = receivingStatusElement;
 
         this.element.querySelectorAll("button").forEach(x => {
             x.addEventListener("click", () => {
@@ -71,6 +73,11 @@ export class RemoteControl implements Indicator {
         const indicator = this.element.querySelector(".remote-control-indicator");
         if (indicator != null) {
             indicator.textContent = this.url + (this.loading ? "を読み込み中..." : "") + "\n" + (this.eventName ?? "番組名未取得");
+        }
+        if (this.receiving) {
+            this.receivingStatusElement.style.display = "";
+        } else {
+            this.receivingStatusElement.style.display = "none";
         }
     }
     public setUrl(name: string, loading: boolean): void {

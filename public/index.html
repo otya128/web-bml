@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>
         データ放送ブラウザ
@@ -20,6 +21,30 @@
             font-size: 70%;
             line-height: 1;
         }
+
+        .remote-control-receiving-status {
+            position: absolute;
+            width: 140px;
+            height: 1.5em;
+            right: 20px;
+            bottom: 20px;
+            font-family: "丸ゴシック";
+            background-color: rgba(32, 32, 32, 0.5);
+            vertical-align: middle;
+            line-height: 1.5em;
+            text-align: center;
+            color: white;
+            /* animation: blink 2s infinite alternate steps(2, start); */
+        }
+        /*
+        @keyframes blink {
+            0% {
+                visibility: visible;
+            }
+            100% {
+                visibility: hidden;
+            }
+        }*/
     </style>
 </head>
 
@@ -44,6 +69,9 @@
             </div>
             <div class="arib-video-cc-container"
                 style="width: 960px; height: 540px; display: none; position: absolute; left: 0px; top: 0px;">
+            </div>
+            <div class="remote-control-receiving-status" style="display: none;">
+                データ取得中...
             </div>
         </div>
 

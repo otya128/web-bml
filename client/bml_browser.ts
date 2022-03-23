@@ -107,7 +107,7 @@ export class BMLBrowser {
             this.documentElement.tabIndex = options.tabIndex;
         }
         this.shadowRoot.appendChild(this.documentElement);
-        this.resources = new Resources();
+        this.resources = new Resources(this.indicator);
         this.broadcasterDatabase = new BroadcasterDatabase(this.resources);
         this.broadcasterDatabase.openDatabase();
         this.nvram = new NVRAM(this.resources, this.broadcasterDatabase, options.nvramPrefix);
