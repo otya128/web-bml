@@ -247,8 +247,12 @@ export namespace BML {
             super(node, ownerDocument);
             this.node = node;
         }
-        public getElementById(id: string): HTMLElement | null {
-            return wrapNode(this.node.querySelector("#" + CSS.escape(id)), this.ownerDocument) as (HTMLElement | null);
+        public getElementById(id: string | null | undefined): HTMLElement | null {
+            const stringId = String(id);
+            if (stringId === "") {
+                return null;
+            }
+            return wrapNode(this.node.querySelector("#" + CSS.escape(stringId)), this.ownerDocument) as (HTMLElement | null);
         }
     }
 
