@@ -124,10 +124,7 @@ export class Resources {
     public unlockModule(componentId: number, moduleId: number, isEx: boolean): boolean {
         const m = this.lockedComponents.get(componentId);
         if (m != null) {
-            const mod = m.modules.get(moduleId);
-            if (mod == null) {
-                return false;
-            }
+            return m.modules.delete(moduleId);
         }
         return false;
     }
