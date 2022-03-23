@@ -95,8 +95,8 @@ export interface Browser {
     isBeingBroadcast(event_ref: string): boolean;
     // lockExecution(): number;
     // unlockExecution(): number;
-    lockModuleOnMemory(module: string): number
-    unlockModuleOnMemory(module: string): number
+    lockModuleOnMemory(module: string | null | undefined): number
+    unlockModuleOnMemory(module: string | null | undefined): number
     setCachePriority(module: string, priority: number): number;
     // getTuningLinkageSource(): string;
     // getTuningLinkageType(): number;
@@ -119,8 +119,8 @@ export interface Browser {
     getFreeContentsMemory(number_of_resource?: number): number;
     isSupportedMedia(mediaName: string): number;
     detectComponent(component_ref: string): number;
-    lockModuleOnMemoryEx(module: string): number
-    unlockModuleOnMemoryEx(module: string): number;
+    lockModuleOnMemoryEx(module: string | null | undefined): number
+    unlockModuleOnMemoryEx(module: string | null | undefined): number;
     unlockAllModulesOnMemory(): number;
     getLockedModuleInfo(): LockedModuleInfo[] | null;
     getBrowserStatus(sProvider: string, functionname: string, additionalinfo: string): number;
@@ -275,7 +275,7 @@ export class BrowserAPI {
             }
             return number.toLocaleString("en-US");
         },
-        unlockModuleOnMemory: (module: string): number => {
+        unlockModuleOnMemory: (module: string | null | undefined): number => {
             console.log("unlockModuleOnMemory", module);
             const { componentId, moduleId } = this.resources.parseURLEx(module);
             if (componentId == null || moduleId == null) {
@@ -283,7 +283,7 @@ export class BrowserAPI {
             }
             return this.resources.unlockModule(componentId, moduleId, false) ? 1 : NaN;
         },
-        unlockModuleOnMemoryEx: (module: string): number => {
+        unlockModuleOnMemoryEx: (module: string | null | undefined): number => {
             console.log("unlockModuleOnMemoryEx", module);
             const { componentId, moduleId } = this.resources.parseURLEx(module);
             if (componentId == null || moduleId == null) {
@@ -296,10 +296,10 @@ export class BrowserAPI {
             this.resources.unlockAllModule();
             return 1; // NaN => fail
         },
-        lockModuleOnMemory: (module: string): number => {
+        lockModuleOnMemory: (module: string | null | undefined): number => {
             console.log("lockModuleOnMemory", module);
             const { componentId, moduleId } = this.resources.parseURLEx(module);
-            if (componentId == null || moduleId == null) {
+            if (componentId == null || moduleId == null || module == null) {
                 return NaN;
             }
             // exと違ってロック済みならイベント発生しないはず
@@ -331,10 +331,10 @@ export class BrowserAPI {
             this.eventDispatcher.dispatchModuleLockedEvent(module, false, 0);
             return 1;
         },
-        lockModuleOnMemoryEx: (module: string): number => {
+        lockModuleOnMemoryEx: (module: string | null | undefined): number => {
             console.log("lockModuleOnMemoryEx", module);
             const { componentId, moduleId } = this.resources.parseURLEx(module);
-            if (componentId == null || moduleId == null) {
+            if (componentId == null || moduleId == null || module == null) {
                 return NaN;
             }
             if (!this.resources.getPMTComponent(componentId)) {

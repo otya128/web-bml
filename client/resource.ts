@@ -261,7 +261,10 @@ export class Resources {
         }
     }
 
-    public parseURL(url: string): { component: string | null, module: string | null, filename: string | null } {
+    public parseURL(url: string | null | undefined): { component: string | null, module: string | null, filename: string | null } {
+        if (url == null) {
+            return { component: null, module: null, filename: null };
+        }
         if (url.startsWith("~/")) {
             url = ".." + url.substring(1);
         }
@@ -277,7 +280,7 @@ export class Resources {
         return { component: components[1] ?? null, module: components[2] ?? null, filename: components[3] == null ? null : decodeURI(components[3]) };
     }
 
-    public parseURLEx(url: string): { componentId: number | null, moduleId: number | null, filename: string | null } {
+    public parseURLEx(url: string | null | undefined): { componentId: number | null, moduleId: number | null, filename: string | null } {
         const { component, module, filename } = this.parseURL(url);
         const componentId = Number.parseInt(component ?? "", 16);
         const moduleId = Number.parseInt(module ?? "", 16);
