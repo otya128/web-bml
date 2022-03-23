@@ -130,7 +130,7 @@ export function decodeZipCode(buffer: Uint8Array): ZipCode {
     let excludeListLength = buffer[1];
     return {
         excludeList: decodeZipList(buffer.slice(2), excludeListLength),
-        list: decodeZipList(buffer.slice(2 + excludeListLength), length)
+        list: decodeZipList(buffer.slice(2 + excludeListLength, 1 + length), length - 1 - excludeListLength)
     };
 }
 
