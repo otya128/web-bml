@@ -36,7 +36,7 @@ export type CSSTranspileOptions = {
     inline: boolean,
     href: string,
     clutReader: (cssValue: string) => css.Declaration[],
-    convertUrl?: (url: string) => string,
+    convertUrl?: (url: string) => Promise<string>,
 };
 
 export function colorIndexToVar(colorIndex: string | null | undefined): string | null | undefined {
@@ -59,12 +59,12 @@ export function varToColorIndex(colorIndexVar: string | null | undefined): strin
     return match?.groups?.index ?? colorIndexVar;
 }
 
-function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | string | (css.Comment | css.Declaration)[] {
+async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<undefined | string | (css.Comment | css.Declaration)[]> {
     if (node.type === "stylesheet") {
         const stylesheet = node as css.Stylesheet;
         if (stylesheet.stylesheet) {
             for (const rule of stylesheet.stylesheet.rules) {
-                processRule(rule, opts);
+                await processRule(rule, opts);
             }
         }
     } else if (node.type === "rule") {
@@ -75,7 +75,7 @@ function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | str
                 const decl = rule.declarations[i];
                 if (!decl)
                     break;
-                let c = processRule(decl, opts);
+                let c = await processRule(decl, opts);
                 if (typeof c === "string") {
                     clut = c;
                 } else if (c != null) {
@@ -109,7 +109,7 @@ function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | str
         } else if (opts.convertUrl && decl.property === "background-image" && decl.value) {
             const origProperty = decl.property;
             const origValue = decl.value;
-            decl.value = "url(" + opts.convertUrl(parseCSSValue(opts.href, origValue) ?? origValue) + ")";
+            decl.value = "url(" + await opts.convertUrl(parseCSSValue(opts.href, origValue) ?? origValue) + ")";
             return [decl, {
                 type: "declaration",
                 property: "--" + origProperty,
@@ -132,7 +132,7 @@ function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | str
     }
 }
 
-export function transpileCSS(style: string, opts: CSSTranspileOptions): string {
+export async function transpileCSS(style: string, opts: CSSTranspileOptions): Promise<string> {
     if (opts.inline) {
         style = "*{" + style + "}";
     }
@@ -140,7 +140,7 @@ export function transpileCSS(style: string, opts: CSSTranspileOptions): string {
     if (!parsed) {
         return style;
     }
-    processRule(parsed, opts);
+    await processRule(parsed, opts);
     const transpiled = css.stringify(parsed, { compress: opts.inline });
     if (opts.inline) {
         return transpiled.replace(/^\*\{|\}$/g, "");

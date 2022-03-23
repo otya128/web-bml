@@ -12,6 +12,7 @@ import { ResponseMessage } from "../server/ws_api";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { Interpreter } from "./interpreter/interpreter";
 import { BMLBrowserEventTarget, Indicator } from "./bml_browser";
+import { convertJPEG } from "./arib_jpeg";
 
 export enum AribKeyCode {
     Up = 1,
@@ -221,7 +222,7 @@ export class BMLDocument {
         return this.documentElement.querySelector("body");
     }
 
-    private loadDocumentToDOM(data: string) {
+    private async loadDocumentToDOM(data: string): Promise<void> {
         const xhtmlDocument = new DOMParser().parseFromString(`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja"></html>`, "application/xhtml+xml");
         const documentElement = xhtmlDocument.createElement("html");
         documentElement.innerHTML = bmlToXHTMLFXP(data);
@@ -231,31 +232,31 @@ export class BMLDocument {
         const newBody = documentElement.querySelector("body")!;
         prevBody?.setAttribute("arib-loading", "arib-loading");
         newBody.setAttribute("arib-loading", "arib-loading");
-        documentElement.querySelectorAll("arib-style, arib-link").forEach(style => {
+        for (const style of Array.from(documentElement.querySelectorAll("arib-style, arib-link"))) {
             if (style.nodeName.toLowerCase() === "arib-link") {
                 const href = style.getAttribute("href");
                 if (href != null) {
                     const newStyle = document.createElement("style");
                     const res = this.resources.fetchLockedResource(href);
                     if (res != null) {
-                        newStyle.textContent = transpileCSS(decodeEUCJP(res.data), { inline: false, href: "http://localhost" + this.resources.activeDocument, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
+                        newStyle.textContent = await transpileCSS(decodeEUCJP(res.data), { inline: false, href: "http://localhost" + this.resources.activeDocument, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
                         style.parentElement?.appendChild(newStyle);
                     }
                 }
             } else if (style.textContent) {
                 const newStyle = document.createElement("style");
-                newStyle.textContent = transpileCSS(style.textContent, { inline: false, href: "http://localhost" + this.resources.activeDocument, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
+                newStyle.textContent = await transpileCSS(style.textContent, { inline: false, href: "http://localhost" + this.resources.activeDocument, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
                 style.parentElement?.appendChild(newStyle);
             }
-        });
+        }
 
-        documentElement.querySelectorAll("[style]").forEach(style => {
+        for (const style of Array.from(documentElement.querySelectorAll("[style]"))) {
             const styleAttribute = style.getAttribute("style");
             if (!styleAttribute) {
                 return;
             }
-            style.setAttribute("style", transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + this.resources.activeDocument, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) }));
-        });
+            style.setAttribute("style", await transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + this.resources.activeDocument, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) }));
+        }
 
         this.documentElement.append(...Array.from(documentElement.children));
 
@@ -303,7 +304,7 @@ export class BMLDocument {
         this.resources.unlockAllModule();
         this.currentDateMode = 0;
         await requestAnimationFrameAsync();
-        this.loadDocumentToDOM(decodeEUCJP(file.data));
+        await this.loadDocumentToDOM(decodeEUCJP(file.data));
         this.loadObjects();
         this.eventQueue.reset();
         this.unloadAllDRCS();
@@ -669,12 +670,20 @@ export class BMLDocument {
         return this.clutToDecls(clut);
     }
 
-    private convertCSSUrl(url: string): string {
+    private async convertCSSUrl(url: string): Promise<string> {
         const res = this.resources.fetchLockedResource(url);
         if (!res) {
             return url;
         }
-        return this.resources.getCachedFileBlobUrl(res);
+        // background-imageはJPEGのみ運用される (STD-B24 第二分冊(2/2) 付属2 4.4.6)
+        let bt709 = res.blobUrl.get("BT.709");
+        if (bt709 != null) {
+            return bt709;
+        }
+        const bt601 = this.resources.getCachedFileBlobUrl(res);
+        bt709 = await convertJPEG(bt601);
+        res.blobUrl.set("BT.709", bt709);
+        return bt709;
     }
 
     private loadObjects() {
