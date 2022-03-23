@@ -257,12 +257,12 @@ type Timer = {
 type BMLTimerID = number;
 
 export class EventQueue {
-    private interpreter: Interpreter;
+    private readonly interpreter: Interpreter;
     public dispatchFocus = (_event: SyncFocusEvent): Promise<boolean> => Promise.resolve(false);
     public dispatchBlur = (_event: SyncBlurEvent): Promise<boolean> => Promise.resolve(false);
     public dispatchClick = (_event: SyncClickEvent): Promise<boolean> => Promise.resolve(false);
 
-    constructor(interpreter: Interpreter) {
+    public constructor(interpreter: Interpreter) {
         this.interpreter = interpreter;
     }
 
@@ -327,11 +327,14 @@ export class EventQueue {
         return true;
     }
 
-    asyncEventQueue: (() => Promise<boolean>)[] = [];
-    syncEventQueue: SyncEvent[] = [];
-    syncEventQueueLockCount = 0;
+    private asyncEventQueue: (() => Promise<boolean>)[] = [];
+    private syncEventQueue: SyncEvent[] = [];
+    private syncEventQueueLockCount = 0;
 
     public async processEventQueue(): Promise<boolean> {
+        if (this.discarded) {
+            return false;
+        }
         while (this.syncEventQueue.length || this.asyncEventQueue.length) {
             if (this.syncEventQueueLockCount) {
                 return false;
@@ -383,11 +386,15 @@ export class EventQueue {
     }
 
     public queueSyncEvent(event: SyncEvent) {
-        this.syncEventQueue.push(event);
+        if (!this.discarded) {
+            this.syncEventQueue.push(event);
+        }
     }
 
     public queueAsyncEvent(callback: () => Promise<boolean>) {
-        this.asyncEventQueue.push(callback);
+        if (!this.discarded) {
+            this.asyncEventQueue.push(callback);
+        }
     }
 
     public lockSyncEventQueue() {
@@ -401,12 +408,25 @@ export class EventQueue {
         }
     }
 
-    public resetEventQueue() {
+    private discarded = false;
+
+    // launchDocumentが呼び出されて読み込まれるまでの間イベントキューは無効になる
+    public discard() {
+        this.discarded = true;
+        this.clear();
+    }
+
+    private clear() {
         this.asyncEventQueue.splice(0, this.asyncEventQueue.length);
         this.syncEventQueue.splice(0, this.syncEventQueue.length);
         for (const i of this.timerHandles.keys()) {
             this.clearInterval(i);
         }
+    }
+
+    public reset() {
+        this.discarded = false;
+        this.clear();
         this.syncEventQueueLockCount = 0;
     }
 }

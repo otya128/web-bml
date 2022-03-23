@@ -297,20 +297,15 @@ export class BMLDocument {
             }
         }
         newContext({ from: this.resources.activeDocument, to: documentName });
-        this.eventQueue.resetEventQueue();
         this.interpreter.reset();
         this.resources.activeDocument = documentName;
         this.bmlDocument._currentFocus = null;
         this.resources.unlockAllModule();
         this.currentDateMode = 0;
-        try {
-            this.eventQueue.lockSyncEventQueue();
-            await requestAnimationFrameAsync();
-            this.loadDocumentToDOM(decodeEUCJP(file.data));
-            this.init();
-        } finally {
-            this.eventQueue.resetEventQueue();
-        }
+        await requestAnimationFrameAsync();
+        this.loadDocumentToDOM(decodeEUCJP(file.data));
+        this.loadObjects();
+        this.eventQueue.reset();
         this.unloadAllDRCS();
         let width: number = 960;
         let height: number = 540;
@@ -407,6 +402,7 @@ export class BMLDocument {
     }
 
     public launchDocument(documentName: string) {
+        this.eventQueue.discard();
         const { component, module, filename } = this.resources.parseURL(documentName);
         const componentId = Number.parseInt(component ?? "", 16);
         const moduleId = Number.parseInt(module ?? "", 16);
@@ -681,7 +677,7 @@ export class BMLDocument {
         return this.resources.getCachedFileBlobUrl(res);
     }
 
-    private init() {
+    private loadObjects() {
         this.documentElement.querySelectorAll("object").forEach(obj => {
             const adata = obj.getAttribute("arib-data");
             if (adata != null) {
