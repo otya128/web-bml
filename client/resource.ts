@@ -136,24 +136,24 @@ export class Resources {
 
     // STD-B24 第二分冊(1/2) 第二編 9.2.1.2
     public get dataCarouselURI() {
-        let url = `arib-dc://${this.originalNetworkId ?? -1}.${this.transportStreamId ?? -1}.${this.serviceId ?? -1}`;
+        let url = `arib-dc://${this.originalNetworkId?.toString(16)?.padStart(4, "0") ?? -1}.${this.transportStreamId?.toString(16)?.padStart(4, "0") ?? -1}.${this.serviceId?.toString(16)?.padStart(4, "0") ?? -1}`;
         if (this.contentId != null) {
-            url += ";" + this.contentId;
+            url += ";" + this.contentId.toString(16)?.padStart(8, "0");
         }
         if (this.eventId != null) {
-            url += "." + this.eventId;
+            url += "." + this.eventId.toString(16)?.padStart(4, "0");
         }
         return url;
     }
 
     // STD-B24 第二分冊(1/2) 第二編 9.2.5
     public get serviceURI() {
-        return `arib://${this.originalNetworkId ?? -1}.${this.transportStreamId ?? -1}.${this.serviceId ?? -1}`;
+        return `arib://${this.originalNetworkId?.toString(16)?.padStart(4, "0") ?? -1}.${this.transportStreamId?.toString(16)?.padStart(4, "0") ?? -1}.${this.serviceId?.toString(16)?.padStart(4, "0") ?? -1}`;
     }
 
     // STD-B24 第二分冊(1/2) 第二編 9.2.6
     public get eventURI() {
-        return `arib://${this.originalNetworkId ?? -1}.${this.transportStreamId ?? -1}.${this.serviceId ?? -1}.${this.eventId ?? -1}`;
+        return `arib://${this.originalNetworkId?.toString(16)?.padStart(4, "0") ?? -1}.${this.transportStreamId?.toString(16)?.padStart(4, "0") ?? -1}.${this.serviceId?.toString(16)?.padStart(4, "0") ?? -1}.${this.eventId?.toString(16)?.padStart(4, "0") ?? -1}`;
     }
 
     public get eventName(): string | null {
