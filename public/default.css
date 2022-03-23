@@ -226,6 +226,22 @@ html {
     left: 0px;
 }
 
+/*
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <filter id="bt601bt709">
+        <feColorMatrix in="SourceGraphic" type="matrix" values="
+         1.24452    -0.0671069  -0.0130327  0 -0.0730592157
+         0.117678    0.977255    0.0694469  0 -0.0730592157
+        -0.00828808 -0.0162712   1.18894    0 -0.0730592157
+         0           0           0          1  0" />
+    </filter>
+</svg>
+*/
+
+object[type="image/jpeg"] {
+    filter: url('data:image/svg+xml, <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><filter id="bt601bt709"><feColorMatrix in="SourceGraphic" type="matrix" values="1.24452 -0.0671069 -0.0130327 0 -0.0730592157  0.117678 0.977255 0.0694469 0 -0.0730592157  -0.00828808 -0.0162712 1.18894 0 -0.0730592157  0 0 0 1 0" /></filter></svg>#bt601bt709');
+}
+
 /* 継承しない拡張特性の初期値 */
 :where(*) {
     --used-key-list: basic data-button;
