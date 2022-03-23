@@ -253,7 +253,7 @@ export class BMLDocument {
         for (const style of Array.from(documentElement.querySelectorAll("[style]"))) {
             const styleAttribute = style.getAttribute("style");
             if (!styleAttribute) {
-                return;
+                continue;
             }
             style.setAttribute("style", await transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + this.resources.activeDocument, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) }));
         }
