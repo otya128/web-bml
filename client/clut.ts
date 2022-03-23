@@ -50,9 +50,9 @@ export function readCLUT(clut: Buffer): number[][] {
                 const Y = clut[index++];
                 const Cb = clut[index++];
                 const Cr = clut[index++];
-                R = Math.max(0, Math.min(255, Math.floor(1.164 * (Y - 16) + 1.793 * (Cr - 128))));
-                G = Math.max(0, Math.min(255, Math.floor(1.164 * (Y - 16) - 0.213 * (Cb - 128) - 0.533 * (Cr - 128))));
-                B = Math.max(0, Math.min(255, Math.floor(1.164 * (Y - 16) + 2.112 * (Cb - 128))));
+                R = Math.max(0, Math.min(255, Math.floor(Y + 1.53965 * (Cr - 128))));
+                G = Math.max(0, Math.min(255, Math.floor(Y + -0.183143 * (Cb - 128) -0.457675 * (Cr - 128))));
+                B = Math.max(0, Math.min(255, Math.floor(Y + 1.81418 * (Cb - 128))));
             } else {
                 R = clut[index++];
                 G = clut[index++];
