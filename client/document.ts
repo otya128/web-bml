@@ -375,7 +375,7 @@ export class BMLDocument {
             const moduleLocked = this.documentElement.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
             moduleLocked.forEach(elem => {
                 const beitem = BML.nodeToBMLNode(elem, this.bmlDocument) as BML.BMLBeitemElement;
-                if (beitem.subscribe) {
+                if (!beitem.subscribe) {
                     return;
                 }
                 const moduleRef = beitem.moduleRef;
