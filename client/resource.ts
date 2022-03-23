@@ -213,7 +213,7 @@ export class Resources {
             const creq = this.componentRequests.get(msg.componentId);
             const callbacks = creq?.moduleRequests?.get(msg.moduleId);
             if (creq != null && callbacks != null) {
-                creq.moduleRequests.delete(msg.componentId);
+                creq.moduleRequests.delete(msg.moduleId);
                 for (const cb of callbacks) {
                     if (cb.filename == null) {
                         console.warn("async fetch done", str);
