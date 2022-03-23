@@ -1,27 +1,5 @@
 import css from 'css';
 
-const colorIndexProperties: Map<string, string> = new Map(Object.entries({
-    colorIndex: "color",
-    backgroundColorIndex: "backgroundColor",
-    borderBottomColorIndex: "borderBottomColor",
-    borderTopColorIndex: "borderTopColor",
-    borderLeftColorIndex: "borderLeftColor",
-    borderRightColorIndex: "borderRightColor",
-    borderColorIndex: "borderColor",
-    outlineColorIndex: "outlineColor",
-}));
-
-const colorIndexPropertiesToRule: Map<string, string> = new Map(Object.entries({
-    colorIndex: "color-index",
-    backgroundColorIndex: "background-color-index",
-    borderBottomColorIndex: "border-bottom-color-index",
-    borderTopColorIndex: "border-top-color-index",
-    borderLeftColorIndex: "border-left-color-index",
-    borderRightColorIndex: "border-right-color-index",
-    borderColorIndex: "border-color-index",
-    outlineColorIndex: "outline-color-index",
-}));
-
 const colorIndexRules: Map<string, string> = new Map(Object.entries({
     "color-index": "color",
     "background-color-index": "background-color",
@@ -33,18 +11,17 @@ const colorIndexRules: Map<string, string> = new Map(Object.entries({
     "outline-color-index": "outline-color",
 }));
 
-const bmlCssPropertyToBmlJsProperty: Map<string, string> = new Map(Object.entries({
-    "nav-index": "navIndex",
-    "nav-up": "navUp",
-    "nav-right": "navRight",
-    "nav-down": "navDown",
-    "nav-left": "navLeft",
-    "used-key-list": "usedKeyList",
-    "resolution": "resolution",
-    "display-aspect-ratio": "display-aspect-ratio",
-}));
-
-const bmlJsPropertyToBmlCssProperty: Map<string, string> = new Map(Array.from(bmlCssPropertyToBmlJsProperty).map(([k, v]) => [v, k]));
+const bmlCssProperties: Set<string> = new Set([
+    "nav-index",
+    "nav-up",
+    "nav-right",
+    "nav-down",
+    "nav-left",
+    "used-key-list",
+    "resolution",
+    "display-aspect-ratio",
+    "grayscale-color-index",
+]);
 
 export function parseCSSValue(href: string, value: string): string | null {
     const uriMatch = /url\(\s*["']?(?<uri>.+?)['"]?\s*\)/.exec(value);
@@ -80,39 +57,6 @@ export function varToColorIndex(colorIndexVar: string | null | undefined): strin
     }
     const match = /var\(--clut-color-(?<index>\d+)\)/.exec(colorIndexVar);
     return match?.groups?.index ?? colorIndexVar;
-}
-
-export function convertCSSPropertyToGet(propName: string, style: CSSStyleDeclaration): any {
-    const subPropName = colorIndexProperties.get(propName);
-    if (subPropName) {
-        const propValue = parseInt(style.getPropertyValue("--" + colorIndexPropertiesToRule.get(propName)));
-        if (Number.isFinite(propValue)) {
-            return propValue.toString();
-        }
-        return varToColorIndex(style[subPropName as any]);
-    }
-    if (bmlJsPropertyToBmlCssProperty.has(propName)) {
-        const propValue = parseInt(style.getPropertyValue("--" + bmlJsPropertyToBmlCssProperty.get(propName)));
-        if (Number.isFinite(propValue)) {
-            return propValue.toString();
-        }
-        return propValue;
-    }
-    return style[propName as any];
-}
-
-export function convertCSSPropertyToSet(propName: string, value: any, style: CSSStyleDeclaration): boolean {
-    const subPropName = colorIndexProperties.get(propName);
-    if (subPropName) {
-        style.setProperty("--" + colorIndexPropertiesToRule.get(propName), value);
-        style[subPropName as any] = colorIndexToVar(value) ?? "";
-        return true;
-    }
-    if (bmlJsPropertyToBmlCssProperty.has(propName)) {
-        style.setProperty("--" + bmlJsPropertyToBmlCssProperty.get(propName), value);
-        return true;
-    }
-    return false;
 }
 
 function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | string | (css.Comment | css.Declaration)[] {
@@ -160,7 +104,7 @@ function processRule(node: css.Node, opts: CSSTranspileOptions): undefined | str
                 }
             }
             return decl.value;
-        } else if (decl.property && bmlCssPropertyToBmlJsProperty.has(decl.property)) {
+        } else if (decl.property && bmlCssProperties.has(decl.property)) {
             decl.property = "--" + decl.property;
         } else if (opts.convertUrl && decl.property === "background-image" && decl.value) {
             const origProperty = decl.property;
