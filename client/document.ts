@@ -254,11 +254,11 @@ export class BMLDocument {
             }
             // 現在視聴中のコンポーネントまたはエントリコンポーネント(固定)かつ引き戻しフラグであればスタートアップ文書を起動
             if (component.componentId === componentId || (component.componentId === 0x40 && returnToEntryFlag)) {
-                console.log("launch startup (DataEventChanged)");
-                window.setTimeout(() => {
-                    this.resources.unlockAllModule(); // ?
-                    this.launchDocument("/40/0000/startup.bml");
-                }, 1);
+                console.error("launch startup (DataEventChanged)");
+                // window.setTimeout(() => {
+                //     this.resources.unlockAllModule(); // ?
+                //     this.launchDocument("/40/0000/startup.bml");
+                // }, 1);
             }
         });
     }
