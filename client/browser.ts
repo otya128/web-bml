@@ -302,10 +302,6 @@ export class BrowserAPI {
             if (componentId == null || moduleId == null || module == null) {
                 return NaN;
             }
-            // exと違ってロック済みならイベント発生しないはず
-            if (this.resources.isModuleLocked(componentId, moduleId)) {
-                return 1;
-            }
             if (!this.resources.getPMTComponent(componentId)) {
                 console.error("lockModuleOnMemory: component does not exist in PMT", module);
                 return -1;
