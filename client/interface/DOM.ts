@@ -8,6 +8,7 @@ import { parseCSSValue } from "../transpile_css";
 import { Buffer } from "buffer";
 import { Interpreter } from "../interpreter/interpreter";
 import { BMLBrowserEventTarget } from "../bml_browser";
+import { convertJPEG } from "../arib_jpeg";
 
 export namespace BML {
     type DOMString = string;
