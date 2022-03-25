@@ -177,6 +177,10 @@ export function bmlToXHTMLFXP(data: string): string {
                 node[":@"]["@_arib-type"] = node[":@"]["@_type"];
                 node[":@"]["@_type"] = "image/png";
             }
+            if (node[":@"] && node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "image/x-arib-mng") {
+                node[":@"]["@_arib-type"] = node[":@"]["@_type"];
+                node[":@"]["@_type"] = "image/png";
+            }
             if (node[":@"] && node[":@"]["@_data"]) {
                 const data = node[":@"]["@_data"];
                 node[":@"]["@_arib-data"] = data;

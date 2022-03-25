@@ -9,6 +9,7 @@ import { Buffer } from "buffer";
 import { Interpreter } from "../interpreter/interpreter";
 import { BMLBrowserEventTarget } from "../bml_browser";
 import { convertJPEG } from "../arib_jpeg";
+import { aribMNGToAPNG } from "../arib_mng";
 
 export namespace BML {
     type DOMString = string;
@@ -487,7 +488,9 @@ export namespace BML {
                 }
 
                 let imageUrl: string | undefined;
-                if ((aribType ?? this.type).match(/image\/X-arib-png/i)) {
+                const isPNG = aribType?.toLowerCase() === "image/x-arib-png";
+                const isMNG = aribType?.toLowerCase() === "image/x-arib-mng";
+                if (isPNG || isMNG) {
                     if (!aribType) {
                         this.node.setAttribute("arib-type", this.type);
                     }
@@ -500,12 +503,16 @@ export namespace BML {
                     imageUrl = fetched.blobUrl.get(fetchedClut);
                     if (imageUrl == null) {
                         const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
-                        const png = aribPNGToPNG(Buffer.from(fetched.data), clut);
-                        const blob = new Blob([png], { type: "image/png" });
-                        imageUrl = URL.createObjectURL(blob);
-                        fetched.blobUrl.set(fetchedClut, imageUrl);
+                        const png = isPNG ? aribPNGToPNG(Buffer.from(fetched.data), clut) : aribMNGToAPNG(Buffer.from(fetched.data), clut);
+                        if (png != null) {
+                            const blob = new Blob([png], { type: "image/png" });
+                            imageUrl = URL.createObjectURL(blob);
+                            fetched.blobUrl.set(fetchedClut, imageUrl);
+                            this.node.type = "image/png";
+                        } else {
+                            console.error("FIXME: failed to convert MNG");
+                        }
                     }
-                    this.node.type = "image/png";
                 } else if (this.type.toLowerCase() === "image/jpeg") {
                     imageUrl = fetched.blobUrl.get("BT.709");
                     if (imageUrl == null) {
@@ -517,6 +524,10 @@ export namespace BML {
                     }
                 } else {
                     imageUrl = this.ownerDocument.resources.getCachedFileBlobUrl(fetched);
+                }
+                if (imageUrl == null) {
+                    this.node.removeAttribute("data");
+                    return;
                 }
                 // jpeg/png程度ならバイナリ解析すればImage使わずとも大きさは取得できそう
                 const img = new Image();

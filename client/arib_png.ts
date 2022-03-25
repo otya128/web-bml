@@ -1,7 +1,7 @@
 import CRC32 from "crc-32";
 import { Buffer } from "buffer";
 
-function preparePLTE(clut: number[][]): Buffer {
+export function preparePLTE(clut: number[][]): Buffer {
     const plte = Buffer.alloc(4 /* PLTE */ + 4 /* size */ + clut.length * 3 + 4 /* CRC32 */);
     let off = 0;
     off = plte.writeUInt32BE(clut.length * 3, off);
@@ -15,7 +15,7 @@ function preparePLTE(clut: number[][]): Buffer {
     return plte;
 }
 
-function prepareTRNS(clut: number[][]): Buffer {
+export function prepareTRNS(clut: number[][]): Buffer {
     const trns = Buffer.alloc(4 /* PLTE */ + 4 /* size */ + clut.length + 4 /* CRC32 */);
     let off = 0;
     off = trns.writeUInt32BE(clut.length, off);

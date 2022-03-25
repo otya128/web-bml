@@ -25,10 +25,10 @@ type DRCSGlyphs = {
     glyphs: DRCSGlyph[],
 };
 
-class BinaryWriter {
-    buffer: Buffer;
-    offset: number;
-    size: number;
+export class BinaryWriter {
+    private buffer: Buffer;
+    private offset: number;
+    private size: number;
     public constructor() {
         this.buffer = Buffer.alloc(4096);
         this.offset = 0;
@@ -44,11 +44,12 @@ class BinaryWriter {
         return prev;
     }
 
-    extend(needBytes: number) {
+    private extend(needBytes: number) {
         const prevBuf = this.buffer;
         this.buffer = Buffer.alloc(Math.max(needBytes + this.offset, this.buffer.length * 2));
         prevBuf.copy(this.buffer);
     }
+
     public writeUInt8(value: number): number {
         if (this.offset >= this.buffer.byteLength) {
             this.extend(1);
@@ -144,6 +145,9 @@ class BinaryWriter {
         return this.buffer.subarray(0, this.size);
     }
     public subarray(start?: number | undefined, end?: number | undefined): Buffer {
+        if (end == null) {
+            end = this.size;
+        }
         return this.buffer.subarray(start, end);
     }
 }
