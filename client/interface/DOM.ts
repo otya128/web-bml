@@ -495,7 +495,7 @@ export namespace BML {
                         this.node.setAttribute("arib-type", this.type);
                     }
                     const clutCss = window.getComputedStyle(this.node).getPropertyValue("--clut");
-                    const clutUrl = clutCss == null ? null : parseCSSValue("http://localhost" + (this.ownerDocument.resources.activeDocument ?? ""), clutCss);
+                    const clutUrl = clutCss == null ? null : parseCSSValue(clutCss);
                     const fetchedClut = clutUrl == null ? null : (await this.ownerDocument.resources.fetchResourceAsync(clutUrl))?.data;
                     if (this.__version !== version) {
                         return;

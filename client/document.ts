@@ -293,13 +293,13 @@ export class BMLDocument {
                     const newStyle = document.createElement("style");
                     const res = this.resources.fetchLockedResource(href);
                     if (res != null) {
-                        newStyle.textContent = await transpileCSS(decodeEUCJP(res.data), { inline: false, href: "http://localhost" + this.resources.activeDocument, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
+                        newStyle.textContent = await transpileCSS(decodeEUCJP(res.data), { inline: false, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
                         style.parentElement?.appendChild(newStyle);
                     }
                 }
             } else if (style.textContent) {
                 const newStyle = document.createElement("style");
-                newStyle.textContent = await transpileCSS(style.textContent, { inline: false, href: "http://localhost" + this.resources.activeDocument, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
+                newStyle.textContent = await transpileCSS(style.textContent, { inline: false, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
                 style.parentElement?.appendChild(newStyle);
             }
         }
@@ -309,7 +309,7 @@ export class BMLDocument {
             if (!styleAttribute) {
                 continue;
             }
-            style.setAttribute("style", await transpileCSS(styleAttribute, { inline: true, href: "http://localhost" + this.resources.activeDocument, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) }));
+            style.setAttribute("style", await transpileCSS(styleAttribute, { inline: true, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) }));
         }
 
         this.documentElement.append(...Array.from(documentElement.children));

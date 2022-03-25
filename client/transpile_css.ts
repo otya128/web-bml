@@ -23,18 +23,17 @@ const bmlCssProperties: Set<string> = new Set([
     "grayscale-color-index",
 ]);
 
-export function parseCSSValue(href: string, value: string): string | null {
+export function parseCSSValue(value: string): string | null {
     const uriMatch = /url\(\s*["']?(?<uri>.+?)['"]?\s*\)/.exec(value);
     if (uriMatch?.groups == null) {
         return null;
     }
     const uri = uriMatch.groups["uri"].replace(/\\/g, "");
-    return decodeURI(new URL(uri, href).pathname);
+    return uri;
 }
 
 export type CSSTranspileOptions = {
     inline: boolean,
-    href: string,
     clutReader: (cssValue: string) => css.Declaration[],
     convertUrl?: (url: string) => Promise<string>,
 };
@@ -84,7 +83,7 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                 }
             }
             if (clut) {
-                const l = parseCSSValue(opts.href, clut);
+                const l = parseCSSValue(clut);
                 if (l) {
                     for (const i of opts.clutReader(l)) {
                         rule.declarations?.push(i);
@@ -97,7 +96,7 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
         if (decl.property === "clut") {
             decl.property = "--" + decl.property;
             if (decl.value) {
-                const parsed = parseCSSValue(opts.href, decl.value);
+                const parsed = parseCSSValue(decl.value);
                 if (parsed) {
                     // Chrome, Safariだとurl()の中身だけがエスケープされて面倒なので回避
                     decl.value = "url(\"" + parsed + "\")";
@@ -109,7 +108,7 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
         } else if (opts.convertUrl && decl.property === "background-image" && decl.value) {
             const origProperty = decl.property;
             const origValue = decl.value;
-            decl.value = "url(" + await opts.convertUrl(parseCSSValue(opts.href, origValue) ?? origValue) + ")";
+            decl.value = "url(" + await opts.convertUrl(parseCSSValue(origValue) ?? origValue) + ")";
             return [decl, {
                 type: "declaration",
                 property: "--" + origProperty,
