@@ -1,6 +1,7 @@
 // @ts-ignore
 import { BML } from "./interface/DOM";
 import { Interpreter } from "./interpreter/interpreter";
+import { Resources } from "./resource";
 
 interface BMLEvent {
     type: string;
@@ -51,9 +52,11 @@ export type SyncEvent = SyncFocusEvent | SyncBlurEvent | SyncClickEvent;
 export class EventDispatcher {
     private readonly eventQueue: EventQueue;
     private readonly bmlDocument: BML.BMLDocument;
-    public constructor(eventQueue: EventQueue, bmlDocument: BML.BMLDocument) {
+    private readonly resources: Resources;
+    public constructor(eventQueue: EventQueue, bmlDocument: BML.BMLDocument, resources: Resources) {
         this.eventQueue = eventQueue;
         this.bmlDocument = bmlDocument;
+        this.resources = resources;
     }
 
     public setCurrentEvent(a: BMLEvent) {
@@ -81,12 +84,14 @@ export class EventDispatcher {
     public dispatchModuleLockedEvent(module: string, isEx: boolean, status: number) {
         console.log("ModuleLocked", module);
         const moduleLocked = (BML.bmlNodeToNode(this.bmlDocument.documentElement) as HTMLElement).querySelectorAll("beitem[type=\"ModuleLocked\"]");
+        const { componentId, moduleId } = this.resources.parseURLEx(module);
         for (const beitem of Array.from(moduleLocked)) {
             if (beitem.getAttribute("subscribe") !== "subscribe") {
                 continue;
             }
             const moduleRef = beitem.getAttribute("module_ref");
-            if (moduleRef?.toLowerCase() === module.toLowerCase()) {
+            const { componentId: refComponentId, moduleId: refModuleId } = this.resources.parseURLEx(moduleRef);
+            if (componentId === refComponentId && moduleId == refModuleId) {
                 const onoccur = beitem.getAttribute("onoccur");
                 if (onoccur) {
                     this.eventQueue.queueAsyncEvent(async () => {
