@@ -505,6 +505,15 @@ export namespace BML {
                         fetched.blobUrl.set(fetchedClut, imageUrl);
                     }
                     this.node.type = "image/png";
+                } else if (this.type.toLowerCase() === "image/jpeg") {
+                    imageUrl = fetched.blobUrl.get("BT.709");
+                    if (imageUrl == null) {
+                        imageUrl = await convertJPEG(this.ownerDocument.resources.getCachedFileBlobUrl(fetched));
+                        if (this.__version !== version) {
+                            return;
+                        }
+                        fetched.blobUrl.set("BT.709", imageUrl);
+                    }
                 } else {
                     imageUrl = this.ownerDocument.resources.getCachedFileBlobUrl(fetched);
                 }
