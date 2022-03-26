@@ -138,11 +138,13 @@ export class BMLBrowser {
     }
     // スタートアップ文書を表示させる
     public async launchStartupDocument(): Promise<void> {
+        await this.resources.getProgramInfoAsync();
         await this.resources.fetchResourceAsync("/40/0000");
         if (this.resources.fetchLockedResource("/40/0000/startup.bml")) {
             this.bmlDocument.launchDocument("/40/0000/startup.bml");
-        } else {
+        } else if (this.resources.fetchLockedResource("/40/0000")) {
             this.bmlDocument.launchDocument("/40/0000");
+        } else {
         }
     }
 
