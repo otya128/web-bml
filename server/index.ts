@@ -231,8 +231,7 @@ function closeDataBroadcastingStream(dbs: DataBroadcastingStream) {
     }
     closeDataBroadcastingLiveStream(dbs);
     console.log("close", dbs.id);
-    // readStream->transformStream->tsStream->ffmpeg->response
-    dbs.transformStream?.unpipe();
+    // readStream->tsStream->ffmpeg->response
     dbs.readStream.unpipe();
     dbs.readStream.destroy();
     dbs.ws.close(4000);
@@ -275,7 +274,7 @@ router.get("/streams/:id.mp4", async (ctx) => {
     if (dbs.liveStream) {
         closeDataBroadcastingLiveStream(dbs);
     }
-    const { tsStream } = dbs;
+    const { tsStream, readStream } = dbs;
     ctx.set("Content-Type", "video/mp4");
     ctx.status = 200;
 
@@ -292,7 +291,7 @@ router.get("/streams/:id.mp4", async (ctx) => {
         tsStream.unpipe(ls.encoderProcess.stdin);
         ls.encoderProcess.stdout.unpipe();
     });
-    tsStream.resume();
+    readStream.resume();
     ctx.res.on("error", (err) => {
         console.log("error res", dbs.id, dbs.source, err);
         closeDataBroadcastingLiveStream(dbs);
@@ -313,7 +312,7 @@ router.get("/streams/:id.h264.m2ts", async (ctx) => {
     if (dbs.liveStream) {
         closeDataBroadcastingLiveStream(dbs);
     }
-    const { tsStream } = dbs;
+    const { tsStream, readStream } = dbs;
     ctx.set("Content-Type", "video/mp2t");
     ctx.status = 200;
 
@@ -330,7 +329,7 @@ router.get("/streams/:id.h264.m2ts", async (ctx) => {
         tsStream.unpipe(ls.encoderProcess.stdin);
         ls.encoderProcess.stdout.unpipe();
     });
-    tsStream.resume();
+    readStream.resume();
     ctx.res.on("error", (err) => {
         console.log("error res", dbs.id, dbs.source, err);
         closeDataBroadcastingLiveStream(dbs);
@@ -371,7 +370,7 @@ router.get("/streams/:id.m3u8", async (ctx) => {
     if (dbs == null) {
         return;
     }
-    const { tsStream } = dbs;
+    const { tsStream, readStream } = dbs;
     if (dbs.liveStream instanceof HLSLiveStream) {
         ctx.body = await readFileAsync(path.join(hlsDir, dbs.id + ".m3u8"));
         return;
@@ -381,7 +380,7 @@ router.get("/streams/:id.m3u8", async (ctx) => {
     }
     tsStream.unpipe();
     const hlsLiveStream = new HLSLiveStream(ffmpeg, addProgramIdArgument(getHLSArguments(path.join(hlsDir, dbs.id + "-%09d.ts"), path.join(hlsDir, dbs.id + ".m3u8")), dbs.serviceId), dbs.tsStream);
-    tsStream.resume();
+    readStream.resume();
     dbs.liveStream = hlsLiveStream;
     const pollingTime = 100;
     let limitTime = 60 * 1000;
@@ -419,7 +418,7 @@ async function streamToString(stream: stream.Readable) {
 }
 
 function provideHttpClient(options: string | http.RequestOptions | URL) {
-   if (typeof options === "string") {
+    if (typeof options === "string") {
         return options.startsWith('https:') ? https : http
     } else {
         return options.protocol === 'https:' ? https : http
@@ -507,7 +506,9 @@ router.get('/api/ws', async (ctx) => {
     }
     const ws = await ctx.ws();
     const id = randomUUID();
-    const tsStream = new TsStream();
+
+    readStream.pause();
+    const tsStream = decodeTS(readStream, (msg) => ws.send(JSON.stringify(msg)), serviceId);
 
     const dbs: DataBroadcastingStream = {
         id,
@@ -538,9 +539,6 @@ router.get('/api/ws', async (ctx) => {
         console.error("close readStream", dbs.id, dbs.source);
         closeDataBroadcastingStream(dbs);
     });
-
-    tsStream.pause();
-    decodeTS(dbs);
 
     ws.on("error", (_code: number, _reason: Buffer) => {
         console.error("err ws", dbs.id, dbs.source);

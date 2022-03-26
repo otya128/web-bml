@@ -1,11 +1,9 @@
 import stream from "stream";
-import { TsUtil, TsChar } from "@chinachu/aribts";
+import { TsUtil, TsChar, TsStream } from "@chinachu/aribts";
 import zlib from "zlib";
 import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from './entity_parser';
 import * as wsApi from "./ws_api";
-import { WebSocket } from "ws";
 import { ComponentPMT, AdditionalAribBXMLInfo } from './ws_api';
-import { DataBroadcastingStream } from './stream/live_stream';
 
 type DownloadComponentInfo = {
     componentId: number,
@@ -45,14 +43,8 @@ type CachedComponent = {
     modules: Map<number, CachedModule>,
 };
 
-function unicast(client: WebSocket, msg: wsApi.ResponseMessage) {
-    client.send(JSON.stringify(msg));
-}
-
-
-export function decodeTS(dbs: DataBroadcastingStream) {
-    const { size, readStream, tsStream, ws } = dbs;
-    let bytesRead = 0;
+export function decodeTS(readStream: stream.Readable, send: (msg: wsApi.ResponseMessage) => void, serviceId?: number): TsStream {
+    const tsStream = new TsStream();
     const tsUtil = new TsUtil();
     let pidToComponent = new Map<number, ComponentPMT>();
     let componentToPid = new Map<number, ComponentPMT>();
@@ -61,23 +53,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
     const cachedComponents = new Map<number, CachedComponent>();
     let currentProgramInfo: wsApi.ProgramInfoMessage | null = null;
 
-    const transformStream = new stream.Transform({
-        transform: function (chunk, _encoding, done) {
-            bytesRead += chunk.length;
-            //process.stderr.write(`\r ${tsUtil.getTime()} ${bytesRead} of ${size} [${Math.floor(bytesRead / size * 100)}%]`);
-            this.push(chunk);
-            done();
-        },
-        flush: function (done) {
-            //process.stderr.write(`${bytesRead} of ${size} [${Math.floor(bytesRead / size * 100)}%]\n`);
-
-            done();
-        }
-    });
-    dbs.transformStream = transformStream;
-
-    readStream.pipe(transformStream);
-    transformStream.pipe(tsStream);
+    readStream.pipe(tsStream);
 
     tsStream.on("data", () => {
     });
@@ -109,7 +85,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
         const time = tsUtil.getTime().getTime();
         if (currentTime !== time) {
             currentTime = time;
-            unicast(ws, {
+            send({
                 type: "currentTime",
                 timeUnixMillis: currentTime,
             });
@@ -121,7 +97,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
         const time = tsUtil.getTime().getTime();
         if (currentTime !== time) {
             currentTime = time;
-            unicast(ws, {
+            send({
                 type: "currentTime",
                 timeUnixMillis: currentTime,
             });
@@ -146,7 +122,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
         }
         if (pat.size !== pidToProgramNumber.size || [...pidToProgramNumber.keys()].some((x) => !pat.has(x))) {
             console.log("PAT changed", pat);
-            if (dbs.serviceId != null && pat.size !== 1) {
+            if (serviceId != null && pat.size !== 1) {
                 console.warn("multiplexed!");
             }
         }
@@ -272,7 +248,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
     tsStream.on("pmt", (pid: any, data: any) => {
         // 多重化されている
         if (pidToProgramNumber.size >= 2) {
-            if (pidToProgramNumber.get(pid) !== (dbs.serviceId ?? programNumber)) {
+            if (pidToProgramNumber.get(pid) !== (serviceId ?? programNumber)) {
                 return;
             }
         }
@@ -303,6 +279,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                     }
                     // STD-B10 第2部 付録J 表J-1参照
                     if (data_component_id == 0x0C || // 地上波
+                        data_component_id == 0x0D || // 地上波
                         data_component_id == 0x07 || // BS
                         data_component_id == 0x0B // CS
                     ) {
@@ -331,7 +308,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                 type: "pmt",
                 components: [...componentToPid.values()]
             };
-            unicast(ws, msg);
+            send(msg);
         }
     });
 
@@ -344,7 +321,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
         const program_clock_reference_extension = data.adaptation_field?.program_clock_reference_extension;
         // console.log(program_clock_reference_base);
         if (program_clock_reference_base != null && program_clock_reference_extension != null) {
-            unicast(ws, {
+            send({
                 type: "pcr",
                 pcrBase: program_clock_reference_base,
                 pcrExtension: program_clock_reference_extension,
@@ -384,7 +361,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             broadcasters,
             originalNetworkId: original_network_id,
         };
-        unicast(ws, msg);
+        send(msg);
     });
     tsStream.on("eit", (pid, data) => {
         tsUtil.addEit(pid, data);
@@ -395,7 +372,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                 ids = {
                     onid: tsUtil.getOriginalNetworkId(),
                     tsid: tsUtil.getTransportStreamId(),
-                    sid: dbs.serviceId ?? tsUtil.getServiceIds()[0]
+                    sid: serviceId ?? tsUtil.getServiceIds()[0]
                 };
             } else {
                 return;
@@ -422,7 +399,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             prevProgramInfo?.serviceId !== currentProgramInfo.serviceId ||
             prevProgramInfo?.startTimeUnixMillis !== currentProgramInfo.startTimeUnixMillis ||
             prevProgramInfo?.eventName !== currentProgramInfo.eventName) {
-            unicast(ws, currentProgramInfo);
+            send(currentProgramInfo);
         }
     });
 
@@ -528,7 +505,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                     returnToEntryFlag = !!(privateData.descriptor[0] & 0x80);
                 }
             }
-            unicast(ws, {
+            send({
                 type: "moduleListUpdated",
                 componentId,
                 modules: data.message.modules.map((x: any) => x.moduleId),
@@ -625,7 +602,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                             });
                         }
                         cachedModule.files = files;
-                        unicast(ws, {
+                        send({
                             type: "moduleDownloaded",
                             componentId,
                             moduleId,
@@ -646,7 +623,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                         data: moduleData,
                     });
                     cachedModule.files = files;
-                    unicast(ws, {
+                    send({
                         type: "moduleDownloaded",
                         componentId,
                         moduleId,
@@ -732,7 +709,7 @@ export function decodeTS(dbs: DataBroadcastingStream) {
                     }
                 }
             }
-            unicast(ws, {
+            send({
                 type: "esEventUpdated",
                 events,
                 componentId,
@@ -740,4 +717,5 @@ export function decodeTS(dbs: DataBroadcastingStream) {
             });
         }
     });
+    return tsStream;
 }

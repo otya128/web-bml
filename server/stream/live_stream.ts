@@ -7,7 +7,6 @@ export type DataBroadcastingStream = {
     registeredAt: Date,
     readStream: Readable,
     tsStream: Transform,
-    transformStream?: Transform,
     size: number,
     ws: WebSocket,
     liveStream?: LiveStream,
