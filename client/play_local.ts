@@ -138,7 +138,6 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
                 basePCR = curPCR;
             } else if (curPCR != null && prevPCR < curPCR && baseTime != null && basePCR != null) {
                 const delay = (curPCR - basePCR) - (nowTime - baseTime);
-                console.log(delay);
                 if (delay >= 1) {
                     await delayAsync(Math.min(delay, 10000));
                 } else if (delay < -1000) {

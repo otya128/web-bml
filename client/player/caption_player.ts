@@ -40,6 +40,7 @@ export class CaptionPlayer extends VideoPlayer {
 
     private render() {
         if (this.pes != null && this.pts != null) {
+            this.viewCanvas.getContext("2d")!.clearRect(0, 0, this.viewCanvas.width, this.viewCanvas.height);
             const canvasProvider = new CanvasProvider(this.pes, this.pts);
             canvasProvider.render({
                 ...this.captionOption,
