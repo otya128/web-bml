@@ -569,7 +569,6 @@ export class BMLDocument {
             }
         }
         const computedStyle = window.getComputedStyle(this.getBody()!);
-        let nextFocus = "";
         const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
         if (usedKeyList.length && usedKeyList[0] === "none") {
             return;
@@ -584,32 +583,6 @@ export class BMLDocument {
             }
         } else if (!usedKeyList.some(x => x === keyGroup)) {
             return;
-        }
-        let nextFocusStyle = window.getComputedStyle(focusElement);
-        while (true) {
-            if (k == AribKeyCode.Left) {
-                // 明記されていなさそうだけどおそらく先にnav-indexによるフォーカス移動があるだろう
-                nextFocus = nextFocusStyle.getPropertyValue("--nav-left");
-            } else if (k == AribKeyCode.Right) {
-                nextFocus = nextFocusStyle.getPropertyValue("--nav-right");
-            } else if (k == AribKeyCode.Up) {
-                nextFocus = nextFocusStyle.getPropertyValue("--nav-up");
-            } else if (k == AribKeyCode.Down) {
-                nextFocus = nextFocusStyle.getPropertyValue("--nav-down");
-            }
-            const nextFocusIndex = parseInt(nextFocus);
-            if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
-                const next = this.findNavIndex(nextFocusIndex);
-                if (next != null) {
-                    nextFocusStyle = window.getComputedStyle(next);
-                    // 非表示要素であれば飛ばされる (STD-B24 第二分冊 (1/2 第二編) 5.4.13.3参照)
-                    if (!BML.isFocusable(next)) {
-                        continue;
-                    }
-                    this.focusHelper(next);
-                }
-            }
-            break;
         }
         focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
         if (!focusElement) {
@@ -686,6 +659,36 @@ export class BMLDocument {
                         }
                         this.eventDispatcher.resetCurrentEvent();
                     }
+                }
+            }
+            focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
+            if (focusElement) {
+                // [4] A'に対してnavigation関連特性を適用
+                let nextFocus = "";
+                let nextFocusStyle = window.getComputedStyle(focusElement);
+                while (true) {
+                    if (k == AribKeyCode.Left) {
+                        nextFocus = nextFocusStyle.getPropertyValue("--nav-left");
+                    } else if (k == AribKeyCode.Right) {
+                        nextFocus = nextFocusStyle.getPropertyValue("--nav-right");
+                    } else if (k == AribKeyCode.Up) {
+                        nextFocus = nextFocusStyle.getPropertyValue("--nav-up");
+                    } else if (k == AribKeyCode.Down) {
+                        nextFocus = nextFocusStyle.getPropertyValue("--nav-down");
+                    }
+                    const nextFocusIndex = parseInt(nextFocus);
+                    if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
+                        const next = this.findNavIndex(nextFocusIndex);
+                        if (next != null) {
+                            nextFocusStyle = window.getComputedStyle(next);
+                            // 非表示要素であれば飛ばされる (STD-B24 第二分冊 (1/2 第二編) 5.4.13.3参照)
+                            if (!BML.isFocusable(next)) {
+                                continue;
+                            }
+                            this.focusHelper(next);
+                        }
+                    }
+                    break;
                 }
             }
             focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
