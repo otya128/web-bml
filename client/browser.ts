@@ -213,6 +213,10 @@ export class BrowserAPI {
             console.error("epgGetEventStartTime: not implemented", event_ref, this.resources.eventId);
             return null;
         },
+        epgGetEventDuration: (event_ref: string): number => {
+            console.error("epgGetEventDuration", event_ref);
+            return NaN;
+        },
         setCurrentDateMode: (time_mode: number): number => {
             console.log("setCurrentDateMode", time_mode);
             if (time_mode == 0) {
