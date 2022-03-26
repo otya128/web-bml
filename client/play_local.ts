@@ -3,6 +3,7 @@ import { BMLBrowser, BMLBrowserFontFace, EPG } from "./bml_browser";
 import { RemoteControl } from "./remote_controller_client";
 import { keyCodeToAribKey } from "./document";
 import { decodeTS } from "../server/decode_ts";
+import { CaptionPlayer } from "./player/caption_player";
 
 // BML文書と動画と字幕が入る要素
 const browserElement = document.getElementById("data-broadcasting-browser")!;
@@ -88,16 +89,25 @@ window.addEventListener("keyup", (event) => {
     bmlBrowser.bmlDocument.processKeyUp(k);
 });
 
+const videoElement = videoContainer.querySelector("video") as HTMLVideoElement;
+const ccContainer = browserElement.querySelector(".arib-video-cc-container") as HTMLElement;
+const player = new CaptionPlayer(videoElement, ccContainer);
 let pcr: number | undefined;
 let baseTime: number | undefined;
 let basePCR: number | undefined;
+remoteControl.player = player;
 
 function onMessage(msg: ResponseMessage) {
-    if (msg.type === "pcr") {
+    if (msg.type === "pes") {
+        if (msg.pts != null) {
+            player.push(msg.streamId, Uint8Array.from(msg.data), msg.pts);
+        }
+    } else if (msg.type === "pcr") {
         pcr = (msg.pcrBase + msg.pcrExtension / 300) / 90;
     }
     bmlBrowser.emitMessage(msg);
 }
+
 const tsInput = document.getElementById("ts") as HTMLInputElement;
 const tsUrl = document.getElementById("url") as HTMLInputElement;
 const tsUrlSubmit = document.getElementById("url-submit") as HTMLInputElement;
@@ -111,7 +121,7 @@ async function delayAsync(msec: number): Promise<void> {
 
 async function openReadableStream(stream: ReadableStream<Uint8Array>) {
     const reader = stream.getReader();
-    const tsStream = decodeTS(onMessage);
+    const tsStream = decodeTS(onMessage, undefined, true);
     while (true) {
         const r = await reader.read();
         if (r.done) {
@@ -131,6 +141,10 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
                 console.log(delay);
                 if (delay >= 1) {
                     await delayAsync(Math.min(delay, 10000));
+                } else if (delay < -1000) {
+                    // あまりにずれた場合基準を再設定する
+                    baseTime = nowTime;
+                    basePCR = curPCR;
                 }
             } else if (curPCR != null && prevPCR > curPCR) {
                 baseTime = nowTime;

@@ -43,7 +43,7 @@ type CachedComponent = {
     modules: Map<number, CachedModule>,
 };
 
-export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?: number): TsStream {
+export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?: number, parsePES?: boolean): TsStream {
     const tsStream = new TsStream();
     const tsUtil = new TsUtil();
     let pidToComponent = new Map<number, ComponentPMT>();
@@ -106,6 +106,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
     let pidToProgramNumber = new Map<number, number>();
     let programNumber: number | null = null;
     let pcr_pid: number | null = null;
+    let privatePes = new Set<number>();
 
     tsStream.on("pat", (_pid: any, data: any) => {
         const programs: { program_number: number, network_PID?: number, program_map_PID?: number }[] = data.programs;
@@ -252,7 +253,11 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         }
         const ptc = new Map<number, ComponentPMT>();
         const ctp = new Map<number, ComponentPMT>();
+        privatePes.clear();
         for (const stream of data.streams) {
+            if (parsePES && stream.stream_type === 0x06) {
+                privatePes.add(stream.elementary_PID);
+            }
             // 0x0d: データカルーセル
             if (stream.stream_type != 0x0d) {
                 continue;
@@ -312,6 +317,13 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
 
 
     tsStream.on("packet", (pid, data) => {
+        if (privatePes.has(pid)) {
+            const pes: Buffer = data.data_byte;
+            const msg = decodePES(pes);
+            if (msg != null) {
+                send(msg);
+            }
+        }
         if (pid !== pcr_pid) {
             return;
         }
@@ -716,4 +728,53 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         }
     });
     return tsStream;
+}
+
+function decodePES(pes: Buffer): wsApi.PESMessage | null {
+    let pos = 0;
+    pos += 3;
+    const streamId = pes.readUInt8(pos);
+    pos++;
+    const pesPacketLength = pes.readUInt16BE(pos);
+    pos += 2;
+    if (streamId === 0xBE || streamId === 0xBF) {
+        return null;
+    }
+    if ((pes[pos] >> 6) !== 0b10) {
+        return null;
+    }
+    const scramblingControl = (pes[pos] >> 4) & 0b11;
+    const priority = (pes[pos] >> 3) & 0b1;
+    const dataAlignmentIndicator = (pes[pos] >> 2) & 0b1;
+    const copyright = (pes[pos] >> 1) & 0b1;
+    const original = (pes[pos] >> 0) & 0b1;
+    pos++;
+    const ptsDTSIndicator = (pes[pos] >> 6) & 0b11;
+    const escrFlag = (pes[pos] >> 5) & 0b1;
+    const esRateFlag = (pes[pos] >> 4) & 0b1;
+    const dsmTrickModeFlag = (pes[pos] >> 3) & 0b1;
+    const additionalCopyInfoFlag = (pes[pos] >> 2) & 0b1;
+    const crcFlag = (pes[pos] >> 1) & 0b1;
+    const extensionFlag = (pes[pos] >> 0) & 0b1;
+    pos++;
+    const pesHeaderLength = pes[pos];
+    pos++;
+    const dataPos = pos + pesHeaderLength;
+    let pts: number | undefined;
+    if (ptsDTSIndicator === 0b10 || ptsDTSIndicator === 0b11) {
+        const pts3232 = (pes[pos] >> 2) & 0b1;
+        const pts3130 = pes[pos] & 0b11;
+        pos++;
+        const pts2915 = pes.readUInt16BE(pos) >> 1;
+        pos += 2;
+        const pts1400 = pes.readUInt16BE(pos) >> 1;
+        pos += 2;
+        pts = pts1400 + (pts2915 << 15) + (pts3130 << 30) + pts3232 * 0x80000000;
+    }
+    return {
+        type: "pes",
+        data: Array.from(pes.subarray(dataPos)),
+        pts,
+        streamId
+    };
 }

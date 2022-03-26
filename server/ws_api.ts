@@ -167,6 +167,15 @@ export type PCRMessage = {
     pcrExtension: number,
 };
 
+// parsePESを指定したときのみ
+export type PESMessage = {
+    type: "pes",
+    streamId: number,
+     // 33-bit
+    pts?: number,
+    data: number[],
+};
+
 export type ResponseMessage = PMTMessage |
     ModuleDownloadedMessage |
     ModuleListUpdatedMessage |
@@ -176,4 +185,5 @@ export type ResponseMessage = PMTMessage |
     ErrorMessage |
     ESEventUpdatedMessage |
     BITMessage |
-    PCRMessage;
+    PCRMessage |
+    PESMessage;
