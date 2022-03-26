@@ -732,6 +732,12 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
 
 function decodePES(pes: Buffer): wsApi.PESMessage | null {
     let pos = 0;
+    if (pes.length < 5) {
+        return null;
+    }
+    if (pes[0] !== 0 || pes[1] !== 0 || pes[2] !== 1) {
+        return null;
+    }
     pos += 3;
     const streamId = pes.readUInt8(pos);
     pos++;
