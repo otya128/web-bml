@@ -4,7 +4,6 @@ import fs, { mkdirSync } from "fs"
 import 'dotenv/config'
 import path from "path";
 import stream from "stream";
-import { TsStream } from "@chinachu/aribts";
 import websocket, { WebSocketContext } from "koa-easy-ws";
 import * as wsApi from "./ws_api";
 import { WebSocket } from "ws";
@@ -508,7 +507,8 @@ router.get('/api/ws', async (ctx) => {
     const id = randomUUID();
 
     readStream.pause();
-    const tsStream = decodeTS(readStream, (msg) => ws.send(JSON.stringify(msg)), serviceId);
+    const tsStream = decodeTS((msg) => ws.send(JSON.stringify(msg)), serviceId);
+    readStream.pipe(tsStream);
 
     const dbs: DataBroadcastingStream = {
         id,

@@ -43,7 +43,7 @@ type CachedComponent = {
     modules: Map<number, CachedModule>,
 };
 
-export function decodeTS(readStream: stream.Readable, send: (msg: wsApi.ResponseMessage) => void, serviceId?: number): TsStream {
+export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?: number): TsStream {
     const tsStream = new TsStream();
     const tsUtil = new TsUtil();
     let pidToComponent = new Map<number, ComponentPMT>();
@@ -52,8 +52,6 @@ export function decodeTS(readStream: stream.Readable, send: (msg: wsApi.Response
     const downloadComponents = new Map<number, DownloadComponentInfo>();
     const cachedComponents = new Map<number, CachedComponent>();
     let currentProgramInfo: wsApi.ProgramInfoMessage | null = null;
-
-    readStream.pipe(tsStream);
 
     tsStream.on("data", () => {
     });
