@@ -22,7 +22,7 @@ export type RequestMessage = {};
 export type ComponentPMT = {
     pid: number,
     componentId: number,
-    bxmlInfo: AdditionalAribBXMLInfo,
+    bxmlInfo?: AdditionalAribBXMLInfo,
 };
 
 export type AdditionalAribBXMLInfo = {

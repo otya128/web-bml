@@ -290,7 +290,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                     }
                 }
             }
-            if (componentId == null || bxmlInfo == null) {
+            if (componentId == null) {
                 continue;
             }
             const componentPMT: ComponentPMT = {
