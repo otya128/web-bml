@@ -133,10 +133,8 @@ window.addEventListener("keyup", (event) => {
     bmlBrowser.bmlDocument.processKeyUp(k);
 });
 
-ws.addEventListener("message", (event) => {
-    const msg = JSON.parse(event.data) as ResponseMessage;
+function onMessage(msg: ResponseMessage) {
     bmlBrowser.emitMessage(msg);
-
     if (msg.type === "videoStreamUrl") {
         const videoElement = videoContainer.querySelector("video") as HTMLVideoElement;
         const ccContainer = browserElement.querySelector(".arib-video-cc-container") as HTMLElement;
@@ -160,5 +158,11 @@ ws.addEventListener("message", (event) => {
         videoElement.style.display = "";
         remoteControl.player = player;
     }
+}
+
+ws.addEventListener("message", (event) => {
+    const msg = JSON.parse(event.data) as ResponseMessage;
+    onMessage(msg);
 });
+
 bmlBrowser.launchStartupDocument();

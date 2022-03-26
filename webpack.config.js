@@ -4,6 +4,7 @@ const webpack = require('webpack')
 module.exports = {
     entry: {
         arib: './client/index.ts',
+        play_local: './client/play_local.ts',
         video_list: './client/video_list.tsx',
     },
     output: {

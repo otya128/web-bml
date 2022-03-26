@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+        データ放送ブラウザ
+    </title>
+
+    <style>
+        .remote-control button {
+            width: 40px;
+            height: 30px;
+        }
+
+        .remote-control td {
+            width: 40px;
+            height: 30px;
+        }
+
+        .remote-control .mini {
+            font-size: 70%;
+            line-height: 1;
+        }
+
+        .remote-control-receiving-status {
+            position: absolute;
+            width: 140px;
+            height: 1.5em;
+            right: 20px;
+            bottom: 20px;
+            font-family: "丸ゴシック";
+            background-color: rgba(32, 32, 32, 0.5);
+            vertical-align: middle;
+            line-height: 1.5em;
+            text-align: center;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>
+        データ放送ブラウザ
+    </h1>
+
+    <p>
+        ファイル<!--またはURL-->を指定するとそこに含まれるデータ放送を閲覧することが出来ます。TSファイルが外部にアップロードされることはありません。(ただし事故でデータ放送に使われる画像などのリソースのリクエストが発生する可能性は0ではない)
+    </p>
+    <p>
+        <label>TSファイル:<input type="file" id="ts"></label>
+    </p>
+    <!--
+    <p>
+        Mirakurunを指定する例: http://localhost:40772/api/channels/BS/BS15_0/services/400101/stream
+    </p>
+    <p>
+        EPGStationではデフォルトでクロスオリジンリクエストが許容されないのでisAllowAllCORSを有効にしたうえで http://localhost:8888/api/videos/23 のように指定
+    </p>
+    <p>
+        <label>URL:<input id="url"><button id="url-submit">URLを開く</button>
+    </p>
+    <pre id="url-err"></pre>
+    -->
+
+    <div style="display: flex">
+        <div id="data-broadcasting-browser" style="position: relative; overflow: hidden; width: 960px; height: 540px;">
+            <div class="data-broadcasting-browser-content">
+            </div>
+
+            <div class="arib-video-invisible-container"
+                style="width: 960px; height: 540px; position: absolute; left: 0px; top: 0px;">
+                <div class="arib-video-container"
+                    style="width: 100%; height: 100%; max-height: 100vh; max-width: 100vw; display: block !important; visibility: visible !important;">
+                    <video muted="muted" autoplay="autoplay"
+                        style="width: 100%; height: 100%; max-height: 100vh; max-width: 100vw; display: block !important; visibility: visible !important;"
+                        id="arib-video" controls="controls"></video>
+                </div>
+            </div>
+            <div class="arib-video-cc-container"
+                style="width: 960px; height: 540px; display: none; position: absolute; left: 0px; top: 0px;">
+            </div>
+            <div class="remote-control-receiving-status" style="display: none;">
+                データ取得中...
+            </div>
+        </div>
+
+        <div id="remote-control" class="remote-control" style="width: 280px;height: 540px;background-color: #444;">
+            <div class="remote-control-indicator"
+                style="background-color: white; height: 6em; white-space: pre-line; overflow-y: auto">
+            </div>
+            <table>
+                <tbody>
+                    <tr>
+                        <td colspan="3">
+                            <button id="key21"
+                                style="width: 32px; color: white; background-color: rgb(0, 114, 214);">青</button><button
+                                id="key22"
+                                style="width: 32px; color: white; background-color: rgb(201, 0, 0);">赤</button><button
+                                id="key23"
+                                style="width: 32px; color: white; background-color: rgb(27, 135, 0);">緑</button><button
+                                id="key24"
+                                style="width: 32px; color: white; background-color: rgb(227,178,0);">黄</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><button id="key1">↑</button></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><button id="key3">←</button></td>
+                        <td><button id="key18" class="mini">決定</button></td>
+                        <td><button id="key4">→</button></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><button id="key2">↓</button></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><button id="key20">d</button></td>
+                        <td></td>
+                        <td><button id="key19" class="mini">戻る</button></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button id="key6">1</button>
+                        </td>
+                        <td>
+                            <button id="key7">2</button>
+                        </td>
+                        <td>
+                            <button id="key8">3</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button id="key9">4</button>
+                        </td>
+                        <td>
+                            <button id="key10">5</button>
+                        </td>
+                        <td>
+                            <button id="key11">6</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button id="key12">7</button>
+                        </td>
+                        <td>
+                            <button id="key13">8</button>
+                        </td>
+                        <td>
+                            <button id="key14">9</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button id="key15">10</button>
+                        </td>
+                        <td>
+                            <button id="key16">11</button>
+                        </td>
+                        <td>
+                            <button id="key17">12</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button id="key5">0</button>
+                        </td>
+                        <td>
+                            <button id="unmute">🔊&#xfe0f;</button>
+                        </td>
+                        <td>
+                            <button id="mute">🔇&#xfe0f;</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button id="play">▶️&#xfe0f;</button>
+                        </td>
+                        <td>
+                            <button id="pause">⏸&#xfe0f;</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button id="cc" class="mini">字幕</button>
+                        </td>
+                        <td>
+                            <button id="disable-cc" class="mini"><s>字幕</s></button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <button id="zoom-100" class="mini">100%</button>
+                        </td>
+                        <td>
+                            <button id="zoom-150" class="mini">150%</button>
+                        </td>
+                        <td>
+                            <button id="zoom-200" class="mini">200%</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script src="play_local.js"></script>
+</body>
+
+</html>

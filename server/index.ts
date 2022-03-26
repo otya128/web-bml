@@ -143,6 +143,16 @@ router.get('/arib.js.map', async ctx => {
     ctx.set('Content-Type', 'application/json; charset=utf-8')
 });
 
+router.get('/play_local.js', async ctx => {
+    ctx.body = fs.createReadStream("dist/play_local.js");
+    ctx.set('Content-Type', 'text/javascript; charset=utf-8')
+});
+
+router.get('/play_local.js.map', async ctx => {
+    ctx.body = fs.createReadStream("dist/play_local.js.map");
+    ctx.set('Content-Type', 'application/json; charset=utf-8')
+});
+
 router.get("/rounded-mplus-1m-arib.ttf", async ctx => {
     ctx.body = fs.createReadStream("dist/rounded-mplus-1m-arib.ttf");
 });
@@ -197,6 +207,11 @@ router.get("/videos/:videoFileId", async ctx => {
 
 router.get("/play", async ctx => {
     ctx.body = fs.createReadStream("public/index.html");
+    ctx.set("Content-Type", "text/html; charset=utf-8");
+});
+
+router.get("/play_local", async ctx => {
+    ctx.body = fs.createReadStream("public/play_local.html");
     ctx.set("Content-Type", "text/html; charset=utf-8");
 });
 
