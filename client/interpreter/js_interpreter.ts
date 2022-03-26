@@ -256,22 +256,22 @@ export class JSInterpreter implements Interpreter {
             for (let i = 0; i < 64; i++) {
                 function defineRW2(pseudo: any, propName: string) {
                     interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
-                        get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
+                        get: interpreter.createNativeFunction(function getGreg(this: { data: any }) {
                             return (browser.Greg as any)[propName];
                         }),
-                        set: interpreter.createNativeFunction(function getSubscribe(this: { data: any }, value: any) {
-                            (browser.Greg as any)[propName] = value;
+                        set: interpreter.createNativeFunction(function setGreg(this: { data: any }, value: any) {
+                            (browser.Greg as any)[propName] = String(value);
                         }),
                     });
                 }
 
                 function defineRW3(pseudo: any, propName: string) {
                     interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
-                        get: interpreter.createNativeFunction(function getSubscribe(this: { data: any }) {
+                        get: interpreter.createNativeFunction(function getUreg(this: { data: any }) {
                             return (browser.Ureg as any)[propName];
                         }),
-                        set: interpreter.createNativeFunction(function getSubscribe(this: { data: any }, value: any) {
-                            (browser.Ureg as any)[propName] = value;
+                        set: interpreter.createNativeFunction(function setUreg(this: { data: any }, value: any) {
+                            (browser.Ureg as any)[propName] =  String(value);
                         }),
                     });
                 }
