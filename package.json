@@ -10,6 +10,8 @@
     "@babel/types": "^7.17.0",
     "arib-subtitle-timedmetadater": "^4.0.9",
     "aribb24.js": "^1.9.6",
+    "assert": "^2.0.0",
+    "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
     "crc-32": "^1.2.1",
     "css": "^3.0.0",
@@ -25,7 +27,9 @@
     "mpegts.js": "^1.6.10",
     "process": "^0.11.10",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react-dom": "^17.0.2",
+    "stream-browserify": "^3.0.0",
+    "util": "^0.12.4"
   },
   "scripts": {
     "start": "node build/index.js",
