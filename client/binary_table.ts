@@ -226,7 +226,7 @@ export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[])
 }
 
 export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint8Array {
-    if (data.length !== fields.length) {
+    if (data.length < fields.length) {
         throw new Error("FIXME");
     }
 
