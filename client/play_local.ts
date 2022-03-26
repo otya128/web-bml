@@ -1,6 +1,5 @@
 import { ResponseMessage } from "../server/ws_api";
 import { BMLBrowser, BMLBrowserFontFace, EPG } from "./bml_browser";
-import { VideoPlayer } from "./player/video_player";
 import { RemoteControl } from "./remote_controller_client";
 import { keyCodeToAribKey } from "./document";
 import { decodeTS } from "../server/decode_ts";
@@ -89,13 +88,26 @@ window.addEventListener("keyup", (event) => {
     bmlBrowser.bmlDocument.processKeyUp(k);
 });
 
+let pcr: number | undefined;
+let baseTime: number | undefined;
+let basePCR: number | undefined;
+
 function onMessage(msg: ResponseMessage) {
+    if (msg.type === "pcr") {
+        pcr = (msg.pcrBase + msg.pcrExtension / 300) / 90;
+    }
     bmlBrowser.emitMessage(msg);
 }
 const tsInput = document.getElementById("ts") as HTMLInputElement;
 const tsUrl = document.getElementById("url") as HTMLInputElement;
 const tsUrlSubmit = document.getElementById("url-submit") as HTMLInputElement;
 const tsUrlErr = document.getElementById("url-err") as HTMLPreElement;
+
+async function delayAsync(msec: number): Promise<void> {
+    return new Promise<void>((resolve, _) => {
+        setTimeout(resolve, msec);
+    });
+}
 
 async function openReadableStream(stream: ReadableStream<Uint8Array>) {
     const reader = stream.getReader();
@@ -107,7 +119,23 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
         }
         const chunk = r.value;
         if (chunk != null) {
+            const prevPCR = pcr;
             tsStream._transform(chunk, null, () => { });
+            const curPCR = pcr;
+            const nowTime = new Date().getTime();
+            if (prevPCR == null) {
+                baseTime = nowTime;
+                basePCR = curPCR;
+            } else if (curPCR != null && prevPCR < curPCR && baseTime != null && basePCR != null) {
+                const delay = (curPCR - basePCR) - (nowTime - baseTime);
+                console.log(delay);
+                if (delay >= 1) {
+                    await delayAsync(Math.min(delay, 10000));
+                }
+            } else if (curPCR != null && prevPCR > curPCR) {
+                baseTime = nowTime;
+                basePCR = curPCR;
+            }
         }
     }
 }
