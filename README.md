@@ -4,6 +4,8 @@ Webブラウザで動作するデータ放送ブラウザ(BMLブラウザ)
 
 ![screenshot](https://user-images.githubusercontent.com/4075988/159119988-d57b4d1b-6940-45d5-8d54-87acb2f75781.png)
 
+デモ https://otya128.github.io/web-bml
+
 ## 動作環境
 
 * LinuxまたはWindows上のnode.js (v16.x)
@@ -137,7 +139,7 @@ HLSを使う場合の一時出力先
 
 丸ゴシック用にKosugiMaru(モトヤLマルベリ3等幅)、ゴシック用にKosugi(モトヤLシーダ3等幅)がGitHubからダウンロードされ使われます。
 
-制約が厳しいBMLではスペースによるレイアウトがよく使われるためフォントは仕様で規定されている通り等幅であることが必須です。 (UnicodeではくJISコード基準なので記号なども全角幅であるべき)
+制約が厳しいBMLではスペースによるレイアウトがよく使われるためフォントは仕様で規定されている通り等幅であることが必須です。 (UnicodeではなくJISコード基準なので記号なども全角幅であるべき)
 
 外字はOpenTypeに変換されて文字として表示されますがgrayscale-color-indexは無視されます。
 Chromium系のブラウザであれば定義通りフォントの大きさに合わせた外字が表示されます。
