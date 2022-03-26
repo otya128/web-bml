@@ -670,7 +670,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
             const event_msg_group_id = data.table_id_extension & 0b1111_1111_1111;
             const stream_descriptor: Buffer = data.stream_descriptor;
             const events: wsApi.ESEvent[] = [];
-            for (let i = 0; i + 1 < stream_descriptor.length; i++) {
+            for (let i = 0; i + 1 < stream_descriptor.length;) {
                 const descriptor_tag = stream_descriptor.readUInt8(i);
                 i++;
                 const descriptor_length = stream_descriptor.readUInt8(i);
