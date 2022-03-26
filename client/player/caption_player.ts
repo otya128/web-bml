@@ -29,24 +29,72 @@ export class CaptionPlayer extends VideoPlayer {
 
     pes: Uint8Array | undefined;
     pts: number | undefined;
+    endTime: number | undefined;
+
+    peses: {
+        pes: Uint8Array,
+        pts: number,
+        endTime: number,
+    }[] = [];
+
+    pcr: number | undefined;
+
+    public updateTime(pcr: number) {
+        this.pcr = pcr;
+        let pesIndex: number = -1;
+        if (this.pes != null && this.pts != null && this.endTime != null && this.pcr != null && this.pts + this.endTime < this.pcr) {
+            // CS
+            this.viewCanvas.getContext("2d")!.clearRect(0, 0, this.viewCanvas.width, this.viewCanvas.height);
+            this.pes = undefined;
+            this.pts = undefined;
+            this.endTime = undefined;
+        }
+        this.peses = this.peses.filter(x => x.pts >= pcr && x.pts <= pcr + x.endTime);
+        for (let i = 0; i < this.peses.length; i++) {
+            if (this.peses[i].pts > pcr) {
+                pesIndex = i;
+                break;
+            }
+        }
+        if (pesIndex >= 0) {
+            this.peses.splice(0, pesIndex);
+            if (this.pes !== this.peses[0].pes) {
+                this.pes = this.peses[0].pes;
+                this.pts = this.peses[0].pts;
+                this.endTime = this.peses[0].endTime;
+                this.render();
+            }
+        }
+    }
 
     public push(streamId: number, pes: Uint8Array, pts: number) {
         if (streamId === 0xbd) {
-            this.pes = pes;
-            this.pts = pts;
-            this.render();
+            pts /= 90;
+            if (this.pcr == null) {
+                return;
+            }
+            const provider: CanvasProvider = new CanvasProvider(pes, 0);
+            const estimate = provider.render({
+                ... this.captionOption,
+                width: undefined,
+                height: undefined,
+            });
+            if (estimate == null) {
+                return;
+            }
+            this.peses.push({ pes, pts, endTime: Number.isFinite(estimate.endTime) ? estimate.endTime * 1000 : Number.MAX_SAFE_INTEGER });
+            this.peses.sort((a, b) => a.pts - b.pts);
         }
     }
 
     private render() {
-        if (this.pes != null && this.pts != null) {
-            this.viewCanvas.getContext("2d")!.clearRect(0, 0, this.viewCanvas.width, this.viewCanvas.height);
+        if (this.pes != null && this.pts != null && this.endTime != null && this.pcr != null) {
             const canvasProvider = new CanvasProvider(this.pes, this.pts);
             canvasProvider.render({
                 ...this.captionOption,
                 canvas: this.viewCanvas,
-                width: 960 * this.scaleFactor,
-                height: 540 * this.scaleFactor,
+                width: this.viewCanvas.width,
+                height: this.viewCanvas.height,
             });
         }
     }

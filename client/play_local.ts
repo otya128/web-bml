@@ -128,9 +128,11 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
             return;
         }
         const chunk = r.value;
-        if (chunk != null) {
+        // 1秒分くらい一気にデコードしてしまうので100パケット程度に分割
+        const chunkSize = 188 * 100;
+        for (let i = 0; i < chunk.length; i += chunkSize) {
             const prevPCR = pcr;
-            tsStream._transform(chunk, null, () => { });
+            tsStream._transform(chunk!.subarray(i, i + chunkSize), null, () => { });
             const curPCR = pcr;
             const nowTime = new Date().getTime();
             if (prevPCR == null) {
@@ -148,6 +150,9 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
             } else if (curPCR != null && prevPCR > curPCR) {
                 baseTime = nowTime;
                 basePCR = curPCR;
+            }
+            if (prevPCR !== curPCR && curPCR != null) {
+                player.updateTime(curPCR);
             }
         }
     }

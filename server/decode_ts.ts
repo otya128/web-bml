@@ -783,14 +783,13 @@ function decodePES(pes: Buffer): wsApi.PESMessage | null {
     const dataPos = pos + pesHeaderLength;
     let pts: number | undefined;
     if (ptsDTSIndicator === 0b10 || ptsDTSIndicator === 0b11) {
-        const pts3232 = (pes[pos] >> 2) & 0b1;
-        const pts3130 = pes[pos] & 0b11;
+        const pts3230 = (pes[pos] >> 1) & 0b111;
         pos++;
         const pts2915 = pes.readUInt16BE(pos) >> 1;
         pos += 2;
         const pts1400 = pes.readUInt16BE(pos) >> 1;
         pos += 2;
-        pts = pts1400 + (pts2915 << 15) + (pts3130 << 30) + pts3232 * 0x80000000;
+        pts = pts1400 + (pts2915 << 15) + (pts3230 * 0x40000000);
     }
     return {
         type: "pes",
