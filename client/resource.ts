@@ -56,6 +56,12 @@ function moduleAndComponentToString(componentId: number, moduleId: number) {
 
 interface ResourcesEventMap {
     "dataeventchanged": CustomEvent<{ prevComponent: DownloadComponentInfo, component: DownloadComponentInfo, returnToEntryFlag?: boolean }>;
+    // DDB
+    "moduleupdated": CustomEvent<{ componentId: number, moduleId: number, version: number, dataEventId: number }>;
+    // DII
+    "componentupdated": CustomEvent<{ component: DownloadComponentInfo }>;
+    // PMT
+    "pmtupdated": CustomEvent<{ components: Map<number, ComponentPMT> }>;
 }
 
 interface CustomEventTarget<M> {
@@ -264,6 +270,7 @@ export class Resources {
                 }
                 this.setReceivingStatus();
             }
+            this.eventTarget.dispatchEvent<"moduleupdated">(new CustomEvent("moduleupdated", { detail: { componentId: msg.componentId, dataEventId: msg.dataEventId, moduleId: msg.moduleId, version: msg.version } }));
         } else if (msg.type === "moduleListUpdated") {
             const component: DownloadComponentInfo = {
                 componentId: msg.componentId,
@@ -286,13 +293,15 @@ export class Resources {
                 }
                 this.setReceivingStatus();
             }
+            this.eventTarget.dispatchEvent<"componentupdated">(new CustomEvent("componentupdated", { detail: { component } }));
             // DIIのdata_event_idが更新された
             if (prevComponent != null && prevComponent.dataEventId !== component.dataEventId) {
-                this.dispatchDataEventChanged(prevComponent, component, msg.returnToEntryFlag);
+                this.eventTarget.dispatchEvent<"dataeventchanged">(new CustomEvent("dataeventchanged", { detail: { prevComponent, component, returnToEntryFlag: msg.returnToEntryFlag } }));
             }
         } else if (msg.type === "pmt") {
             this.pmtRetrieved = true;
             this.pmtComponents = new Map(msg.components.map(x => [x.componentId, x]));
+            this.eventTarget.dispatchEvent<"pmtupdated">(new CustomEvent("pmtupdated", { detail: { components: this.pmtComponents } }));
         } else if (msg.type === "programInfo") {
             this.currentProgramInfo = msg;
             const callbacks = this.programInfoCallbacks.slice();
@@ -306,10 +315,6 @@ export class Resources {
         } else if (msg.type === "error") {
             console.error(msg);
         }
-    }
-
-    private dispatchDataEventChanged(prevComponent: DownloadComponentInfo, component: DownloadComponentInfo, returnToEntryFlag?: boolean) {
-        this.eventTarget.dispatchEvent<"dataeventchanged">(new CustomEvent("dataeventchanged", { detail: { prevComponent, component, returnToEntryFlag } }));
     }
 
     public parseURL(url: string | null | undefined): { component: string | null, module: string | null, filename: string | null } {
