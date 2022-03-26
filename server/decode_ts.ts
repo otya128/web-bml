@@ -318,10 +318,25 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
 
     tsStream.on("packet", (pid, data) => {
         if (privatePes.has(pid)) {
-            const pes: Buffer = data.data_byte;
-            const msg = decodePES(pes);
-            if (msg != null) {
-                send(msg);
+            const info = (tsStream.info as any)[pid];
+            if (data.payload_unit_start_indicator) {
+                info.buffer.reset();
+                info.buffer.add(data.data_byte);
+                if (data.data_byte.length >= 6) {
+                    info.buffer.entireLength = data.data_byte.readUInt16BE(4) + 6;
+                } else {
+                    info.buffer.entireLength = 0x7fffffff;
+                }
+            } else {
+                info.buffer.add(data.data_byte);
+            }
+            if (info.buffer.entireLength === info.buffer.length) {
+                const pes: Buffer = info.buffer.concat();
+                info.buffer.reset();
+                const msg = decodePES(pes);
+                if (msg != null) {
+                    send(msg);
+                }
             }
         }
         if (pid !== pcr_pid) {
