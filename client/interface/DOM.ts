@@ -675,7 +675,7 @@ export namespace BML {
                     this.node.setAttribute("streamposition", value.toString());
                     if (this.effect != null) {
                         const timing = this.effect.getTiming();
-                        const duration = Number(this.effect.getTiming().duration);
+                        const duration = Number(timing.duration);
                         const keyframes = this.effect.getKeyframes();
                         const keyframe = keyframes[Math.max(0, Math.min(value, keyframes.length - 1))];
                         timing.delay = -(keyframe.computedOffset * duration);
