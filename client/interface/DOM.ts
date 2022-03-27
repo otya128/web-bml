@@ -489,7 +489,8 @@ export namespace BML {
             }
             this.node.removeAttribute("data");
         }
-        protected updateStreamStatus() {
+
+        protected updateAnimation() {
             if (this.animation == null) {
                 return;
             }
@@ -502,6 +503,7 @@ export namespace BML {
                 this.animation.cancel();
             }
         }
+
         public set data(value: string) {
             (async () => {
                 if (value == null) {
@@ -554,7 +556,7 @@ export namespace BML {
                         }
                         this.effect = new KeyframeEffect(this.node, keyframes.keyframes, keyframes.options);
                         this.animation = new Animation(this.effect);
-                        for (const blob of keyframes.blobs) {   
+                        for (const blob of keyframes.blobs) {
                             fetched.blobUrl.set(blob, blob);
                         }
                         const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("resolution"), keyframes.width, keyframes.height, (aribType ?? this.type));
@@ -568,7 +570,10 @@ export namespace BML {
                         // streamstatus=playのときstreampositionで指定されたフレームから再生開始
                         // streamstatus=stopのとき非表示 streampositionは0にリセットされる
                         // streamstatus=pauseのとき streampositionで指定されたフレームを表示
-                        this.updateStreamStatus();
+                        if (this.streamStatus !== "stop") {
+                            console.error("unexpected streamStatus", this.streamStatus, this.data);
+                        }
+                        this.updateAnimation();
                         return;
                     } else {
                         imageUrl = fetched.blobUrl.get(fetchedClut);
@@ -645,40 +650,112 @@ export namespace BML {
                 this.node.removeAttribute("remain");
             }
         }
+
         // MNG
         // streamstatus=playのときstreamPositionは運用しない
         // streamstatus=stopのときstreamPositionは0
         // streamstatus=pauseのとき現在表示設定されているフレームの番号
         public get streamPosition(): number {
-            throw new Error("BMLObjectElement.streamPosition");
+            const v = Number.parseInt(this.node.getAttribute("streamposition") ?? "0");
+            if (Number.isFinite(v)) {
+                return v;
+            } else {
+                return 0;
+            }
         }
+
         // MNG
         // streamstatus=playのときstreamPositionは運用しない
         // streamstatus=stopのときstreamPositionは0以外を設定しても無視される
         // streamstatus=pauseのとき指定されたフレームを表示 フレーム数より大きければ受信機依存
         public set streamPosition(value: number) {
-            throw new Error("BMLObjectElement.streamPosition");
+            if (this.streamStatus === "pause") {
+                value = Number(value);
+                if (Number.isFinite(value)) {
+                    this.node.setAttribute("streamposition", value.toString());
+                    if (this.effect != null) {
+                        const timing = this.effect.getTiming();
+                        const duration = Number(this.effect.getTiming().duration);
+                        const keyframes = this.effect.getKeyframes();
+                        const keyframe = keyframes[Math.max(0, Math.min(value, keyframes.length - 1))];
+                        timing.delay = -(keyframe.computedOffset * duration);
+                        this.effect.updateTiming(timing);
+                    }
+                }
+            } else {
+                if (this.effect != null) {
+                    const timing = this.effect.getTiming();
+                    timing.delay = 0;
+                    this.effect.updateTiming(timing);
+                }
+                this.node.setAttribute("streamposition", "0");
+            }
         }
+
+        static offsetToFrame(keyframes: ComputedKeyframe[], offset: number): number {
+            // offset順でソートされていると仮定
+            for (let i = 0; i < keyframes.length; i++) {
+                if (keyframes[i].computedOffset <= offset) {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
         public get streamStatus(): DOMString {
+            if (this.animation != null) {
+                if (this.animation.playState === "finished" && this.streamStatus !== "pause") {
+                    this.streamStatus = "pause";
+                }
+            }
             return this.node.getAttribute("streamstatus") ?? ""; // "stop" | "play" | "pause"
         }
+
         // MNG
-        // play=>stop streampositionは0 繰り返し回数はリセット
-        // play=>pause どのフレームを表示するかは受信機依存 streampositionはそのフレームに設定される 繰り返し回数はリセット
-        // stop=>play 0フレームから再生開始
-        // stop=>pause 0フレーム目が表示される
-        // pause=>play streampositionに設定されているフレームから再生開始
-        // pause=>stop play=>pauseのときと同様
         // stop以外の時にdataを変更できない
         // 再生が終了したときはpauseに設定される
         public set streamStatus(value: DOMString) {
+            if (this.animation == null || this.effect == null) {
+                this.node.setAttribute("streamstatus", value);
+                return;
+            }
             if (this.streamStatus === value) {
                 return;
             }
-            this.node.setAttribute("streamstatus", value);
-            this.updateStreamStatus();
+            const prevStatus = this.streamStatus;
+            if (value === "play") {
+                this.node.setAttribute("streamstatus", "play");
+                if (prevStatus === "pause") {
+                    // pause=>play streampositionに設定されているフレームから再生開始
+                    this.animation.play();
+                } else if (prevStatus === "stop") {
+                    // stop=>play 0フレームから再生開始
+                    this.streamPosition = 0;
+                    this.animation.play();
+                }
+            } else if (value === "pause") {
+                this.node.setAttribute("streamstatus", "pause");
+                if (prevStatus === "play") {
+                    // play=>pause どのフレームを表示するかは受信機依存 streampositionはそのフレームに設定される 繰り返し回数はリセット
+                    this.animation.pause();
+                    const duration = Number(this.effect.getTiming().duration);
+                    this.streamPosition = BMLObjectElement.offsetToFrame(this.effect.getKeyframes(), ((this.animation.currentTime! - this.animation.startTime!) % duration) / duration);
+                } else if (prevStatus === "stop") {
+                    // stop=>pause 0フレーム目が表示される
+                    this.streamPosition = 0;
+                    this.animation.play();
+                    this.animation.pause();
+                }
+            } else if (value === "stop") {
+                // play=>stop streampositionは0 繰り返し回数はリセット
+                // pause=>stop play=>pauseのときと同様
+                this.animation.cancel();
+                this.streamPosition = 0;
+                this.node.setAttribute("streamstatus", "stop");
+            }
         }
-        public setMainAudioStream(autdio_ref: DOMString): boolean {
+
+        public setMainAudioStream(audio_ref: DOMString): boolean {
             throw new Error("BMLObjectElement.setMainAudioStream()");
         }
         public getMainAudioStream(): DOMString {
