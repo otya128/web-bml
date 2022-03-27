@@ -10,6 +10,7 @@ import { Interpreter } from "../interpreter/interpreter";
 import { BMLBrowserEventTarget } from "../bml_browser";
 import { convertJPEG } from "../arib_jpeg";
 import { aribMNGToCSSAnimation } from "../arib_mng";
+import { playAIFF } from "../arib_aiff";
 
 export namespace BML {
     type DOMString = string;
@@ -705,13 +706,51 @@ export namespace BML {
                     this.streamStatus = "pause";
                 }
             }
-            return this.node.getAttribute("streamstatus") ?? ""; // "stop" | "play" | "pause"
+            const value = this.node.getAttribute("streamstatus");
+            if (value == null) {
+                const type = this.type.toLowerCase();
+                // stopを取りうる場合初期値はstop (STD-B24 第二分冊 (2/2) 付属2 4.8.5.2 注2)
+                if (type === "audio/x-arib-mpeg2-aac" || type === "audio/x-arib-aiff" || type === "image/gif" || type === "image/x-arib-mng") {
+                    return "stop";
+                }
+                return "play";
+            }
+            return value; // "stop" | "play" | "pause"
         }
 
+        private audioBufferSourceNode?: AudioBufferSourceNode;
+        // STD-B24 第二分冊 (2/2) 付属2 4.8.5.3
         // MNG
         // stop以外の時にdataを変更できない
         // 再生が終了したときはpauseに設定される
         public set streamStatus(value: DOMString) {
+            const type = this.type.toLowerCase();
+            if (type === "audio/x-arib-aiff") {
+                if (value === "play") {
+                    this.audioBufferSourceNode?.stop();
+                    this.ownerDocument.resources.fetchResourceAsync(this.data).then(x => {
+                        const data = x?.data;
+                        if (data == null) {
+                            return;
+                        }
+                        this.audioBufferSourceNode = playAIFF(new AudioContext(), Buffer.from(data)) ?? undefined;
+                        this.node.setAttribute("streamstatus", "play");
+                        if (this.audioBufferSourceNode != null) {
+                            const sourceNode = this.audioBufferSourceNode;
+                            sourceNode.onended = () => {
+                                if (sourceNode === this.audioBufferSourceNode) {
+                                    this.node.setAttribute("streamstatus", "stop");
+                                }
+                            };
+                        }
+                    });
+                } else if (value === "stop") {
+                    this.audioBufferSourceNode?.stop();
+                    this.audioBufferSourceNode = undefined;
+                    this.node.setAttribute("streamstatus", "stop");
+                }
+                return;
+            }
             if (this.animation == null || this.effect == null) {
                 this.node.setAttribute("streamstatus", value);
                 return;
