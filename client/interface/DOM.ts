@@ -464,9 +464,6 @@ export namespace BML {
         public get type(): string {
             return this.node.type;
         }
-        public set type(value: string) {
-            this.node.type = value;
-        }
     }
 
     // impl
