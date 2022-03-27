@@ -216,7 +216,7 @@ type Frame = {
     y: number,
 };
 
-export type MNGAnimation = { keyframes: Keyframe[], options: KeyframeAnimationOptions, width: number, height: number };
+export type MNGAnimation = { keyframes: Keyframe[], options: KeyframeAnimationOptions, width: number, height: number, blobs: string[] };
 
 export function aribMNGToCSSAnimation(mng: Buffer, clut: number[][]): MNGAnimation | null {
     const frames: Frame[] = [];
@@ -343,5 +343,5 @@ export function aribMNGToCSSAnimation(mng: Buffer, clut: number[][]): MNGAnimati
     }
     options.duration = (1000 * animationLength) / mhdr.ticksPerSecond;
     options.fill = "forwards";
-    return { keyframes, options, width: mhdr.frameWidth, height: mhdr.frameHeight };
+    return { keyframes, options, width: mhdr.frameWidth, height: mhdr.frameHeight, blobs: frames.map(x => x.image) };
 }

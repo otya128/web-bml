@@ -547,12 +547,16 @@ export namespace BML {
                         if (this.animation != null) {
                             this.animation.cancel();
                             this.animation = undefined;
+                            this.effect = undefined;
                         }
                         if (keyframes == null) {
                             return;
                         }
                         this.effect = new KeyframeEffect(this.node, keyframes.keyframes, keyframes.options);
                         this.animation = new Animation(this.effect);
+                        for (const blob of keyframes.blobs) {   
+                            fetched.blobUrl.set(blob, blob);
+                        }
                         const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("resolution"), keyframes.width, keyframes.height, (aribType ?? this.type));
                         if (width != null && height != null) {
                             this.node.style.maxWidth = width + "px";
