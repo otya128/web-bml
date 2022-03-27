@@ -456,6 +456,22 @@ export namespace BML {
             this.node = node;
         }
         public get data(): string {
+            return this.node.data;
+        }
+        public set data(value: string) {
+            this.node.data = value;
+        }
+        public get type(): string {
+            return this.node.type;
+        }
+        public set type(value: string) {
+            this.node.type = value;
+        }
+    }
+
+    // impl
+    export class BMLObjectElement extends HTMLObjectElement {
+        public get data(): string {
             const aribData = this.node.getAttribute("arib-data");
             if (aribData == null || aribData == "") {
                 return this.node.getAttribute("data") ?? "";
@@ -595,13 +611,13 @@ export namespace BML {
                 this.node.setAttribute("data", imageUrl);
             })();
         }
-        public get type(): string {
+        public get type() {
+            const aribType = this.node.getAttribute("arib-type");
+            if (aribType != null) {
+                return aribType;
+            }
             return this.node.type;
         }
-    }
-
-    // impl
-    export class BMLObjectElement extends HTMLObjectElement {
         public get normalStyle(): BMLCSS2Properties {
             return getNormalStyle(this.node);
         }
