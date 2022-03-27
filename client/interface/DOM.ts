@@ -9,7 +9,7 @@ import { Buffer } from "buffer";
 import { Interpreter } from "../interpreter/interpreter";
 import { BMLBrowserEventTarget } from "../bml_browser";
 import { convertJPEG } from "../arib_jpeg";
-import { aribMNGToAPNG } from "../arib_mng";
+import { aribMNGToCSSAnimation } from "../arib_mng";
 
 export namespace BML {
     type DOMString = string;
@@ -463,27 +463,51 @@ export namespace BML {
             return aribData;
         }
         private __version: number = 0;
+        protected animation: Animation | undefined;
+        protected effect: KeyframeEffect | undefined;
+        protected delete() {
+            if (this.animation != null) {
+                this.animation.cancel();
+                this.effect = undefined;
+                this.animation = undefined;
+            }
+            this.node.removeAttribute("data");
+        }
+        protected updateStreamStatus() {
+            if (this.animation == null) {
+                return;
+            }
+            const streamStatus = this.node.getAttribute("streamstatus");
+            if (streamStatus === "play") {
+                this.animation.play();
+            } else if (streamStatus === "pause") {
+                this.animation.pause();
+            } else if (streamStatus === "stop") {
+                this.animation.cancel();
+            }
+        }
         public set data(value: string) {
             (async () => {
                 if (value == null) {
-                    this.node.removeAttribute("data");
+                    this.delete();
                     this.node.removeAttribute("arib-data");
                     return;
                 }
                 const aribType = this.node.getAttribute("arib-type");
                 this.node.setAttribute("arib-data", value);
                 if (value == "") {
-                    this.node.setAttribute("data", value);
+                    this.delete();
                     return;
                 }
                 // 順序が逆転するのを防止
                 this.__version = this.__version + 1;
                 const version: number = (this as any).__version;
                 const fetched = await this.ownerDocument.resources.fetchResourceAsync(value);
-                if (!fetched) {
+                if (this.__version !== version) {
                     return;
                 }
-                if (this.__version !== version) {
+                if (!fetched) {
+                    this.delete();
                     return;
                 }
 
@@ -500,17 +524,41 @@ export namespace BML {
                     if (this.__version !== version) {
                         return;
                     }
-                    imageUrl = fetched.blobUrl.get(fetchedClut);
-                    if (imageUrl == null) {
+                    if (isMNG) {
                         const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
-                        const png = isPNG ? aribPNGToPNG(Buffer.from(fetched.data), clut) : aribMNGToAPNG(Buffer.from(fetched.data), clut);
-                        if (png != null) {
+                        const keyframes = aribMNGToCSSAnimation(Buffer.from(fetched.data), clut);
+                        this.node.removeAttribute("data");
+                        if (this.animation != null) {
+                            this.animation.cancel();
+                            this.animation = undefined;
+                        }
+                        if (keyframes == null) {
+                            return;
+                        }
+                        this.effect = new KeyframeEffect(this.node, keyframes.keyframes, keyframes.options);
+                        this.animation = new Animation(this.effect);
+                        const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("resolution"), keyframes.width, keyframes.height, (aribType ?? this.type));
+                        if (width != null && height != null) {
+                            this.node.style.maxWidth = width + "px";
+                            this.node.style.minWidth = width + "px";
+                            this.node.style.maxHeight = height + "px";
+                            this.node.style.minHeight = height + "px";
+                        }
+                        // streamloopingは1固定で運用されるため考慮しない
+                        // streamstatus=playのときstreampositionで指定されたフレームから再生開始
+                        // streamstatus=stopのとき非表示 streampositionは0にリセットされる
+                        // streamstatus=pauseのとき streampositionで指定されたフレームを表示
+                        this.updateStreamStatus();
+                        return;
+                    } else {
+                        imageUrl = fetched.blobUrl.get(fetchedClut);
+                        if (imageUrl == null) {
+                            const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
+                            const png = aribPNGToPNG(Buffer.from(fetched.data), clut);
                             const blob = new Blob([png], { type: "image/png" });
                             imageUrl = URL.createObjectURL(blob);
                             fetched.blobUrl.set(fetchedClut, imageUrl);
                             this.node.type = "image/png";
-                        } else {
-                            console.error("FIXME: failed to convert MNG");
                         }
                     }
                 } else if (this.type.toLowerCase() === "image/jpeg") {
@@ -526,7 +574,7 @@ export namespace BML {
                     imageUrl = this.ownerDocument.resources.getCachedFileBlobUrl(fetched);
                 }
                 if (imageUrl == null) {
-                    this.node.removeAttribute("data");
+                    this.delete();
                     return;
                 }
                 // jpeg/png程度ならバイナリ解析すればImage使わずとも大きさは取得できそう
@@ -577,17 +625,38 @@ export namespace BML {
                 this.node.removeAttribute("remain");
             }
         }
+        // MNG
+        // streamstatus=playのときstreamPositionは運用しない
+        // streamstatus=stopのときstreamPositionは0
+        // streamstatus=pauseのとき現在表示設定されているフレームの番号
         public get streamPosition(): number {
             throw new Error("BMLObjectElement.streamPosition");
         }
+        // MNG
+        // streamstatus=playのときstreamPositionは運用しない
+        // streamstatus=stopのときstreamPositionは0以外を設定しても無視される
+        // streamstatus=pauseのとき指定されたフレームを表示 フレーム数より大きければ受信機依存
         public set streamPosition(value: number) {
             throw new Error("BMLObjectElement.streamPosition");
         }
         public get streamStatus(): DOMString {
             return this.node.getAttribute("streamstatus") ?? ""; // "stop" | "play" | "pause"
         }
+        // MNG
+        // play=>stop streampositionは0 繰り返し回数はリセット
+        // play=>pause どのフレームを表示するかは受信機依存 streampositionはそのフレームに設定される 繰り返し回数はリセット
+        // stop=>play 0フレームから再生開始
+        // stop=>pause 0フレーム目が表示される
+        // pause=>play streampositionに設定されているフレームから再生開始
+        // pause=>stop play=>pauseのときと同様
+        // stop以外の時にdataを変更できない
+        // 再生が終了したときはpauseに設定される
         public set streamStatus(value: DOMString) {
+            if (this.streamStatus === value) {
+                return;
+            }
             this.node.setAttribute("streamstatus", value);
+            this.updateStreamStatus();
         }
         public setMainAudioStream(autdio_ref: DOMString): boolean {
             throw new Error("BMLObjectElement.setMainAudioStream()");
