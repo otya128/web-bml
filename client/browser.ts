@@ -373,8 +373,17 @@ export class BrowserAPI {
             }
             const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
             if (!cachedModule) {
+                const dataEventId = this.resources.getDownloadComponentInfo(componentId)?.dataEventId;
                 console.warn("lockModuleOnMemoryEx: module not cached", module);
                 this.resources.fetchResourceAsync(module).then(() => {
+                    if (dataEventId != null) {
+                        const eid = this.resources.getDownloadComponentInfo(componentId)?.dataEventId;
+                        if (eid != null && eid !== dataEventId) {
+                            // ロック対象のESのデータイベントが更新された場合 -1 TR-B14 第二分冊 5.12.6.9 (6)
+                            this.eventDispatcher.dispatchModuleLockedEvent(module, true, -1);
+                            return;
+                        }
+                    }
                     const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
                     this.eventDispatcher.dispatchModuleLockedEvent(module, true, cachedModule == null ? -2 : 0);
                 });
