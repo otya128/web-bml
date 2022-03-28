@@ -42,6 +42,13 @@ export interface Browser {
     // getPersistentInfoList(type: string): any[];
     // deletePersistent(filename: string): number;
     // getFreeSpace(type: string): number;
+    // 永続記憶機能－アクセス制御付領域の制御機能
+    // 非運用
+    // setAccessInfoOfPersistentArray(filename: string, permissionType: 1, permissionData: [original_network_id: string, transport_stream_id: string, service_id: string]): number;
+    // setAccessInfoOfPersistentArray(filename: string, permissionType: number, permissionData: any[]): number;
+    checkAccessInfoOfPersistentArray(filename: string): number;
+    writePersistentArrayWithAccessCheck(filename: string, structure: string, data: any[], period?: Date): number;
+    readPersistentArrayWithAccessCheck(filename: string, structure: string): any[] | null;
     // 双方向機能－遅延発呼
     // 非運用
     // 双方向機能－BASIC手順 非対応であればエラーを返すこと
@@ -171,7 +178,7 @@ export interface Browser {
     lockBookmark(filename: string): number;
     unlockBookmark(filename: string): number;
     getBookmarkInfo(): [number, number, string];
-    getBookmarkInfo2(regison_name: string): [number, number, string];
+    getBookmarkInfo2(region_name: string): [number, number, string];
     // オプション
     // startResidentBookmarkList(): number;
     // 印刷
@@ -180,6 +187,8 @@ export interface Browser {
     // オプション
     // AITコントロールドアプリケーション連携機能
     // オプション
+    // CS事業者専用領域に対する放送用拡張関数 (TR-B15 第四分冊)
+    X_CSP_setAccessInfoToProviderArea(filename: string, structure: string): number;
 }
 
 export class BrowserAPI {
@@ -439,6 +448,18 @@ export class BrowserAPI {
         writePersistentArray: (filename: string, structure: string, data: any[], period?: Date): number => {
             console.log("writePersistentArray", filename, structure, data, period);
             return this.nvram.writePersistentArray(filename, structure, data, period);
+        },
+        checkAccessInfoOfPersistentArray: (filename: string): number => {
+            console.log("checkAccessInfoOfPersistentArray", filename);
+            return this.nvram.checkAccessInfoOfPersistentArray(filename);
+        },
+        writePersistentArrayWithAccessCheck: (filename: string, structure: string, data: any[], period?: Date): number => {
+            console.log("writePersistentArrayWithAccessCheck", filename, structure, data, period);
+            return this.nvram.writePersistentArrayWithAccessCheck(filename, structure, data, period);
+        },
+        readPersistentArrayWithAccessCheck: (filename: string, structure: string): any[] | null => {
+            console.log("readPersistentArrayWithAccessCheck", filename, structure);
+            return this.nvram.readPersistentArrayWithAccessCheck(filename, structure);
         },
         random(num: number): number {
             return Math.floor(Math.random() * num) + 1;

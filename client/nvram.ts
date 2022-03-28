@@ -231,6 +231,7 @@ type BroadcasterInfo = {
     originalNetworkId?: number | null,
     broadcasterId?: number | null,
     broadcastType?: BroadcastType | null,
+    serviceId?: number | null,
 };
 
 type AccessInfo = {
@@ -258,6 +259,7 @@ export class NVRAM {
             originalNetworkId: this.resources.originalNetworkId,
             affiliationId: this.broadcasterDatabase.getAffiliationIdList(this.resources.originalNetworkId, bid),
             broadcasterId: bid,
+            serviceId: this.resources.serviceId,
         };
     }
 
@@ -274,7 +276,7 @@ export class NVRAM {
         const prefix = match?.groups.prefix;
         const block = parseInt(match?.groups.block) ?? -1;
         for (const area of nvramAreas) {
-            if (prefix === area.prefix) {
+            if (prefix === area.prefix && area.isSecure === isSecure) {
                 if (area.startBlock <= block && area.lastBlock >= block) {
                     return [
                         { block, affiliationId, originalNetworkId: broadcasterInfo.originalNetworkId, broadcasterId: broadcasterInfo.broadcasterId, broadcastType: broadcasterInfo.broadcastType },
@@ -321,6 +323,19 @@ export class NVRAM {
         }
         if (nvramArea.isSecure) {
             params.append("secure", "true");
+            const key = `${broadcasterInfo.originalNetworkId}.${broadcasterInfo.broadcasterId}`;
+            const blockPermission = this.providerAreaPermission.get(key);
+            if (blockPermission == null) {
+                console.error("permission not set (nvrams)");
+                return null;
+            }
+            if (accessInfo.block != null) {
+                const allowedServiceId = blockPermission.serviceIdList[accessInfo.block];
+                if (allowedServiceId !== 0xffff && allowedServiceId !== broadcasterInfo.serviceId) {
+                    console.error("permission denied (nvrams serviceId)", allowedServiceId, broadcasterInfo.serviceId);
+                    return null;
+                }
+            }
         }
         return params.toString();
     }
@@ -344,8 +359,18 @@ export class NVRAM {
             const k = this.getLocalStorageKey(binfo, id, area);
             if (!k) {
                 console.error("readNVRAM: access denied", uri);
+                return null;
             }
             strg = localStorage.getItem(this.prefix + k);
+            if (strg != null && area.isSecure) {
+                const serviceId = Number.parseInt(strg.split(",")[0]);
+                // 更新時に異なるs_idの時はブロック内データを初期化（内部動作）?
+                if (serviceId !== 0xffff && serviceId !== binfo.serviceId) {
+                    strg = "";
+                } else {
+                    strg = strg.split(",")[1] ?? "";
+                }
+            }
             isFixed = area.isFixed;
             size = area.size;
         }
@@ -394,11 +419,21 @@ export class NVRAM {
             console.error("writeNVRAM: access denied", uri);
             return NaN;
         }
-        localStorage.setItem(this.prefix + k, window.btoa(String.fromCharCode(...data)));
+        if (area.isSecure && id.block != null) {
+            const key = `${binfo.originalNetworkId}.${binfo.broadcasterId}`;
+            const blockPermission = this.providerAreaPermission.get(key);
+            const allowedServiceId = blockPermission?.serviceIdList[id.block];
+            localStorage.setItem(this.prefix + k, allowedServiceId + "," + window.btoa(String.fromCharCode(...data)));
+        } else {
+            localStorage.setItem(this.prefix + k, window.btoa(String.fromCharCode(...data)));
+        }
         return data.length;
     }
 
     public readPersistentArray(filename: string, structure: string): any[] | null {
+        if (!filename?.startsWith("nvram://")) {
+            return null;
+        }
         // TR-B14 5.2.7
         // FIXME: 郵便番号から算出すべきかも
         // ただし都道府県は郵便番号から一意に定まらないし多くの受像機だと別に設定できるようになってそう
@@ -420,6 +455,9 @@ export class NVRAM {
     }
 
     public writePersistentArray(filename: string, structure: string, data: any[], period?: Date): number {
+        if (!filename?.startsWith("nvram://")) {
+            return NaN;
+        }
         const fields = parseBinaryStructure(structure);
         if (!fields) {
             return NaN;
@@ -430,5 +468,106 @@ export class NVRAM {
         }
         let bin = writeBinaryFields(data, fields);
         return this.writeNVRAM(filename, bin);
+    }
+
+    // key: <original_network_id>.<broadcaster_id>
+    // value: <service_id>
+    private providerAreaPermission = new Map<string, { lastUpdated: number, serviceIdList: number[] }>();
+
+    public cspSetAccessInfoToProviderArea(data: Uint8Array): boolean {
+        const structure = parseBinaryStructure("S:1V,U:2B")!;
+        const binfo = this.getBroadcasterInfo();
+        if (binfo.originalNetworkId == null || binfo.broadcasterId == null) {
+            return false;
+        }
+        const key = `${binfo.originalNetworkId}.${binfo.broadcasterId}`;
+        let off = 0;
+        let update: string | undefined;
+        let serviceIdList: number[] = [];
+        while (off < data.length) {
+            const [result, readBits] = readBinaryFields(data.subarray(off), structure);
+            if (off === 0) {
+                update = result[0] as string;
+            }
+            serviceIdList.push(result[1] as number);
+            off += readBits / 8;
+        }
+        if (serviceIdList.length < 47) {
+            return false;
+        }
+        if (update?.length !== 12) {
+            return false;
+        }
+        const year = Number.parseInt(update.substring(0, 4));
+        const month = Number.parseInt(update.substring(4, 6));
+        const day = Number.parseInt(update.substring(6, 8));
+        const hour = Number.parseInt(update.substring(8, 10));
+        const minute = Number.parseInt(update.substring(10, 12));
+        const date = new Date(year, month, day, hour, minute);
+        const time = date.getTime();
+        const tz = date.getTimezoneOffset() * 60 * 1000;
+        const jst = 9 * 60 * 60 * 1000;
+        const updateTime = time - tz - jst;
+        const currentTime = this.resources.currentTimeUnixMillis ?? new Date().getTime();
+        if (currentTime < updateTime) {
+            return false;
+        }
+        // 保存しておいた方がいいけど結局毎回SetAccessInfoToProviderArea呼ばれるのでそこまで重要ではない
+        this.providerAreaPermission.set(key, { serviceIdList, lastUpdated: updateTime });
+        return true;
+    }
+
+    public readPersistentArrayWithAccessCheck(filename: string, structure: string): any[] | null {
+        if (!filename?.startsWith("nvrams://")) {
+            return null;
+        }
+        const fields = parseBinaryStructure(structure);
+        if (!fields) {
+            return null;
+        }
+        const a = this.readNVRAM(filename);
+        if (!a) {
+            return null;
+        }
+        let [result, _] = readBinaryFields(a, fields);
+        return result;
+    }
+
+    public writePersistentArrayWithAccessCheck(filename: string, structure: string, data: any[], period?: Date): number {
+        if (!filename?.startsWith("nvrams://")) {
+            return NaN;
+        }
+        const fields = parseBinaryStructure(structure);
+        if (!fields) {
+            return NaN;
+        }
+        if (fields.length > data.length) {
+            console.error("writePersistentArrayWithAccessCheck: fields.length > data.length");
+            return NaN;
+        }
+        let bin = writeBinaryFields(data, fields);
+        return this.writeNVRAM(filename, bin);
+    }
+
+    public checkAccessInfoOfPersistentArray(uri: string): number {
+        if (uri === "nvram://receiverinfo/zipcode") {
+            return 2;
+        } else if (uri === "nvram://receiverinfo/regioncode") {
+            return 1;
+        } else if (uri === "nvram://receiverinfo/prefecture") {
+            return 1;
+        } else {
+            const binfo = this.getBroadcasterInfo();
+            const result = this.findNvramArea(uri, binfo);
+            if (!result) {
+                return NaN;
+            }
+            const [id, area] = result;
+            const k = this.getLocalStorageKey(binfo, id, area);
+            if (!k) {
+                return 0;
+            }
+            return 2; // FIXME 読み書き判定(broadcastType)
+        }
     }
 }

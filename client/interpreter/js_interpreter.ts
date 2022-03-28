@@ -50,6 +50,7 @@ import * as bmlDate from "../date";
 import * as bmlNumber from "../number";
 import * as bmlString from "../string";
 import { EPG } from "../bml_browser";
+import { NVRAM } from "../nvram";
 
 function initNumber(interpreter: any, globalObject: any) {
     var thisInterpreter = interpreter;
@@ -271,7 +272,7 @@ export class JSInterpreter implements Interpreter {
                             return (browser.Ureg as any)[propName];
                         }),
                         set: interpreter.createNativeFunction(function setUreg(this: { data: any }, value: any) {
-                            (browser.Ureg as any)[propName] =  String(value);
+                            (browser.Ureg as any)[propName] = String(value);
                         }),
                     });
                 }
@@ -302,6 +303,21 @@ export class JSInterpreter implements Interpreter {
             this.registerDOMClasses(interpreter, globalObject);
             interpreter.setProperty(globalObject, "document", this.domObjectToPseudo(interpreter, this.bmlDocument.bmlDocument));
 
+            interpreter.setProperty(pseudoBrowser, "X_CSP_setAccessInfoToProviderArea", interpreter.createAsyncFunction((filename: string, structure: string, callback: (result: number, promiseValue: any) => void): void => {
+                if (structure !== "S:1V,U:2B") {
+                    callback(NaN, undefined);
+                    return;
+                }
+                resources.fetchResourceAsync(filename).then(x => {
+                    if (x?.data == null) {
+                        callback(NaN, undefined);
+                    } else if (this.nvram.cspSetAccessInfoToProviderArea(x.data)) {
+                        callback(1, undefined);
+                    } else {
+                        callback(NaN, undefined);
+                    }
+                });
+            }));
             const pseudoBinaryTable = interpreter.createAsyncFunction(function BinaryTable(this: any, table_ref: string, structure: string, callback: (result: any, resolveValue: any) => void) {
                 resources.fetchResourceAsync(table_ref).then(res => {
                     if (!res) {
@@ -449,16 +465,18 @@ export class JSInterpreter implements Interpreter {
     resources: Resources = null!;
     bmlDocument: BMLDocument = null!;
     epg: EPG = null!;
+    nvram: NVRAM = null!;
     public constructor() {
         this._isExecuting = false;
     }
 
-    public setupEnvironment(browser: Browser, resources: Resources, bmlDocument: BMLDocument, epg: EPG): void {
+    public setupEnvironment(browser: Browser, resources: Resources, bmlDocument: BMLDocument, epg: EPG, nvram: NVRAM): void {
         this.browser = browser;
         this._isExecuting = false;
         this.resources = resources;
         this.bmlDocument = bmlDocument;
         this.epg = epg;
+        this.nvram = nvram;
         this.reset();
     }
 
