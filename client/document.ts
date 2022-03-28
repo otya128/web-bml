@@ -5,7 +5,6 @@ import { defaultCLUT } from "./default_clut";
 import { readCLUT } from "./clut";
 import { transpileCSS } from "./transpile_css";
 import { Buffer } from "buffer";
-import { newContext } from "./context";
 import { BML } from "./interface/DOM";
 import { bmlToXHTMLFXP } from "./bml_to_xhtml";
 import { ResponseMessage } from "../server/ws_api";
@@ -346,6 +345,12 @@ export class BMLDocument {
         this.fonts.length = 0;
     }
 
+    private _context: any = {};
+
+    public get context() {
+        return this._context;
+    }
+
     private async loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
         // スクリプトが呼ばれているときにさらにスクリプトが呼ばれることはないがonunloadだけ例外
         this.interpreter.resetStack();
@@ -357,7 +362,7 @@ export class BMLDocument {
                 return true;
             }
         }
-        newContext({ from: this.resources.activeDocument, to: documentName });
+        this._context = { from: this.resources.activeDocument, to: documentName };
         this.interpreter.reset();
         this.resources.activeDocument = documentName;
         this.bmlDocument._currentFocus = null;

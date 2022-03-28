@@ -1,7 +1,6 @@
 const { Interpreter }: { Interpreter: any } = require("../../JS-Interpreter/interpreter");
 import * as BT from "../binary_table";
 import { Interpreter } from "./interpreter";
-import * as context from "../context";
 import { BMLDocument } from "../document";
 import { getTrace, getLog } from "../util/trace";
 import { Resources } from "../resource";
@@ -491,34 +490,34 @@ export class JSInterpreter implements Interpreter {
         if (this.isExecuting) {
             throw new Error("this.isExecuting");
         }
-        const prevContext = context.currentContext;
+        const prevContext = this.bmlDocument.context;
         let exit = false;
         const exeNum = this.exeNum++;
-        interpreterTrace("runScript()", exeNum, prevContext, context.currentContext);
+        interpreterTrace("runScript()", exeNum, prevContext, this.bmlDocument.context);
         try {
             this._isExecuting = true;
             while (true) {
-                interpreterTrace("RUN SCRIPT", exeNum, prevContext, context.currentContext);
+                interpreterTrace("RUN SCRIPT", exeNum, prevContext, this.bmlDocument.context);
                 const r = await this.interpreter.runAsync();
-                interpreterTrace("RETURN RUN SCRIPT", exeNum, r, prevContext, context.currentContext);
+                interpreterTrace("RETURN RUN SCRIPT", exeNum, r, prevContext, this.bmlDocument.context);
                 if (r === true) {
                     continue;
                 }
                 if (r === LAUNCH_DOCUMENT_CALLED) {
                     interpreterTrace("browser.launchDocument called.");
                     exit = true;
-                } else if (context.currentContext !== prevContext) {
-                    console.error("context switched", context.currentContext, prevContext);
+                } else if (this.bmlDocument.context !== prevContext) {
+                    console.error("context switched", this.bmlDocument.context, prevContext);
                     exit = true;
                 }
                 break;
             }
-            if (!exit && context.currentContext !== prevContext) {
-                console.error("context switched", context.currentContext, prevContext);
+            if (!exit && this.bmlDocument.context !== prevContext) {
+                console.error("context switched", this.bmlDocument.context, prevContext);
                 exit = true;
             }
         } finally {
-            interpreterTrace("leave runScript()", exeNum, exit, prevContext, context.currentContext);
+            interpreterTrace("leave runScript()", exeNum, exit, prevContext, this.bmlDocument.context);
             if (exit) {
                 return true;
             } else {
