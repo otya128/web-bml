@@ -29,7 +29,7 @@ export type LockedComponent = {
 export type LockedModule = {
     moduleId: number,
     files: Map<string | null, CachedFile>,
-    lockedBy: "system" | "lockModuleOnMemory" | "lockModuleOnMemoryEx",
+    lockedBy: "lockModuleOnMemory" | "lockModuleOnMemoryEx",
     version: number,
     dataEventId: number,
 };
@@ -123,7 +123,7 @@ export class Resources {
         return pmtComponent;
     }
 
-    public lockCachedModule(componentId: number, moduleId: number, lockedBy: "system" | "lockModuleOnMemory" | "lockModuleOnMemoryEx"): boolean {
+    public lockCachedModule(componentId: number, moduleId: number, lockedBy: "lockModuleOnMemory" | "lockModuleOnMemoryEx"): boolean {
         const cachedModule = this.getCachedModule(componentId, moduleId);
         if (cachedModule == null) {
             return false;
@@ -144,8 +144,22 @@ export class Resources {
         return this.lockedComponents.get(componentId)?.modules?.has(moduleId) ?? false;
     }
 
-    public unlockAllModule() {
-        this.lockedComponents.clear();
+    public getModuleLockedBy(componentId: number, moduleId: number): "lockModuleOnMemory" | "lockModuleOnMemoryEx" | undefined {
+        return this.lockedComponents.get(componentId)?.modules?.get(moduleId)?.lockedBy;
+    }
+
+    public unlockModules(lockedBy?: "lockModuleOnMemory" | "lockModuleOnMemoryEx") {
+        if (lockedBy == null) {
+            this.lockedComponents.clear();
+        } else {
+            for (const component of this.lockedComponents.values()) {
+                for (const mod of [...component.modules.values()]) {
+                    if (mod.lockedBy === lockedBy) {
+                        component.modules.delete(mod.moduleId);
+                    }
+                }
+            }
+        }
     }
 
     public unlockModule(componentId: number, moduleId: number, isEx: boolean): boolean {
@@ -427,10 +441,6 @@ export class Resources {
     public *getLockedModules() {
         for (const c of this.lockedComponents.values()) {
             for (const m of c.modules.values()) {
-                // ????
-                if (m.lockedBy === "system") {
-                    continue;
-                }
                 yield { module: `/${moduleAndComponentToString(c.componentId, m.moduleId)}`, isEx: m.lockedBy === "lockModuleOnMemoryEx" };
             }
         }

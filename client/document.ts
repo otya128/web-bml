@@ -355,7 +355,12 @@ export class BMLDocument {
         this.interpreter.reset();
         this.resources.activeDocument = documentName;
         this.bmlDocument._currentFocus = null;
-        this.resources.unlockAllModule();
+        // 提示中の文書と同一サービス内の別コンポーネントへの遷移の場合lockModuleOnMemoryでロックしたモジュールのロックは解除される TR-B14 第二分冊 表5-11
+        const { componentId: nextComponent} = this.resources.parseURLEx(documentName);
+        const { componentId: prevComponent} = this.resources.parseURLEx(this.resources.activeDocument);
+        if (prevComponent !== nextComponent) {   
+            this.resources.unlockModules("lockModuleOnMemory");
+        }
         this.currentDateMode = 0;
         await requestAnimationFrameAsync();
         await this.loadDocumentToDOM(decodeEUCJP(file.data));
@@ -520,16 +525,7 @@ export class BMLDocument {
             normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
         }
         this.indicator?.setUrl(normalizedDocument, true);
-        if (!this.resources.lockCachedModule(componentId, moduleId, "system")) {
-            const res = await this.resources.fetchResourceAsync(documentName);
-            if (res == null) {
-                console.error("document", documentName, "not found");
-                return NaN;
-            }
-            this.launchDocument(documentName);
-            return NaN;
-        }
-        const res = this.resources.fetchLockedResource(documentName);
+        const res = await this.resources.fetchResourceAsync(documentName);
         if (res == null) {
             console.error("NOT FOUND");
             return NaN;
