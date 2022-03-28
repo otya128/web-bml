@@ -315,6 +315,10 @@ export class BrowserAPI {
             if (componentId == null || moduleId == null || module == null) {
                 return NaN;
             }
+            // lockModuleOnMemoryExでロックされているモジュールをlockModuleOnMemoryでロックできない
+            if (this.resources.getModuleLockedBy(componentId, moduleId) === "lockModuleOnMemoryEx") {
+                return NaN;
+            }
             if (!this.resources.getPMTComponent(componentId)) {
                 console.error("lockModuleOnMemory: component does not exist in PMT", module);
                 return -1;
@@ -346,6 +350,10 @@ export class BrowserAPI {
             console.log("lockModuleOnMemoryEx", module);
             const { componentId, moduleId } = this.resources.parseURLEx(module);
             if (componentId == null || moduleId == null || module == null) {
+                return NaN;
+            }
+            // lockModuleOnMemoryでロックされているモジュールをlockModuleOnMemoryExでロックできない
+            if (this.resources.getModuleLockedBy(componentId, moduleId) === "lockModuleOnMemory") {
                 return NaN;
             }
             if (!this.resources.getPMTComponent(componentId)) {
