@@ -352,6 +352,10 @@ export class BrowserAPI {
             if (componentId == null || moduleId == null || module == null) {
                 return NaN;
             }
+            // TR-B14 第二分冊 5.12.6.9 (6) 参照
+            if (componentId !== 0x40 && componentId !== 0x50 && componentId !== 0x60) {
+                return NaN;
+            }
             // lockModuleOnMemoryでロックされているモジュールをlockModuleOnMemoryExでロックできない
             if (this.resources.getModuleLockedBy(componentId, moduleId) === "lockModuleOnMemory") {
                 return NaN;
