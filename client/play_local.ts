@@ -59,10 +59,8 @@ bmlBrowser.addEventListener("invisible", (evt) => {
 
 bmlBrowser.addEventListener("load", (evt) => {
     console.log("load", evt.detail);
-    browserElement.style.minWidth = evt.detail.resolution.width + "px";
-    browserElement.style.maxWidth = evt.detail.resolution.width + "px";
-    browserElement.style.minHeight = evt.detail.resolution.height + "px";
-    browserElement.style.maxHeight = evt.detail.resolution.height + "px";
+    browserElement.style.width = evt.detail.resolution.width + "px";
+    browserElement.style.height = evt.detail.resolution.height + "px";
 });
 
 window.addEventListener("keydown", (event) => {

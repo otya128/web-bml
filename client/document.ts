@@ -398,14 +398,18 @@ export class BMLDocument {
         const bodyStyle = window.getComputedStyle(body);
         const resolution = bodyStyle.getPropertyValue("--resolution").trim();
         const displayAspectRatio = bodyStyle.getPropertyValue("--display-aspect-ratio").trim();
+        let aspectNum = 16;
+        let aspectDen = 9;
         if (resolution === "720x480") {
             if (displayAspectRatio === "4v3") {
                 [width, height] = [720, 480];
+                aspectNum = 4;
+                aspectDen = 3;
             } else {
-                [width, height] = [853, 480]; // ?
+                [width, height] = [720, 480];
             }
         }
-        this.bmlEventTarget.dispatchEvent<"load">(new CustomEvent("load", { detail: { resolution: { width, height } } }));
+        this.bmlEventTarget.dispatchEvent<"load">(new CustomEvent("load", { detail: { resolution: { width, height }, displayAspectRatio: { numerator: aspectNum, denominator: aspectDen } } }));
         body.style.maxWidth = width + "px";
         body.style.minWidth = width + "px";
         body.style.maxHeight = height + "px";

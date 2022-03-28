@@ -30,7 +30,7 @@ export interface EPG {
 
 interface BMLBrowserEventMap {
     // 読み込まれたとき
-    "load": CustomEvent<{ resolution: { width: number, height: number } }>;
+    "load": CustomEvent<{ resolution: { width: number, height: number }, displayAspectRatio: { numerator: number, denominator: number } }>;
     // invisibleが設定されているときtrue
     "invisible": CustomEvent<boolean>;
 }
