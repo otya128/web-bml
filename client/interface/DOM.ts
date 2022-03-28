@@ -606,16 +606,16 @@ export namespace BML {
                     if (this.__version !== version) {
                         return;
                     }
-                    const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("resolution"), img.width, img.height, (aribType ?? this.type));
+                    const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("--resolution"), img.width, img.height, (aribType ?? this.type));
                     if (width != null && height != null) {
                         this.node.style.maxWidth = width + "px";
                         this.node.style.minWidth = width + "px";
                         this.node.style.maxHeight = height + "px";
                         this.node.style.minHeight = height + "px";
                     }
+                    this.node.setAttribute("data", img.src);
                 };
                 img.src = imageUrl;
-                this.node.setAttribute("data", imageUrl);
             })();
         }
         public get type() {
