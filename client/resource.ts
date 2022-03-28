@@ -296,6 +296,7 @@ export class Resources {
             this.eventTarget.dispatchEvent<"componentupdated">(new CustomEvent("componentupdated", { detail: { component } }));
             // DIIのdata_event_idが更新された
             if (prevComponent != null && prevComponent.dataEventId !== component.dataEventId) {
+                this.cachedComponents.delete(msg.componentId);
                 this.eventTarget.dispatchEvent<"dataeventchanged">(new CustomEvent("dataeventchanged", { detail: { prevComponent, component, returnToEntryFlag: msg.returnToEntryFlag } }));
             }
         } else if (msg.type === "pmt") {
