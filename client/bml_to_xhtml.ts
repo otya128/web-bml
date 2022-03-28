@@ -179,7 +179,7 @@ export function bmlToXHTMLFXP(data: string): string {
             }
             if (node[":@"] && node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "image/x-arib-mng") {
                 node[":@"]["@_arib-type"] = node[":@"]["@_type"];
-                node[":@"]["@_type"] = "image/png";
+                delete node[":@"]["@_type"];
             }
             if (node[":@"] && node[":@"]["@_data"]) {
                 const data = node[":@"]["@_data"];
