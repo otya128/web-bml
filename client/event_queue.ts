@@ -332,7 +332,7 @@ export class EventQueue {
         return true;
     }
 
-    private asyncEventQueue: (() => Promise<boolean>)[] = [];
+    private asyncEventQueue: { callback: () => Promise<boolean>, local: boolean }[] = [];
     private syncEventQueue: SyncEvent[] = [];
     private syncEventQueueLockCount = 0;
 
@@ -373,9 +373,9 @@ export class EventQueue {
                 let exit = false;
                 try {
                     this.lockSyncEventQueue();
-                    const cb = this.asyncEventQueue.shift();
-                    if (cb) {
-                        exit = await cb();
+                    const event = this.asyncEventQueue.shift();
+                    if (event != null) {
+                        exit = await event.callback();
                         if (exit) {
                             return true;
                         }
@@ -396,10 +396,15 @@ export class EventQueue {
         }
     }
 
+    // タイマーイベントなど文書が変わったら無効になる非同期イベント
     public queueAsyncEvent(callback: () => Promise<boolean>) {
         if (!this.discarded) {
-            this.asyncEventQueue.push(callback);
+            this.asyncEventQueue.push({ callback, local: true });
         }
+    }
+
+    public queueGlobalAsyncEvent(callback: () => Promise<boolean>) {
+        this.asyncEventQueue.push({ callback, local: false });
     }
 
     public lockSyncEventQueue() {
@@ -422,7 +427,7 @@ export class EventQueue {
     }
 
     private clear() {
-        this.asyncEventQueue.splice(0, this.asyncEventQueue.length);
+        this.asyncEventQueue = this.asyncEventQueue.filter(x => !x.local);
         this.syncEventQueue.splice(0, this.syncEventQueue.length);
         for (const i of this.timerHandles.keys()) {
             this.clearInterval(i);

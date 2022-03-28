@@ -214,57 +214,70 @@ export class BMLDocument {
             if (moduleId == null || componentId == null) {
                 return;
             }
-            if (component.componentId === componentId) {
-                // Exは運用されない
-                const moduleLocked = this.documentElement.querySelectorAll("beitem[type=\"DataEventChanged\"]");
-                for (const elem of Array.from(moduleLocked)) {
-                    const beitem = BML.nodeToBMLNode(elem, this.bmlDocument) as BML.BMLBeitemElement;
-                    if (!beitem.subscribe) {
-                        continue;
-                    }
-                    const onoccur = elem.getAttribute("onoccur");
-                    if (onoccur == null) {
-                        continue;
-                    }
-                    this.eventDispatcher.setCurrentBeventEvent({
-                        type: "DataEventChanged",
-                        target: elem as HTMLElement,
-                        status: component.modules.size === 0 ? 1 : 0,
-                        privateData: "",
-                        esRef: "",
-                        messageId: 0,
-                        messageVersion: 0,
-                        messageGroupId: 0,
-                        moduleRef: "",
-                        languageTag: 0,//?
-                        registerId: 0,
-                        serviceId: 0,
-                        eventId: 0,
-                        peripheralRef: "",
-                        object: null,
-                        segmentId: null,
-                    });
-                    if (await this.eventQueue.executeEventHandler(onoccur)) {
-                        // DataEventChanged割り込み事象中で他の文書が読み込まれたならばスタートアップ文書は起動されない (TR-B14 第二分冊 2.3.1.7参照)
-                        return;
-                    }
-                    this.eventDispatcher.resetCurrentEvent();
-                }
-                // 提示中のコンポーネントでのデータイベントの更新があった場合lockModuleOnMemoryとlockModuleOnMemoryExでロックしたモジュールのロックが解除される TR-B14 第二分冊 表5-11
-                this.resources.unlockModules();
-            }
             // 現在視聴中のコンポーネントまたはエントリコンポーネント(固定)かつ引き戻しフラグであればスタートアップ文書を起動
             const returnToEntry = (component.componentId === 0x40 && returnToEntryFlag);
-            if (component.componentId === componentId || returnToEntry) {
-                if (returnToEntry) {
-                    // 引き戻しフラグによるエントリコンポーネントへの遷移の場合lockModuleOnMemoryでロックしたモジュールのロックが解除される TR-B14 第二分冊 表5-11
-                    this.resources.unlockModules("lockModuleOnMemory");
-                }
-                console.error("launch startup (DataEventChanged)");
-                // window.setTimeout(() => {
-                //     this.launchDocument("/40/0000/startup.bml");
-                // }, 1);
+            if (!returnToEntry && component.componentId !== componentId) {
+                return;
             }
+            this.eventQueue.queueGlobalAsyncEvent(async () => {
+                if (component.componentId === componentId) {
+                    // Exは運用されない
+                    const moduleLocked = this.documentElement.querySelectorAll("beitem[type=\"DataEventChanged\"]");
+                    for (const elem of Array.from(moduleLocked)) {
+                        const beitem = BML.nodeToBMLNode(elem, this.bmlDocument) as BML.BMLBeitemElement;
+                        if (!beitem.subscribe) {
+                            continue;
+                        }
+                        const onoccur = elem.getAttribute("onoccur");
+                        if (onoccur == null) {
+                            continue;
+                        }
+                        this.eventDispatcher.setCurrentBeventEvent({
+                            type: "DataEventChanged",
+                            target: elem as HTMLElement,
+                            status: component.modules.size === 0 ? 1 : 0,
+                            privateData: "",
+                            esRef: "",
+                            messageId: 0,
+                            messageVersion: 0,
+                            messageGroupId: 0,
+                            moduleRef: "",
+                            languageTag: 0,//?
+                            registerId: 0,
+                            serviceId: 0,
+                            eventId: 0,
+                            peripheralRef: "",
+                            object: null,
+                            segmentId: null,
+                        });
+                        let exit = false;
+                        try {
+                            this.eventQueue.lockSyncEventQueue();
+                            if (exit = await this.eventQueue.executeEventHandler(onoccur)) {
+                                return true;
+                            }
+                        } finally {
+                            if (!exit) {
+                                this.eventQueue.unlockSyncEventQueue();
+                            }
+                        }
+                        this.eventDispatcher.resetCurrentEvent();
+                    }
+                    // 提示中のコンポーネントでのデータイベントの更新があった場合lockModuleOnMemoryとlockModuleOnMemoryExでロックしたモジュールのロックが解除される TR-B14 第二分冊 表5-11
+                    this.resources.unlockModules();
+                };
+                if (component.componentId === componentId || returnToEntry) {
+                    if (returnToEntry) {
+                        // 引き戻しフラグによるエントリコンポーネントへの遷移の場合lockModuleOnMemoryでロックしたモジュールのロックが解除される TR-B14 第二分冊 表5-11
+                        this.resources.unlockModules("lockModuleOnMemory");
+                    }
+                    console.error("launch startup (DataEventChanged)");
+                    this.launchDocument("/40/0000/startup.bml");
+                    return true;
+                }
+                return false;
+            });
+            this.eventQueue.processEventQueue();
         });
     }
 
@@ -367,9 +380,9 @@ export class BMLDocument {
         this.resources.activeDocument = documentName;
         this.bmlDocument._currentFocus = null;
         // 提示中の文書と同一サービス内の別コンポーネントへの遷移の場合lockModuleOnMemoryでロックしたモジュールのロックは解除される TR-B14 第二分冊 表5-11
-        const { componentId: nextComponent} = this.resources.parseURLEx(documentName);
-        const { componentId: prevComponent} = this.resources.parseURLEx(this.resources.activeDocument);
-        if (prevComponent !== nextComponent) {   
+        const { componentId: nextComponent } = this.resources.parseURLEx(documentName);
+        const { componentId: prevComponent } = this.resources.parseURLEx(this.resources.activeDocument);
+        if (prevComponent !== nextComponent) {
             this.resources.unlockModules("lockModuleOnMemory");
         }
         this.currentDateMode = 0;
@@ -510,17 +523,12 @@ export class BMLDocument {
         return false;
     }
 
-    private pendingLaunchDocument?: Promise<number>;
-
     public launchDocument(documentName: string) {
-        this.pendingLaunchDocument = this.launchDocumentAsync(documentName, this.pendingLaunchDocument);
+        this.launchDocumentAsync(documentName);
         return NaN;
     }
 
-    private async launchDocumentAsync(documentName: string, pendingLaunchDocument?: Promise<number>) {
-        if (pendingLaunchDocument != null) {
-            await pendingLaunchDocument;
-        }
+    private async launchDocumentAsync(documentName: string) {
         console.log("%claunchDocument", "font-size: 4em", documentName);
         this.eventQueue.discard();
         const { component, module, filename } = this.resources.parseURL(documentName);
