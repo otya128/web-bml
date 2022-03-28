@@ -251,12 +251,18 @@ export class BMLDocument {
                     }
                     this.eventDispatcher.resetCurrentEvent();
                 }
+                // 提示中のコンポーネントでのデータイベントの更新があった場合lockModuleOnMemoryとlockModuleOnMemoryExでロックしたモジュールのロックが解除される TR-B14 第二分冊 表5-11
+                this.resources.unlockModules();
             }
             // 現在視聴中のコンポーネントまたはエントリコンポーネント(固定)かつ引き戻しフラグであればスタートアップ文書を起動
-            if (component.componentId === componentId || (component.componentId === 0x40 && returnToEntryFlag)) {
+            const returnToEntry = (component.componentId === 0x40 && returnToEntryFlag);
+            if (component.componentId === componentId || returnToEntry) {
+                if (returnToEntry) {
+                    // 引き戻しフラグによるエントリコンポーネントへの遷移の場合lockModuleOnMemoryでロックしたモジュールのロックが解除される TR-B14 第二分冊 表5-11
+                    this.resources.unlockModules("lockModuleOnMemory");
+                }
                 console.error("launch startup (DataEventChanged)");
                 // window.setTimeout(() => {
-                //     this.resources.unlockAllModule(); // ?
                 //     this.launchDocument("/40/0000/startup.bml");
                 // }, 1);
             }

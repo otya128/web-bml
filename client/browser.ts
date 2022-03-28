@@ -306,7 +306,7 @@ export class BrowserAPI {
         },
         unlockAllModulesOnMemory: (): number => {
             console.log("unlockAllModulesOnMemory");
-            this.resources.unlockAllModule();
+            this.resources.unlockModules();
             return 1; // NaN => fail
         },
         lockModuleOnMemory: (module: string | null | undefined): number => {
