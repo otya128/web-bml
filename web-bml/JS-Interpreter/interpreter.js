@@ -9,6 +9,7 @@
  * @author fraser@google.com (Neil Fraser)
  */
 'use strict';
+var acorn = require("./acorn");
 
 /**
  * Create a new interpreter.

@@ -47,9 +47,6 @@ module.exports = {
             process: 'process/browser',
             Buffer: ['buffer', 'Buffer'],
         }),
-        new webpack.ProvidePlugin({
-            acorn: path.resolve(__dirname, 'JS-Interpreter', 'acorn.js')
-        }),
     ],
 };
 

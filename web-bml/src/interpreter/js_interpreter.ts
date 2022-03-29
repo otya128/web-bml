@@ -1,4 +1,4 @@
-const { Interpreter }: { Interpreter: any } = require("../../../JS-Interpreter/interpreter");
+const { Interpreter }: { Interpreter: any } = require("../../JS-Interpreter/interpreter");
 import * as BT from "../binary_table";
 import { Interpreter as IInterpreter } from "./interpreter";
 import { BMLDocument } from "../document";
