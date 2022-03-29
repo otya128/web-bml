@@ -5,15 +5,16 @@ import 'dotenv/config'
 import path from "path";
 import stream from "stream";
 import websocket, { WebSocketContext } from "koa-easy-ws";
-import * as wsApi from "./ws_api";
+import { wsApi } from "web-bml";
 import { WebSocket } from "ws";
 import http from "http";
 import https from "https";
 import { randomUUID } from 'crypto';
 import { DataBroadcastingStream, LiveStream } from './stream/live_stream';
 import { HLSLiveStream } from './stream/hls_stream';
-import { decodeTS } from './decode_ts';
+import { decodeTS } from 'web-bml-ts';
 import { downloadFonts } from './font';
+
 downloadFonts();
 
 let port = Number.parseInt(process.env.PORT ?? "");

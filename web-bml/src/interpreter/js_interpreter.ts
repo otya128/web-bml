@@ -1,6 +1,6 @@
 const { Interpreter }: { Interpreter: any } = require("../../JS-Interpreter/interpreter");
 import * as BT from "../binary_table";
-import { Interpreter } from "./interpreter";
+import { Interpreter as IInterpreter } from "./interpreter";
 import { BMLDocument } from "../document";
 import { getTrace, getLog } from "../util/trace";
 import { Resources } from "../resource";
@@ -85,7 +85,7 @@ function initNumber(interpreter: any, globalObject: any) {
     interpreter.setNativeFunctionPrototype(interpreter.NUMBER, 'toString', wrapper);
 }
 
-export class JSInterpreter implements Interpreter {
+export class JSInterpreter implements IInterpreter {
     interpreter: any;
 
     nativeProtoToPseudoObject = new Map<any, any>();
@@ -532,7 +532,7 @@ export class JSInterpreter implements Interpreter {
     }
 
     public async runEventHandler(funcName: string): Promise<boolean> {
-        this.interpreter.appendCode(`___log(${funcName});${funcName}();`);
+        this.interpreter.appendCode(`___log(\"${funcName}\");${funcName}();`);
         return await this.runScript();
     }
 

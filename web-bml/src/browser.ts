@@ -5,7 +5,7 @@ import * as drcs from "./drcs";
 import { Interpreter } from "./interpreter/interpreter";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { BMLDocument } from "./document";
-import { ResponseMessage } from "../server/ws_api";
+import { ResponseMessage } from "./ws_api";
 import { playRomSound } from "./romsound";
 // browser疑似オブジェクト
 
@@ -26,7 +26,6 @@ export interface Browser {
     epgRecIsReserved(event_ref: string, startTime?: Date): number;
     epgRecReserve(event_ref: string, startTime?: Date): number;
     epgRecCancelReservation(event_ref: string): number;
-    setCurrentDateMode(time_mode: number): number;
     // 番組群インデックス関連機能
     // 非運用
     // シリーズ予約機能

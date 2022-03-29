@@ -1,5 +1,5 @@
-import { Indicator } from "./bml_browser";
-import { AribKeyCode, keyCodeToAribKey, BMLDocument } from "./document";
+import { Indicator } from "web-bml";
+import { AribKeyCode, keyCodeToAribKey, BMLDocument } from "web-bml";
 import { VideoPlayer } from "./player/video_player";
 import { RemoteControllerMessage } from "./remote_controller";
 

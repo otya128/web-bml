@@ -1,8 +1,9 @@
-import { ResponseMessage } from "../server/ws_api";
-import { BMLBrowser, BMLBrowserFontFace, EPG } from "./bml_browser";
+import { wsApi } from "web-bml";
+type ResponseMessage = wsApi.ResponseMessage;
+import { BMLBrowser, BMLBrowserFontFace, EPG } from "web-bml";
 import { RemoteControl } from "./remote_controller_client";
-import { keyCodeToAribKey } from "./document";
-import { decodeTS } from "../server/decode_ts";
+import { keyCodeToAribKey } from "web-bml";
+import { decodeTS } from "web-bml-ts";
 import { CaptionPlayer } from "./player/caption_player";
 
 // BML文書と動画と字幕が入る要素

@@ -1,9 +1,9 @@
-import stream from "stream";
 import { TsUtil, TsChar, TsStream } from "@chinachu/aribts";
 import zlib from "zlib";
 import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from './entity_parser';
-import * as wsApi from "./ws_api";
-import { ComponentPMT, AdditionalAribBXMLInfo } from './ws_api';
+import { wsApi } from "web-bml";
+type ComponentPMT = wsApi.ComponentPMT;
+type AdditionalAribBXMLInfo = wsApi.AdditionalAribBXMLInfo;
 
 type DownloadComponentInfo = {
     componentId: number,

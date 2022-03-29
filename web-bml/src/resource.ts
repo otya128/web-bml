@@ -1,4 +1,4 @@
-import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
+import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage } from "./ws_api";
 import { Indicator } from "./bml_browser";
 
 export type CachedComponent = {

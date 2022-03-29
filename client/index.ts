@@ -1,14 +1,16 @@
-export { };
-// @ts-ignore
-import { EPGStationRecordedParam, MirakLiveParam, Param, ResponseMessage } from "../server/ws_api";
+import { wsApi } from "web-bml";
+type EPGStationRecordedParam = wsApi.EPGStationRecordedParam;
+type MirakLiveParam = wsApi.MirakLiveParam;
+type Param =  wsApi.Param;
+type ResponseMessage = wsApi.ResponseMessage;
 import { MP4VideoPlayer } from "./player/mp4";
 import { MPEGTSVideoPlayer } from "./player/mpegts";
 import { HLSVideoPlayer } from "./player/hls";
 import { NullVideoPlayer } from "./player/null";
-import { BMLBrowser, BMLBrowserFontFace, EPG } from "./bml_browser";
+import { BMLBrowser, BMLBrowserFontFace, EPG } from "web-bml";
 import { VideoPlayer } from "./player/video_player";
 import { RemoteControl } from "./remote_controller_client";
-import { keyCodeToAribKey } from "./document";
+import { keyCodeToAribKey } from "web-bml";
 
 function getParametersFromUrl(url: string): Param | {} {
     const pathname = new URL(url).pathname;
