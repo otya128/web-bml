@@ -38,6 +38,7 @@ export type DownloadComponentInfo = {
     componentId: number,
     modules: Set<number>,
     dataEventId: number,
+    returnToEntryFlag?: boolean,
 };
 
 // `${componentId}/${moduleId}`がダウンロードされたらコールバックを実行する
@@ -61,7 +62,7 @@ interface ResourcesEventMap {
     // DII
     "componentupdated": CustomEvent<{ component: DownloadComponentInfo }>;
     // PMT
-    "pmtupdated": CustomEvent<{ components: Map<number, ComponentPMT> }>;
+    "pmtupdated": CustomEvent<{ prevComponents: Map<number, ComponentPMT>, components: Map<number, ComponentPMT> }>;
 }
 
 interface CustomEventTarget<M> {
@@ -290,6 +291,7 @@ export class Resources {
                 componentId: msg.componentId,
                 modules: new Set(msg.modules),
                 dataEventId: msg.dataEventId,
+                returnToEntryFlag: msg.returnToEntryFlag,
             };
             const prevComponent = this.getDownloadComponentInfo(msg.componentId);
             this.downloadComponents.set(msg.componentId, component);
@@ -315,8 +317,9 @@ export class Resources {
             }
         } else if (msg.type === "pmt") {
             this.pmtRetrieved = true;
+            const prevComponents = this.pmtComponents;
             this.pmtComponents = new Map(msg.components.map(x => [x.componentId, x]));
-            this.eventTarget.dispatchEvent<"pmtupdated">(new CustomEvent("pmtupdated", { detail: { components: this.pmtComponents } }));
+            this.eventTarget.dispatchEvent<"pmtupdated">(new CustomEvent("pmtupdated", { detail: { components: this.pmtComponents, prevComponents } }));
         } else if (msg.type === "programInfo") {
             this.currentProgramInfo = msg;
             const callbacks = this.programInfoCallbacks.slice();
@@ -492,5 +495,9 @@ export class Resources {
 
     public removeEventListener<K extends keyof ResourcesEventMap>(type: K, callback: (this: undefined, evt: ResourcesEventMap[K]) => void, options?: AddEventListenerOptions | boolean) {
         this.eventTarget.removeEventListener(type, callback as EventListener, options);
+    }
+
+    public clearCache(): void {
+        this.cachedComponents.clear();
     }
 }

@@ -279,6 +279,46 @@ export class BMLDocument {
             });
             this.eventQueue.processEventQueue();
         });
+
+        // TR-B14 第二分冊 2.1.10.3 PMT更新時の受信機動作
+        this.resources.addEventListener("pmtupdated", (event) => {
+            const { components, prevComponents } = event.detail;
+            const { componentId: currentComponentId } = this.resources.parseURLEx(this.resources.activeDocument);
+            if (currentComponentId == null) {
+                return;
+            }
+            // 視聴中のコンポーネントが消滅
+            if (currentComponentId != null && !components.has(currentComponentId)) {
+                this.eventQueue.queueGlobalAsyncEvent(async () => {
+                    this.resources.unlockModules();
+                    this.launchDocument("/40/0000/startup.bml");
+                    return true;
+                });
+                this.eventQueue.processEventQueue();
+                return;
+            }
+            const prevPID = prevComponents.get(currentComponentId)?.pid;
+            const currentPID = components.get(currentComponentId)?.pid;
+            const prevEntryPID = prevComponents.get(0x40)?.pid;
+            const currentEntryPID = components.get(0x40)?.pid;
+            // 視聴中のコンポーネントのPIDが変化
+            if ((prevPID != null && prevPID !== currentPID) ||
+                // 引き戻しフラグ監視中のデータカルーセルを伝送するコンポーネントのPIDが変化
+                (prevEntryPID != null && prevEntryPID !== currentEntryPID)) {
+                // エントリコンポーネントが消滅
+                if (currentEntryPID == null) {
+                    // FIXME: データ放送エンジンを終了
+                }
+                console.error("PID changed", prevPID, currentPID, prevEntryPID, currentEntryPID);
+                this.eventQueue.queueGlobalAsyncEvent(async () => {
+                    this.resources.unlockModules();
+                    this.resources.clearCache();
+                    this.launchDocument("/40/0000/startup.bml");
+                    return true;
+                });
+                this.eventQueue.processEventQueue();
+            }
+        });
     }
 
     private _currentDateMode: number = 0;
