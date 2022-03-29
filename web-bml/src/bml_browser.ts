@@ -9,7 +9,7 @@ import { JSInterpreter } from "./interpreter/js_interpreter";
 import { NVRAM } from "./nvram";
 import { Resources } from "./resource";
 // @ts-ignore
-import defaultCSS from "../public/default.css";
+import defaultCSS from "./default.css";
 
 export interface Indicator {
     // arib-dc://<..>/以降
