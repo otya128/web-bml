@@ -11,10 +11,7 @@
     "assert": "^2.0.0",
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
-    "crc-32": "^1.2.1",
-    "css": "^3.0.0",
     "dotenv": "^16.0.0",
-    "fast-xml-parser": "^4.0.6",
     "hls.js": "^1.1.5",
     "koa": "^2.13.4",
     "koa-bodyparser": "^4.3.0",
@@ -36,7 +33,6 @@
   },
   "devDependencies": {
     "@types/babel__generator": "^7.6.4",
-    "@types/css": "^0.0.33",
     "@types/koa": "^2.13.4",
     "@types/koa-router": "^7.4.4",
     "@types/node": "^17.0.21",

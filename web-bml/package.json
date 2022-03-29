@@ -3,8 +3,13 @@
   "version": "1.0.0",
   "main": "src/index.ts",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "crc-32": "^1.2.1",
+    "css": "^3.0.0",
+    "fast-xml-parser": "^4.0.7"
+  },
   "devDependencies": {
+    "@types/css": "^0.0.33",
     "typescript": "^4.6.3"
   },
   "scripts": {
