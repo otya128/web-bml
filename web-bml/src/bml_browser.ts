@@ -1,4 +1,4 @@
-import { ResponseMessage } from "./ws_api";
+import { ResponseMessage } from "./message";
 import { BroadcasterDatabase } from "./broadcaster_database";
 import { BrowserAPI } from "./browser";
 import { BMLDocument } from "./document";

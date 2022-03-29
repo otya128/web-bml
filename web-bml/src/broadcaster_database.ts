@@ -1,7 +1,7 @@
 // NVRAMに保存するためにはBS/CSの場合broadcaster_idが必要になりBS/地上波の場合affiliation_idが必要となる
 // BSの場合original_network_idとservice_idの組からbroadcaster_idはほぼ固定なのであらかじめ用意する
 // 地上波の場合多様なのでBITを受信するとlocalStorageに保存する
-import { ResponseMessage } from "./ws_api";
+import { ResponseMessage } from "./message";
 import * as resource from "./resource";
 
 type Broadcaster = {

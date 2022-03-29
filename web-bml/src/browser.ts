@@ -5,7 +5,7 @@ import * as drcs from "./drcs";
 import { Interpreter } from "./interpreter/interpreter";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { BMLDocument } from "./document";
-import { ResponseMessage } from "./ws_api";
+import { ResponseMessage } from "./message";
 import { playRomSound } from "./romsound";
 // browser疑似オブジェクト
 

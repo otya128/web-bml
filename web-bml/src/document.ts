@@ -7,7 +7,7 @@ import { transpileCSS } from "./transpile_css";
 import { Buffer } from "buffer";
 import { BML } from "./interface/DOM";
 import { bmlToXHTMLFXP } from "./bml_to_xhtml";
-import { ResponseMessage } from "./ws_api";
+import { ResponseMessage } from "./message";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { Interpreter } from "./interpreter/interpreter";
 import { BMLBrowserEventTarget, Indicator } from "./bml_browser";

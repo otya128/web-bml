@@ -5,7 +5,7 @@ import 'dotenv/config'
 import path from "path";
 import stream from "stream";
 import websocket, { WebSocketContext } from "koa-easy-ws";
-import { wsApi } from "web-bml";
+import { Message } from "web-bml";
 import { WebSocket } from "ws";
 import http from "http";
 import https from "https";
@@ -14,6 +14,7 @@ import { DataBroadcastingStream, LiveStream } from './stream/live_stream';
 import { HLSLiveStream } from './stream/hls_stream';
 import { decodeTS } from 'web-bml-ts';
 import { downloadFonts } from './font';
+import { MirakLiveParam, EPGStationRecordedParam, Param } from "./ws_api";
 
 downloadFonts();
 
@@ -115,7 +116,7 @@ function getHLSArguments(segmentFilename: string, manifestFilename: string): str
 };
 
 
-function unicast(client: WebSocket, msg: wsApi.ResponseMessage) {
+function unicast(client: WebSocket, msg: Message.ResponseMessage) {
     client.send(JSON.stringify(msg));
 }
 
@@ -261,7 +262,7 @@ function registerDataBroadcastingStream(dbs: DataBroadcastingStream): boolean {
             const msg = {
                 type: "error",
                 message: "The maximum number of streams has been exceeded.",
-            } as wsApi.ResponseMessage;
+            } as Message.ResponseMessage;
             unicast(oldest[0].ws, msg);
             closeDataBroadcastingStream(oldest[0]);
         } else {
@@ -488,10 +489,10 @@ router.get('/api/ws', async (ctx) => {
     // とりあえず手動validate
     const query: any = typeof ctx.query.param === "string" ? (JSON.parse(ctx.query.param) ?? {}) : {};
     if (typeof query.demultiplexServiceId == "number") {
-        serviceId = (query as wsApi.Param).demultiplexServiceId;
+        serviceId = (query as Param).demultiplexServiceId;
     }
     if (query.type === "mirakLive" && typeof query.channelType === "string" && typeof query.channel === "string" && (query.serviceId == null || typeof query.serviceId == "number")) {
-        const q = query as wsApi.MirakLiveParam;
+        const q = query as MirakLiveParam;
         if (q.serviceId == null) {
             source = mirakBaseUrl + `channels/${encodeURIComponent(q.channelType)}/${encodeURIComponent(q.channel)}/stream`;
         } else {
@@ -501,7 +502,7 @@ router.get('/api/ws', async (ctx) => {
         const res = await httpGetAsync(source);
         readStream = res;
     } else if (query.type === "epgStationRecorded" && typeof query.videoFileId === "number") {
-        const q = query as wsApi.EPGStationRecordedParam;
+        const q = query as EPGStationRecordedParam;
         source = epgBaseUrl + `videos/${q.videoFileId}`;
         const res = await httpGetAsync(source);
         readStream = res;
@@ -540,7 +541,7 @@ router.get('/api/ws', async (ctx) => {
         const msg = {
             type: "error",
             message: "The maximum number of streams has been exceeded.",
-        } as wsApi.ResponseMessage;
+        } as Message.ResponseMessage;
         unicast(dbs.ws, msg);
         closeDataBroadcastingStream(dbs);
         return;
@@ -567,7 +568,6 @@ router.get('/api/ws', async (ctx) => {
     });
 
     ws.on("message", (message) => {
-        const _ = JSON.parse(message.toString("utf-8")) as wsApi.RequestMessage;
     });
 
     unicast(ws, {

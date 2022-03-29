@@ -1,5 +1,5 @@
-import { wsApi } from "web-bml";
-type ResponseMessage = wsApi.ResponseMessage;
+import { Message } from "web-bml";
+type ResponseMessage = Message.ResponseMessage;
 import { BMLBrowser, BMLBrowserFontFace, EPG } from "web-bml";
 import { RemoteControl } from "./remote_controller_client";
 import { keyCodeToAribKey } from "web-bml";

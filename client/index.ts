@@ -1,8 +1,6 @@
-import { wsApi } from "web-bml";
-type EPGStationRecordedParam = wsApi.EPGStationRecordedParam;
-type MirakLiveParam = wsApi.MirakLiveParam;
-type Param =  wsApi.Param;
-type ResponseMessage = wsApi.ResponseMessage;
+import { Message } from "web-bml";
+import { EPGStationRecordedParam, MirakLiveParam, Param } from "../server/ws_api";
+type ResponseMessage = Message.ResponseMessage;
 import { MP4VideoPlayer } from "./player/mp4";
 import { MPEGTSVideoPlayer } from "./player/mpegts";
 import { HLSVideoPlayer } from "./player/hls";

@@ -1,9 +1,9 @@
 import { TsUtil, TsChar, TsStream } from "@chinachu/aribts";
 import zlib from "zlib";
 import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from './entity_parser';
-import { wsApi } from "web-bml";
-type ComponentPMT = wsApi.ComponentPMT;
-type AdditionalAribBXMLInfo = wsApi.AdditionalAribBXMLInfo;
+import { Message } from "web-bml";
+type ComponentPMT = Message.ComponentPMT;
+type AdditionalAribBXMLInfo = Message.AdditionalAribBXMLInfo;
 
 type DownloadComponentInfo = {
     componentId: number,
@@ -43,7 +43,7 @@ type CachedComponent = {
     modules: Map<number, CachedModule>,
 };
 
-export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?: number, parsePES?: boolean): TsStream {
+export function decodeTS(send: (msg: Message.ResponseMessage) => void, serviceId?: number, parsePES?: boolean): TsStream {
     const tsStream = new TsStream();
     const tsUtil = new TsUtil();
     let pidToComponent = new Map<number, ComponentPMT>();
@@ -51,7 +51,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
     let currentTime: number | null = null;
     const downloadComponents = new Map<number, DownloadComponentInfo>();
     const cachedComponents = new Map<number, CachedComponent>();
-    let currentProgramInfo: wsApi.ProgramInfoMessage | null = null;
+    let currentProgramInfo: Message.ProgramInfoMessage | null = null;
 
     tsStream.on("data", () => {
     });
@@ -307,7 +307,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
             // PMTが変更された
             // console.log("PMT changed");
             componentToPid = ctp;
-            const msg: wsApi.PMTMessage = {
+            const msg: Message.PMTMessage = {
                 type: "pmt",
                 components: [...componentToPid.values()]
             };
@@ -358,7 +358,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         // data.first_descriptorsはSI伝送記述子のみ
         // 地上波だとbroadcaster_idは255
         const original_network_id: number = data.original_network_id;
-        const broadcasters: wsApi.BITBroadcaster[] = [];
+        const broadcasters: Message.BITBroadcaster[] = [];
         for (const broadcaster_descriptor of data.broadcaster_descriptors) {
             let broadcaster_id: number = broadcaster_descriptor.broadcaster_id;
             const broadcasterNameDescriptor = broadcaster_descriptor.descriptors.find((x: any) => x.descriptor_tag === 0xD8);
@@ -371,7 +371,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
             if (broadcaster_id === 255) {
                 // broadcaster_id = extendedBroadcasterDescriptor?.terrestrial_broadcaster_id ?? broadcaster_id;
             }
-            const broadcaster: wsApi.BITBroadcaster = {
+            const broadcaster: Message.BITBroadcaster = {
                 affiliations,
                 broadcasterId: broadcaster_id,
                 broadcasterName,
@@ -381,7 +381,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
             };
             broadcasters.push(broadcaster);
         }
-        const msg: wsApi.BITMessage = {
+        const msg: Message.BITMessage = {
             type: "bit",
             broadcasters,
             originalNetworkId: original_network_id,
@@ -669,7 +669,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
             const data_event_id = data.table_id_extension >> 12;
             const event_msg_group_id = data.table_id_extension & 0b1111_1111_1111;
             const stream_descriptor: Buffer = data.stream_descriptor;
-            const events: wsApi.ESEvent[] = [];
+            const events: Message.ESEvent[] = [];
             for (let i = 0; i + 1 < stream_descriptor.length;) {
                 const descriptor_tag = stream_descriptor.readUInt8(i);
                 i++;
@@ -745,7 +745,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
     return tsStream;
 }
 
-function decodePES(pes: Buffer): wsApi.PESMessage | null {
+function decodePES(pes: Buffer): Message.PESMessage | null {
     let pos = 0;
     if (pes.length < 5) {
         return null;
