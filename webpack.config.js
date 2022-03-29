@@ -27,6 +27,11 @@ module.exports = {
         extensions: [
             '.ts', '.js', '.tsx'
         ],
+        alias: {
+            // 同じリポジトリ内で二重webpackしたくないのでそのままimportさせる
+            "web-bml": path.resolve(__dirname, './web-bml/src/index.ts'),
+            "web-bml-ts": path.resolve(__dirname, './web-bml-ts/src/decode_ts.ts'),
+        },
         fallback: {
             fs: false,
             path: false,

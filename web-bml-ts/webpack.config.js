@@ -7,6 +7,9 @@ module.exports = {
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: '[name].js',
+        library: 'web-bml-ts',
+        libraryTarget: 'umd',
+        globalObject: 'this',
     },
     module: {
         rules: [
@@ -23,7 +26,7 @@ module.exports = {
         fallback: {
         },
     },
-    devtool: 'source-map',
+    devtool: 'inline-source-map',
     target: 'node',
     externalsPresets: {
         node: true

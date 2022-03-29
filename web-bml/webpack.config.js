@@ -8,6 +8,9 @@ module.exports = {
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: '[name].js',
+        library: 'web-bml',
+        libraryTarget: 'umd',
+        globalObject: 'this',
     },
     module: {
         rules: [
@@ -33,7 +36,7 @@ module.exports = {
             Buffer: require.resolve('buffer'),
         },
     },
-    devtool: 'source-map',
+    devtool: 'inline-source-map',
     externals: [nodeExternals()],
 };
 

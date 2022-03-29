@@ -1,7 +1,8 @@
 {
   "name": "web-bml-ts",
   "version": "1.0.0",
-  "main": "src/decode_ts.ts",
+  "main": "dist/main.js",
+  "types": "dist/decode_ts.d.ts",
   "license": "MIT",
   "devDependencies": {
     "typescript": "^4.6.3",
