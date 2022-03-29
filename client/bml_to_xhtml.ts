@@ -132,8 +132,8 @@ export function bmlToXHTMLFXP(data: string): string {
     };
     const parser = new XMLParser(opts);
     const parsed = parser.parse(data);
-    const bmlRoot = findXmlNode(parsed, "bml")[0];
-    const htmlChildren = bmlRoot["bml"];
+    const bmlRoot = findXmlNode(parsed, "bml")[0] ?? findXmlNode(parsed, "html")[0];
+    const htmlChildren = bmlRoot["bml"] ?? bmlRoot["html"];
     visitXmlNodes(bmlRoot, (node) => {
         const children = getXmlChildren(node);
         const nodeName = getXmlNodeName(node);
@@ -168,20 +168,18 @@ export function bmlToXHTMLFXP(data: string): string {
         if (nodeName == "link") {
             renameXmlNode(node, "arib-link");
         }
-        if (nodeName == "object") {
-            if (node[":@"] && node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "video/x-arib-mpeg2") {
-                node[":@"]["@_arib-type"] = node[":@"]["@_type"];
+        if (nodeName == "object" && node[":@"] != null) {
+            node[":@"]["@_arib-type"] = node[":@"]["@_type"];
+            if (node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "video/x-arib-mpeg2") {
                 node[":@"]["@_type"] = "unknown/unknwon";
             }
-            if (node[":@"] && node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "image/x-arib-png") {
-                node[":@"]["@_arib-type"] = node[":@"]["@_type"];
+            if (node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "image/x-arib-png") {
                 node[":@"]["@_type"] = "image/png";
             }
-            if (node[":@"] && node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "image/x-arib-mng") {
-                node[":@"]["@_arib-type"] = node[":@"]["@_type"];
+            if (node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "image/x-arib-mng") {
                 delete node[":@"]["@_type"];
             }
-            if (node[":@"] && node[":@"]["@_data"]) {
+            if (node[":@"]["@_data"]) {
                 const data = node[":@"]["@_data"];
                 node[":@"]["@_arib-data"] = data;
                 delete node[":@"]["@_data"];

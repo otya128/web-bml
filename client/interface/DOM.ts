@@ -485,6 +485,8 @@ export namespace BML {
                 this.effect = undefined;
                 this.animation = undefined;
             }
+            // Chromeではdataが未設定でtypeが設定されている場合枠線が表示されてしまうためtypeも消す
+            this.node.removeAttribute("type");
             this.node.removeAttribute("data");
         }
 
@@ -530,10 +532,8 @@ export namespace BML {
                 let imageUrl: string | undefined;
                 const isPNG = aribType?.toLowerCase() === "image/x-arib-png";
                 const isMNG = aribType?.toLowerCase() === "image/x-arib-mng";
+                let imageType: string | undefined;
                 if (isPNG || isMNG) {
-                    if (!aribType) {
-                        this.node.setAttribute("arib-type", this.type);
-                    }
                     const clutCss = window.getComputedStyle(this.node).getPropertyValue("--clut");
                     const clutUrl = clutCss == null ? null : parseCSSValue(clutCss);
                     const fetchedClut = clutUrl == null ? null : (await this.ownerDocument.resources.fetchResourceAsync(clutUrl))?.data;
@@ -581,10 +581,10 @@ export namespace BML {
                             const blob = new Blob([png], { type: "image/png" });
                             imageUrl = URL.createObjectURL(blob);
                             fetched.blobUrl.set(fetchedClut, imageUrl);
-                            this.node.type = "image/png";
                         }
+                        imageType = "image/png";
                     }
-                } else if (this.type.toLowerCase() === "image/jpeg") {
+                } else if (aribType?.toLowerCase() === "image/jpeg") {
                     imageUrl = fetched.blobUrl.get("BT.709");
                     if (imageUrl == null) {
                         imageUrl = await convertJPEG(this.ownerDocument.resources.getCachedFileBlobUrl(fetched));
@@ -593,8 +593,10 @@ export namespace BML {
                         }
                         fetched.blobUrl.set("BT.709", imageUrl);
                     }
+                    imageType = "image/jpeg";
                 } else {
-                    imageUrl = this.ownerDocument.resources.getCachedFileBlobUrl(fetched);
+                    this.delete();
+                    return;
                 }
                 if (imageUrl == null) {
                     this.delete();
@@ -602,6 +604,7 @@ export namespace BML {
                 }
                 // jpeg/png程度ならバイナリ解析すればImage使わずとも大きさは取得できそう
                 const img = new Image();
+                const imageType2 = imageType;
                 img.onload = () => {
                     if (this.__version !== version) {
                         return;
@@ -613,7 +616,8 @@ export namespace BML {
                         this.node.style.maxHeight = height + "px";
                         this.node.style.minHeight = height + "px";
                     }
-                    this.node.setAttribute("data", img.src);
+                    this.node.type = imageType2;
+                    this.node.data = img.src;
                 };
                 img.src = imageUrl;
             })();

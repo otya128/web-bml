@@ -853,9 +853,7 @@ export class BMLDocument {
     private loadObjects() {
         this.documentElement.querySelectorAll("object").forEach(obj => {
             const adata = obj.getAttribute("arib-data");
-            if (adata != null) {
-                BML.nodeToBMLNode(obj, this.bmlDocument).data = adata;
-            }
+            BML.nodeToBMLNode(obj, this.bmlDocument).data = adata!;
         });
     }
 
