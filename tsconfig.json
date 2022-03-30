@@ -96,7 +96,11 @@
 
     /* Completeness */
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
-    "skipLibCheck": true                                 /* Skip type checking all .d.ts files. */
+    "skipLibCheck": true,                                 /* Skip type checking all .d.ts files. */
+    "paths": {
+      "web-bml": ["./web-bml/src/index.ts"],
+      "web-bml-ts": ["./web-bml-ts/src/decode_ts.ts"],
+    },
   },
   "include": [
     "./server/**/*",
