@@ -3399,6 +3399,18 @@ Interpreter.Object.prototype.toString = function() {
 
   if (this.data !== null) {
     // RegExp, Date, and boxed primitives.
+    if (typeof this.data !== "string") {
+      var obj = this;
+      do {
+        if ('toString' in obj.properties) {
+          var toString = obj.properties['toString'];
+          if (toString.nativeFunc) {
+            return String(toString.nativeFunc.call(this));
+          }
+          break;
+        }
+      } while ((obj = obj.proto));
+    }
     return String(this.data);
   }
 
