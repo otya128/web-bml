@@ -52,6 +52,9 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
     const downloadComponents = new Map<number, DownloadComponentInfo>();
     const cachedComponents = new Map<number, CachedComponent>();
     let currentProgramInfo: wsApi.ProgramInfoMessage | null = null;
+    // SDTのEIT_present_following_flag
+    // key: service_id
+    const eitPresentFollowingFlag = new Map<number, boolean>();
 
     tsStream.on("data", () => {
     });
@@ -405,7 +408,10 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         }
 
         if (!tsUtil.hasPresent(ids.onid, ids.tsid, ids.sid)) {
-            return;
+            if (eitPresentFollowingFlag.get(ids.sid) !== false) {
+                // EITが提供されているので待つ
+                return;
+            }
         }
         const p = tsUtil.getPresent(ids.onid, ids.tsid, ids.sid);
         const prevProgramInfo = currentProgramInfo;
@@ -415,7 +421,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
             transportStreamId: ids.tsid,
             originalNetworkId: ids.onid,
             serviceId: ids.sid,
-            eventName: p.short_event.event_name,
+            eventName: p.short_event?.event_name,
             startTimeUnixMillis: p.start_time?.getTime(),
         };
         if (prevProgramInfo?.eventId !== currentProgramInfo.eventId ||
@@ -438,8 +444,10 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
 
     tsStream.on("sdt", (pid, data) => {
         tsUtil.addSdt(pid, data);
+        eitPresentFollowingFlag.clear();
         if (data.table_id === 0x42) { // 自ストリームのSDT
             for (const service of data.services) {
+                eitPresentFollowingFlag.set(service.service_id, service.EIT_present_following_flag !== 0);
                 for (const descriptor of service.descriptors) {
                     if (descriptor.descriptor_tag == 0x48) {// 0x48 サービス記述子
                         // console.log(service.service_id, new TsChar(descriptor.service_name_char).decode(), new TsChar(descriptor.service_provider_name_char).decode());
