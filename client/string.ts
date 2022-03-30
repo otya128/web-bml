@@ -1,5 +1,4 @@
 // STD-B24 第二編 付属2 5.4.3.4で定められている挙動をするようにする
-// charCodeAtとfromCharCodeを上書きするのでやばい
 // 比較もEUC-JPベースでやる必要はある
 import { unicodeToJISMap } from "./unicode_to_jis_map";
 import { jisToUnicodeMap } from "./jis_to_unicode_map";
@@ -11,12 +10,9 @@ export function eucJPCharCodeAt(this: string, index: number): number {
     if (Number.isNaN(orig)) {
         return orig;
     }
-    if (orig < 0x100) {
-        return orig;
-    }
     const jis = unicodeToJISMap[orig];
     if (jis == null) {
-        return jis;
+        return orig;
     }
     return jis + (0xa0a0 - 0x2020);
 }
