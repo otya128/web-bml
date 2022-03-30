@@ -56,7 +56,7 @@ function initNumber(interpreter: any, globalObject: any) {
     var wrapper;
     // Number constructor.
     wrapper = function Number(this: { data: number }, value: any) {
-        value = arguments.length ? Interpreter.nativeGlobal.Number(value) : 0;
+        value = arguments.length ? Math.trunc(Interpreter.nativeGlobal.Number(value)) : 0;
         if (thisInterpreter.calledWithNew()) {
             // Called as `new Number()`.
             this.data = value;
