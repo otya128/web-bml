@@ -462,7 +462,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         if (c == null) {
             return;
         }
-        const { componentId } = c;
+        const { componentId, bxmlInfo } = c;
         if (data.table_id === 0x3b) {
             // DII
             // console.log(pid, data);
@@ -547,6 +547,9 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
             });
             downloadComponents.set(componentId, componentInfo);
         } else if (data.table_id === 0x3c) {
+            if (bxmlInfo == null) {
+                return;
+            }
             const componentInfo = downloadComponents.get(componentId);
             if (componentInfo == null) {
                 return;
