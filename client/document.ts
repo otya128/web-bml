@@ -215,7 +215,7 @@ export class BMLDocument {
                 return;
             }
             // 現在視聴中のコンポーネントまたはエントリコンポーネント(固定)かつ引き戻しフラグであればスタートアップ文書を起動
-            const returnToEntry = (component.componentId === 0x40 && returnToEntryFlag);
+            const returnToEntry = (component.componentId === resources.startupComponentId && returnToEntryFlag);
             if (!returnToEntry && component.componentId !== componentId) {
                 return;
             }
@@ -250,16 +250,8 @@ export class BMLDocument {
                             object: null,
                             segmentId: null,
                         });
-                        let exit = false;
-                        try {
-                            this.eventQueue.lockSyncEventQueue();
-                            if (exit = await this.eventQueue.executeEventHandler(onoccur)) {
-                                return true;
-                            }
-                        } finally {
-                            if (!exit) {
-                                this.eventQueue.unlockSyncEventQueue();
-                            }
+                        if (await this.eventQueue.executeEventHandler(onoccur)) {
+                            return true;
                         }
                         this.eventDispatcher.resetCurrentEvent();
                     }
@@ -272,7 +264,7 @@ export class BMLDocument {
                         this.resources.unlockModules("lockModuleOnMemory");
                     }
                     console.error("launch startup (DataEventChanged)");
-                    this.launchDocument("/40/0000/startup.bml");
+                    this.launchStartup();
                     return true;
                 }
                 return false;
@@ -291,7 +283,7 @@ export class BMLDocument {
             if (currentComponentId != null && !components.has(currentComponentId)) {
                 this.eventQueue.queueGlobalAsyncEvent(async () => {
                     this.resources.unlockModules();
-                    this.launchDocument("/40/0000/startup.bml");
+                    this.launchStartup();
                     return true;
                 });
                 this.eventQueue.processEventQueue();
@@ -299,8 +291,8 @@ export class BMLDocument {
             }
             const prevPID = prevComponents.get(currentComponentId)?.pid;
             const currentPID = components.get(currentComponentId)?.pid;
-            const prevEntryPID = prevComponents.get(0x40)?.pid;
-            const currentEntryPID = components.get(0x40)?.pid;
+            const prevEntryPID = prevComponents.get(this.resources.startupComponentId)?.pid;
+            const currentEntryPID = components.get(this.resources.startupComponentId)?.pid;
             // 視聴中のコンポーネントのPIDが変化
             if ((prevPID != null && prevPID !== currentPID) ||
                 // 引き戻しフラグ監視中のデータカルーセルを伝送するコンポーネントのPIDが変化
@@ -313,7 +305,7 @@ export class BMLDocument {
                 this.eventQueue.queueGlobalAsyncEvent(async () => {
                     this.resources.unlockModules();
                     this.resources.clearCache();
-                    this.launchDocument("/40/0000/startup.bml");
+                    this.launchStartup();
                     return true;
                 });
                 this.eventQueue.processEventQueue();
@@ -570,6 +562,19 @@ export class BMLDocument {
     public launchDocument(documentName: string) {
         this.launchDocumentAsync(documentName);
         return NaN;
+    }
+
+    public async launchStartup(): Promise<boolean> {
+        const module = `/${this.resources.startupComponentId.toString(16).padStart(2, "0")}/${this.resources.startupModuleId.toString(16).padStart(4, "0")}`;
+        await this.resources.fetchResourceAsync(module);
+        if (this.resources.fetchLockedResource(module + "/startup.bml")) {
+            await this.launchDocumentAsync(module + "/startup.bml");
+            return true;
+        } else if (this.resources.fetchLockedResource(module)) {
+            await this.launchDocumentAsync(module);
+            return true;
+        }
+        return false;
     }
 
     private async launchDocumentAsync(documentName: string) {

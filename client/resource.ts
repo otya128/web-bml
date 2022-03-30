@@ -500,4 +500,13 @@ export class Resources {
     public clearCache(): void {
         this.cachedComponents.clear();
     }
+
+    // Cプロファイルだと0x50
+    public get startupComponentId(): number {
+        return 0x40;
+    }
+
+    public get startupModuleId(): number {
+        return 0x0000;
+    }
 }
