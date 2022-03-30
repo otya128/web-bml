@@ -85,6 +85,45 @@ function initNumber(interpreter: any, globalObject: any) {
     interpreter.setNativeFunctionPrototype(interpreter.NUMBER, 'toString', wrapper);
 }
 
+function initString(interpreter: any, globalObject: any) {
+    var wrapper;
+    // String constructor.
+    wrapper = function String(this: { data: string }, value: any) {
+        value = arguments.length ? globalThis.String(value) : '';
+        if (interpreter.calledWithNew()) {
+            // Called as `new String()`.
+            this.data = value;
+            return this;
+        } else {
+            // Called as `String()`.
+            return value;
+        }
+    };
+    interpreter.STRING = interpreter.createNativeFunction(wrapper, true);
+    interpreter.setProperty(globalObject, 'String', interpreter.STRING,
+        Interpreter.NONENUMERABLE_DESCRIPTOR);
+
+    // Static methods on String.
+    interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.eucJPFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
+
+    // Instance methods on String.
+    // Methods with exclusively primitive arguments.
+    // toUpperCase/toLowerCaseは全角英字では動かずASCIIの範囲のみかも
+    var functions = ['charAt', 'indexOf', 'lastIndexOf', 'substring', 'toLowerCase', 'toUpperCase'];
+    for (var i = 0; i < functions.length; i++) {
+        interpreter.setNativeFunctionPrototype(interpreter.STRING, functions[i],
+            String.prototype[functions[i] as any]);
+    }
+
+    interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.eucJPCharCodeAt);
+    wrapper = function split(this: string, separator: string) {
+        var string = String(this);
+        var jsList = string.split(separator);
+        return interpreter.arrayNativeToPseudo(jsList);
+    };
+    interpreter.setNativeFunctionPrototype(interpreter.STRING, 'split', wrapper);
+}
+
 export class JSInterpreter implements Interpreter {
     interpreter: any;
 
@@ -451,8 +490,7 @@ export class JSInterpreter implements Interpreter {
                 });
             }
             initDate(interpreter, globalObject);
-            interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.eucJPFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
-            interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.eucJPCharCodeAt);
+            initString(interpreter, globalObject);
             initNumber(interpreter, globalObject);
         });
         this.resetStack();
