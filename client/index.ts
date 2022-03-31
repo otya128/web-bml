@@ -1,6 +1,6 @@
 export { };
 // @ts-ignore
-import { EPGStationRecordedParam, MirakLiveParam, Param, ResponseMessage } from "../server/ws_api";
+import { BaseParam, EPGStationRecordedParam, MirakLiveParam, Param, ResponseMessage } from "../server/ws_api";
 import { MP4VideoPlayer } from "./player/mp4";
 import { MPEGTSVideoPlayer } from "./player/mpegts";
 import { HLSVideoPlayer } from "./player/hls";
@@ -10,12 +10,18 @@ import { VideoPlayer } from "./player/video_player";
 import { RemoteControl } from "./remote_controller_client";
 import { keyCodeToAribKey } from "./document";
 
-function getParametersFromUrl(url: string): Param | {} {
-    const pathname = new URL(url).pathname;
-    const demultiplexServiceId = Number.parseInt(new URL(url).searchParams.get("demultiplexServiceId") ?? "");
-    const baseParam = { demultiplexServiceId: undefined as (number | undefined) };
+function getParametersFromUrl(urlString: string): Param | {} {
+    const url = new URL(urlString);
+    const pathname = url.pathname;
+    const params = url.searchParams;
+    const demultiplexServiceId = Number.parseInt(params.get("demultiplexServiceId") ?? "");
+    const seek = Number.parseInt(params.get("seek") ?? "");
+    const baseParam: BaseParam = {};
     if (Number.isInteger(demultiplexServiceId)) {
         baseParam.demultiplexServiceId = demultiplexServiceId;
+    }
+    if (Number.isInteger(seek)) {
+        baseParam.seek = seek;
     }
     const mirakGroups = /^\/channels\/(?<type>.+?)\/(?<channel>.+?)\/(services\/(?<serviceId>.+?)\/)?stream\/*$/.exec(pathname)?.groups;
     if (mirakGroups != null) {

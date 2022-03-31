@@ -15,7 +15,9 @@ export type EPGStationRecordedParam = {
     videoFileId: number,
 };
 
-export type Param = (MirakLiveParam | EPGStationRecordedParam) & { demultiplexServiceId?: number };
+export type BaseParam =  { demultiplexServiceId?: number, seek?: number };
+
+export type Param = (MirakLiveParam | EPGStationRecordedParam) & BaseParam;
 
 export type RequestMessage = {};
 

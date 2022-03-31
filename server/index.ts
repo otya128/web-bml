@@ -439,11 +439,14 @@ function provideHttpClient(options: string | http.RequestOptions | URL) {
     }
 }
 
-function httpGetAsync(options: string | http.RequestOptions | URL): Promise<http.IncomingMessage> {
+function httpGetAsync(url: string | http.RequestOptions | URL): Promise<http.IncomingMessage>;
+
+function httpGetAsync(url: string | URL, options: http.RequestOptions): Promise<http.IncomingMessage>;
+
+function httpGetAsync(url: string | http.RequestOptions | URL, options?: http.RequestOptions): Promise<http.IncomingMessage> {
     return new Promise<http.IncomingMessage>((resolve, reject) => {
-        const req = provideHttpClient(options).get(options, (res) => {
-            resolve(res);
-        });
+        const client = provideHttpClient(url);
+        const req = options == null ? client.get(url, resolve) : client.get(url as string | URL, options, resolve);
         req.on("error", reject);
     });
 }
@@ -484,10 +487,14 @@ router.get('/api/ws', async (ctx) => {
     let size = 0;
     let source: string;
     let serviceId: number | undefined;
+    let seek: number | undefined;
     // とりあえず手動validate
     const query: any = typeof ctx.query.param === "string" ? (JSON.parse(ctx.query.param) ?? {}) : {};
     if (typeof query.demultiplexServiceId == "number") {
         serviceId = (query as wsApi.Param).demultiplexServiceId;
+    }
+    if (typeof query.seek == "number") {
+        seek = (query as wsApi.Param).seek;
     }
     if (query.type === "mirakLive" && typeof query.channelType === "string" && typeof query.channel === "string" && (query.serviceId == null || typeof query.serviceId == "number")) {
         const q = query as wsApi.MirakLiveParam;
@@ -502,7 +509,12 @@ router.get('/api/ws', async (ctx) => {
     } else if (query.type === "epgStationRecorded" && typeof query.videoFileId === "number") {
         const q = query as wsApi.EPGStationRecordedParam;
         source = epgBaseUrl + `videos/${q.videoFileId}`;
-        const res = await httpGetAsync(source);
+        const opts: http.RequestOptions = {
+            headers: {
+                "Range": `bytes=${seek ?? 0}-`
+            }
+        };
+        const res = await httpGetAsync(source, opts);
         readStream = res;
         const len = Number.parseInt(res.headers["content-length"] || "NaN");
         if (Number.isFinite(len)) {
@@ -514,7 +526,9 @@ router.get('/api/ws', async (ctx) => {
             readStream = process.stdin;
         } else {
             source = inputFile;
-            readStream = fs.createReadStream(inputFile);
+            readStream = fs.createReadStream(inputFile, {
+                start: seek ?? 0,
+            });
             size = fs.statSync(inputFile).size;
         }
     }
