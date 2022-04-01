@@ -295,7 +295,7 @@ export namespace BML {
             this.node = node;
         }
         public get tagName(): string {
-            return this.node.tagName;
+            return this.node.tagName.toLowerCase();
         }
     }
 
