@@ -1,11 +1,24 @@
 import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
 import { Indicator } from "./bml_browser";
 
+type Module = {
+    moduleId: number,
+    files: Map<string | null, CachedFile>,
+    version: number,
+    dataEventId: number,
+};
+
+type Component = {
+    componentId: number,
+    modules: Map<number, Module>,
+};
+
 export type CachedComponent = {
     componentId: number,
     modules: Map<number, CachedModule>,
     dataEventId: number,
 };
+
 export type CachedModule = {
     moduleId: number,
     files: Map<string | null, CachedFile>,
@@ -23,7 +36,6 @@ export type CachedFile = {
 export type LockedComponent = {
     componentId: number,
     modules: Map<number, LockedModule>,
-    dataEventId: number,
 };
 
 export type LockedModule = {
@@ -152,7 +164,6 @@ export class Resources {
             modules: new Map<number, LockedModule>(),
             dataEventId: cachedComponent.dataEventId,
         };
-        lockedComponent.dataEventId = cachedComponent.dataEventId; // FIXME
         lockedComponent.modules.set(moduleId, { files: cachedModule.files, lockedBy, moduleId: cachedModule.moduleId, version: cachedModule.version, dataEventId: cachedModule.dataEventId });
         this.lockedComponents.set(componentId, lockedComponent);
         return true;
@@ -270,7 +281,9 @@ export class Resources {
                 modules: new Map(),
                 dataEventId: msg.dataEventId,
             };
-            cachedComponent.dataEventId = msg.dataEventId; // FIXME
+            if (cachedComponent.dataEventId !== msg.dataEventId) {
+                return;
+            }
             const cachedModule: CachedModule = {
                 moduleId: msg.moduleId,
                 files: new Map(msg.files.map(file => ([file.contentLocation?.toLowerCase() ?? null, {
@@ -391,7 +404,7 @@ export class Resources {
         if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
             return null;
         }
-        let cachedComponent: CachedComponent | undefined = this.lockedComponents.get(componentId);
+        let cachedComponent: Component | undefined = this.lockedComponents.get(componentId);
         if (cachedComponent == null) {
             cachedComponent = this.cachedComponents.get(componentId);
             if (cachedComponent == null) {
