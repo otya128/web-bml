@@ -125,44 +125,41 @@ export class EventDispatcher {
         }
     }
 
-    public dispatchModuleUpdatedEvent(module: string, status: number) {
+    public dispatchModuleUpdatedEvent(module: string, status: number, beitem: Element) {
         console.log("ModuleUpdated", module, status);
-        const moduleLocked = (BML.bmlNodeToNode(this.bmlDocument.documentElement) as HTMLElement).querySelectorAll("beitem[type=\"ModuleUpdated\"]");
-        for (const beitem of Array.from(moduleLocked)) {
-            if (beitem.getAttribute("subscribe") !== "subscribe") {
-                continue;
-            }
-            const moduleRef = beitem.getAttribute("module_ref");
-            if (moduleRef?.toLowerCase() === module.toLowerCase()) {
-                const onoccur = beitem.getAttribute("onoccur");
-                if (onoccur) {
-                    this.eventQueue.queueAsyncEvent(async () => {
-                        this.setCurrentBeventEvent({
-                            type: "ModuleUpdated",
-                            target: beitem as HTMLElement,
-                            status,
-                            privateData: "",
-                            esRef: "",
-                            messageId: 0,
-                            messageVersion: 0,
-                            messageGroupId: 0,
-                            moduleRef: module,
-                            languageTag: 0,//?
-                            registerId: 0,
-                            serviceId: 0,
-                            eventId: 0,
-                            peripheralRef: "",
-                            object: null,
-                            segmentId: null,
-                        } as BMLBeventEvent);
-                        if (await this.eventQueue.executeEventHandler(onoccur)) {
-                            return true;
-                        }
-                        this.resetCurrentEvent();
-                        return false;
-                    });
-                    this.eventQueue.processEventQueue();
-                }
+        if (beitem.getAttribute("subscribe") !== "subscribe") {
+            return;
+        }
+        const moduleRef = beitem.getAttribute("module_ref");
+        if (moduleRef?.toLowerCase() === module.toLowerCase()) {
+            const onoccur = beitem.getAttribute("onoccur");
+            if (onoccur) {
+                this.eventQueue.queueAsyncEvent(async () => {
+                    this.setCurrentBeventEvent({
+                        type: "ModuleUpdated",
+                        target: beitem as HTMLElement,
+                        status,
+                        privateData: "",
+                        esRef: "",
+                        messageId: 0,
+                        messageVersion: 0,
+                        messageGroupId: 0,
+                        moduleRef: module,
+                        languageTag: 0,//?
+                        registerId: 0,
+                        serviceId: 0,
+                        eventId: 0,
+                        peripheralRef: "",
+                        object: null,
+                        segmentId: null,
+                    } as BMLBeventEvent);
+                    if (await this.eventQueue.executeEventHandler(onoccur)) {
+                        return true;
+                    }
+                    this.resetCurrentEvent();
+                    return false;
+                });
+                this.eventQueue.processEventQueue();
             }
         }
     }

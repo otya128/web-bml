@@ -491,8 +491,8 @@ export class Content {
         console.debug("END PROC EVQ");
         // 雑だけど動きはする
         this.eventQueue.setInterval(() => {
-            const moduleLocked = this.documentElement.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
-            moduleLocked.forEach(elem => {
+            const moduleUpdated = this.documentElement.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
+            moduleUpdated.forEach(elem => {
                 const beitem = BML.nodeToBMLNode(elem, this.bmlDocument) as BML.BMLBeitemElement;
                 if (!beitem.subscribe) {
                     return;
@@ -507,7 +507,7 @@ export class Content {
                 }
                 if (!this.resources.getPMTComponent(componentId)) {
                     if ((beitem as any).__prevStatus !== 1) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 1);
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 1, elem);
                         (beitem as any).__prevStatus = 1;
                     }
                     return;
@@ -522,21 +522,21 @@ export class Content {
                 const prevDataEventDIIExists = (beitem as any).__prevStatus === 2;
                 if (existsInDII) {
                     if ((beitem as any).__prevStatus !== 2) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 2);
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 2, elem);
                         (beitem as any).__prevStatus = 2;
                     } else {
                         const cachedModule = this.resources.getCachedModule(componentId, moduleId);
                         if (cachedModule != null) {
                             const version = cachedModule.version;
                             if ((beitem as any).__prevVersion != null && (beitem as any).__prevVersion !== version) {
-                                this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 0);
+                                this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 0, elem);
                             }
                             (beitem as any).__prevVersion = version;
                         }
                     }
                 } else {
                     if ((beitem as any).__prevStatus !== 1) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 1);
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 1, elem);
                         (beitem as any).__prevStatus = 1;
                     }
                 }
@@ -546,11 +546,11 @@ export class Content {
                 } else if ((beitem as any).__prevDataEventId !== dii.dataEventId) {
                     (beitem as any).__prevDataEventId = dii.dataEventId;
                     if (prevDataEventDIINotExists && existsInDII) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 4);
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 4, elem);
                     } else if (prevDataEventDIIExists && !existsInDII) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 5);
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 5, elem);
                     } else if (prevDataEventDIIExists && existsInDII) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 6);
+                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 6, elem);
                     }
                 }
             });
