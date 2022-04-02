@@ -965,6 +965,11 @@ export namespace BML {
     // impl
     export class BMLBeitemElement extends HTMLElement {
         public internalTimerFired: boolean = false;
+
+        public internalModuleUpdateStatus?: number;
+        public internalModuleUpdateDataEventId?: number;
+        public internalModuleUpdateVersion?: number;
+
         public get type(): DOMString {
             return this.node.getAttribute("type") ?? "";
         }
@@ -996,7 +1001,12 @@ export namespace BML {
             return this.node.getAttribute("module_ref") ?? "";
         }
         public set moduleRef(value: DOMString) {
-            this.node.setAttribute("module_ref", value);
+            if (this.moduleRef !== value) {
+                this.node.setAttribute("module_ref", value);
+                this.internalModuleUpdateStatus = undefined;
+                this.internalModuleUpdateDataEventId = undefined;
+                this.internalModuleUpdateVersion = undefined;
+            }
         }
         public get languageTag(): number {
             return attrToNumber(this.node.getAttribute("language_tag")) ?? 0;
@@ -1061,6 +1071,9 @@ export namespace BML {
             if (value) {
                 if (!this.subscribe) {
                     this.internalTimerFired = false;
+                    this.internalModuleUpdateStatus = undefined;
+                    this.internalModuleUpdateDataEventId = undefined;
+                    this.internalModuleUpdateVersion = undefined;
                 }
                 this.node.setAttribute("subscribe", "subscribe");
             } else {

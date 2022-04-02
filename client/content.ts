@@ -507,9 +507,9 @@ export class Content {
                     return;
                 }
                 if (!this.resources.getPMTComponent(componentId)) {
-                    if ((beitem as any).__prevStatus !== 1) {
+                    if (beitem.internalModuleUpdateStatus !== 1) {
                         this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 1, elem);
-                        (beitem as any).__prevStatus = 1;
+                        beitem.internalModuleUpdateStatus = 1;
                     }
                     return;
                 }
@@ -519,33 +519,33 @@ export class Content {
                     return;
                 }
                 const existsInDII = this.resources.moduleExistsInDownloadInfo(componentId, moduleId);
-                const prevDataEventDIINotExists = (beitem as any).__prevStatus === 1;
-                const prevDataEventDIIExists = (beitem as any).__prevStatus === 2;
+                const prevDataEventDIINotExists = beitem.internalModuleUpdateStatus === 1;
+                const prevDataEventDIIExists = beitem.internalModuleUpdateStatus === 2;
                 if (existsInDII) {
-                    if ((beitem as any).__prevStatus !== 2) {
+                    if (beitem.internalModuleUpdateStatus !== 2) {
                         this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 2, elem);
-                        (beitem as any).__prevStatus = 2;
+                        beitem.internalModuleUpdateStatus = 2;
                     } else {
                         const cachedModule = this.resources.getCachedModule(componentId, moduleId);
                         if (cachedModule != null) {
                             const version = cachedModule.version;
-                            if ((beitem as any).__prevVersion != null && (beitem as any).__prevVersion !== version) {
+                            if (beitem.internalModuleUpdateVersion != null && beitem.internalModuleUpdateVersion !== version) {
                                 this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 0, elem);
                             }
-                            (beitem as any).__prevVersion = version;
+                            beitem.internalModuleUpdateVersion = version;
                         }
                     }
                 } else {
-                    if ((beitem as any).__prevStatus !== 1) {
+                    if (beitem.internalModuleUpdateStatus !== 1) {
                         this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 1, elem);
-                        (beitem as any).__prevStatus = 1;
+                        beitem.internalModuleUpdateStatus = 1;
                     }
                 }
-                if ((beitem as any).__prevDataEventId == null) {
-                    (beitem as any).__prevDataEventId = dii.dataEventId;
+                if (beitem.internalModuleUpdateDataEventId == null) {
+                    beitem.internalModuleUpdateDataEventId = dii.dataEventId;
                     // データイベントが更新された
-                } else if ((beitem as any).__prevDataEventId !== dii.dataEventId) {
-                    (beitem as any).__prevDataEventId = dii.dataEventId;
+                } else if (beitem.internalModuleUpdateDataEventId !== dii.dataEventId) {
+                    beitem.internalModuleUpdateDataEventId = dii.dataEventId;
                     if (prevDataEventDIINotExists && existsInDII) {
                         this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 4, elem);
                     } else if (prevDataEventDIIExists && !existsInDII) {
