@@ -162,7 +162,7 @@ export class EventDispatcher {
     }
 
     public dispatchTimerFiredEvent(status: number, beitem: Element) {
-        console.log("TimerFired", module, status);
+        console.log("TimerFired", status);
         if (beitem.getAttribute("subscribe") !== "subscribe") {
             return;
         }

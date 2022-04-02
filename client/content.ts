@@ -583,7 +583,7 @@ export class Content {
                 const second = Number.parseInt(timeValue.substring(12, 14));
                 const date = new Date(year, month, day, hour, minute, second);
                 const time = date.getTime();
-                if (this.resources.currentTimeUnixMillis != null && time >= this.resources.currentTimeUnixMillis) {
+                if (this.resources.currentTimeUnixMillis != null && time <= this.resources.currentTimeUnixMillis) {
                     beitem.internalTimerFired = true;
                     this.eventDispatcher.dispatchTimerFiredEvent(0, elem);
                 }
