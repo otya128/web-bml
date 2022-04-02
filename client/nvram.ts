@@ -503,7 +503,7 @@ export class NVRAM {
         const day = Number.parseInt(update.substring(6, 8));
         const hour = Number.parseInt(update.substring(8, 10));
         const minute = Number.parseInt(update.substring(10, 12));
-        const date = new Date(year, month, day, hour, minute);
+        const date = new Date(year, month - 1, day, hour, minute);
         const time = date.getTime();
         const tz = date.getTimezoneOffset() * 60 * 1000;
         const jst = 9 * 60 * 60 * 1000;
