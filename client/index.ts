@@ -8,7 +8,7 @@ import { NullVideoPlayer } from "./player/null";
 import { BMLBrowser, BMLBrowserFontFace, EPG } from "./bml_browser";
 import { VideoPlayer } from "./player/video_player";
 import { RemoteControl } from "./remote_controller_client";
-import { keyCodeToAribKey } from "./document";
+import { keyCodeToAribKey } from "./content";
 
 function getParametersFromUrl(urlString: string): Param | {} {
     const url = new URL(urlString);
@@ -90,7 +90,7 @@ const bmlBrowser = new BMLBrowser({
     epg,
 });
 
-remoteControl.bmlDocument = bmlBrowser.bmlDocument;
+remoteControl.content = bmlBrowser.content;
 // trueであればデータ放送の上に動画を表示させる非表示状態
 bmlBrowser.addEventListener("invisible", (evt) => {
     console.log("invisible", evt.detail);
@@ -122,7 +122,7 @@ window.addEventListener("keydown", (event) => {
         return;
     }
     event.preventDefault();
-    bmlBrowser.bmlDocument.processKeyDown(k);
+    bmlBrowser.content.processKeyDown(k);
 });
 
 window.addEventListener("keyup", (event) => {
@@ -134,7 +134,7 @@ window.addEventListener("keyup", (event) => {
         return;
     }
     event.preventDefault();
-    bmlBrowser.bmlDocument.processKeyUp(k);
+    bmlBrowser.content.processKeyUp(k);
 });
 
 function onMessage(msg: ResponseMessage) {

@@ -1,7 +1,7 @@
 const { Interpreter }: { Interpreter: any } = require("../../JS-Interpreter/interpreter");
 import * as BT from "../binary_table";
 import { Interpreter } from "./interpreter";
-import { BMLDocument } from "../document";
+import { Content } from "../content";
 import { getTrace, getLog } from "../util/trace";
 import { Resources } from "../resource";
 
@@ -261,16 +261,16 @@ export class JSInterpreter implements Interpreter {
     }
 
     public reset() {
-        const bmlDocument = this.bmlDocument;
+        const content = this.content;
         function launchDocument(documentName: string, transitionStyle: string | undefined, callback: (result: any, promiseValue: any) => void): void {
             browserLog("launchDocument", documentName, transitionStyle);
-            const r = bmlDocument.launchDocument(documentName);
+            const r = content.launchDocument(documentName);
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }
 
         function reloadActiveDocument(callback: (result: any, promiseValue: any) => void): void {
             browserLog("reloadActiveDocument");
-            const r = bmlDocument.launchDocument(browser.getActiveDocument()!);
+            const r = content.launchDocument(browser.getActiveDocument()!);
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }
 
@@ -339,7 +339,7 @@ export class JSInterpreter implements Interpreter {
             }));
 
             this.registerDOMClasses(interpreter, globalObject);
-            interpreter.setProperty(globalObject, "document", this.domObjectToPseudo(interpreter, this.bmlDocument.bmlDocument));
+            interpreter.setProperty(globalObject, "document", this.domObjectToPseudo(interpreter, this.content.bmlDocument));
 
             interpreter.setProperty(pseudoBrowser, "X_CSP_setAccessInfoToProviderArea", interpreter.createAsyncFunction((filename: string, structure: string, callback: (result: number, promiseValue: any) => void): void => {
                 if (structure !== "S:1V,U:2B") {
@@ -500,18 +500,18 @@ export class JSInterpreter implements Interpreter {
     // lazyinit
     browser: Browser = null!;
     resources: Resources = null!;
-    bmlDocument: BMLDocument = null!;
+    content: Content = null!;
     epg: EPG = null!;
     nvram: NVRAM = null!;
     public constructor() {
         this._isExecuting = false;
     }
 
-    public setupEnvironment(browser: Browser, resources: Resources, bmlDocument: BMLDocument, epg: EPG, nvram: NVRAM): void {
+    public setupEnvironment(browser: Browser, resources: Resources, content: Content, epg: EPG, nvram: NVRAM): void {
         this.browser = browser;
         this._isExecuting = false;
         this.resources = resources;
-        this.bmlDocument = bmlDocument;
+        this.content = content;
         this.epg = epg;
         this.nvram = nvram;
         this.reset();
@@ -528,34 +528,34 @@ export class JSInterpreter implements Interpreter {
         if (this.isExecuting) {
             throw new Error("this.isExecuting");
         }
-        const prevContext = this.bmlDocument.context;
+        const prevContext = this.content.context;
         let exit = false;
         const exeNum = this.exeNum++;
-        interpreterTrace("runScript()", exeNum, prevContext, this.bmlDocument.context);
+        interpreterTrace("runScript()", exeNum, prevContext, this.content.context);
         try {
             this._isExecuting = true;
             while (true) {
-                interpreterTrace("RUN SCRIPT", exeNum, prevContext, this.bmlDocument.context);
+                interpreterTrace("RUN SCRIPT", exeNum, prevContext, this.content.context);
                 const r = await this.interpreter.runAsync();
-                interpreterTrace("RETURN RUN SCRIPT", exeNum, r, prevContext, this.bmlDocument.context);
+                interpreterTrace("RETURN RUN SCRIPT", exeNum, r, prevContext, this.content.context);
                 if (r === true) {
                     continue;
                 }
                 if (r === LAUNCH_DOCUMENT_CALLED) {
                     interpreterTrace("browser.launchDocument called.");
                     exit = true;
-                } else if (this.bmlDocument.context !== prevContext) {
-                    console.error("context switched", this.bmlDocument.context, prevContext);
+                } else if (this.content.context !== prevContext) {
+                    console.error("context switched", this.content.context, prevContext);
                     exit = true;
                 }
                 break;
             }
-            if (!exit && this.bmlDocument.context !== prevContext) {
-                console.error("context switched", this.bmlDocument.context, prevContext);
+            if (!exit && this.content.context !== prevContext) {
+                console.error("context switched", this.content.context, prevContext);
                 exit = true;
             }
         } finally {
-            interpreterTrace("leave runScript()", exeNum, exit, prevContext, this.bmlDocument.context);
+            interpreterTrace("leave runScript()", exeNum, exit, prevContext, this.content.context);
             if (exit) {
                 return true;
             } else {

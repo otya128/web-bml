@@ -4,7 +4,7 @@ import { Buffer } from "buffer";
 import * as drcs from "./drcs";
 import { Interpreter } from "./interpreter/interpreter";
 import { EventDispatcher, EventQueue } from "./event_queue";
-import { BMLDocument } from "./document";
+import { Content } from "./content";
 import { ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
 // browser疑似オブジェクト
@@ -195,15 +195,15 @@ export class BrowserAPI {
     private resources: resource.Resources;
     private eventQueue: EventQueue;
     private eventDispatcher: EventDispatcher;
-    private bmlDocument: BMLDocument;
+    private content: Content;
     private nvram: NVRAM;
     private interpreter: Interpreter;
 
-    constructor(resources: resource.Resources, eventQueue: EventQueue, eventDispatcher: EventDispatcher, bmlDocument: BMLDocument, nvram: NVRAM, interpreter: Interpreter) {
+    constructor(resources: resource.Resources, eventQueue: EventQueue, eventDispatcher: EventDispatcher, content: Content, nvram: NVRAM, interpreter: Interpreter) {
         this.resources = resources;
         this.eventQueue = eventQueue;
         this.eventDispatcher = eventDispatcher;
-        this.bmlDocument = bmlDocument;
+        this.content = content;
         this.nvram = nvram;
         this.interpreter = interpreter;
     }
@@ -229,9 +229,9 @@ export class BrowserAPI {
         setCurrentDateMode: (time_mode: number): number => {
             console.log("setCurrentDateMode", time_mode);
             if (time_mode == 0) {
-                this.bmlDocument.currentDateMode = 0;
+                this.content.currentDateMode = 0;
             } else if (time_mode == 1) {
-                this.bmlDocument.currentDateMode = 1;
+                this.content.currentDateMode = 1;
             } else {
                 return NaN;
             }
@@ -454,7 +454,7 @@ export class BrowserAPI {
         },
         launchDocument: (documentName: string, transitionStyle?: string): number => {
             console.log("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
-            this.bmlDocument.launchDocument(documentName);
+            this.content.launchDocument(documentName);
             this.interpreter.destroyStack();
             throw new Error("unreachable!!");
         },
@@ -562,7 +562,7 @@ export class BrowserAPI {
                 if (unicodeCharacters.length === 0) {
                     continue;
                 }
-                this.bmlDocument.addDRCSFont(new FontFace(fontFamily as string, ttf, {
+                this.content.addDRCSFont(new FontFace(fontFamily as string, ttf, {
                     unicodeRange: unicodeCharacters.map(x => "U+" + x.toString(16)).join(","),
                 }));
             }

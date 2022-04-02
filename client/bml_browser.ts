@@ -1,7 +1,7 @@
 import { ResponseMessage } from "../server/ws_api";
 import { BroadcasterDatabase } from "./broadcaster_database";
 import { BrowserAPI } from "./browser";
-import { BMLDocument } from "./document";
+import { Content } from "./content";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { BML } from "./interface/DOM";
 import { Interpreter } from "./interpreter/interpreter";
@@ -88,7 +88,7 @@ export class BMLBrowser {
     private eventQueue: EventQueue;
     private eventDispatcher: EventDispatcher;
     public readonly broadcasterDatabase: BroadcasterDatabase;
-    public readonly bmlDocument: BMLDocument;
+    public readonly content: Content;
     private bmlDomDocument: BML.BMLDocument;
     private indicator?: Indicator;
     private eventTarget = new EventTarget() as BMLBrowserEventTarget;
@@ -116,13 +116,13 @@ export class BMLBrowser {
         this.eventQueue = new EventQueue(this.interpreter);
         this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget);
         this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
-        this.bmlDocument = new BMLDocument(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator);
-        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.bmlDocument, this.nvram, this.interpreter);
+        this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator);
+        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter);
 
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
-        this.interpreter.setupEnvironment(this.browserAPI.browser, this.resources, this.bmlDocument, this.epg, this.nvram);
+        this.interpreter.setupEnvironment(this.browserAPI.browser, this.resources, this.content, this.epg, this.nvram);
         if (options.fonts?.roundGothic) {
             this.fonts.push(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));
         }
@@ -139,7 +139,7 @@ export class BMLBrowser {
     // スタートアップ文書を表示させる
     public async launchStartupDocument(): Promise<void> {
         await this.resources.getProgramInfoAsync();
-        await this.bmlDocument.launchStartup();
+        await this.content.launchStartup();
     }
 
     public emitMessage(msg: ResponseMessage) {
@@ -149,7 +149,7 @@ export class BMLBrowser {
         this.resources.onMessage(msg);
         this.broadcasterDatabase.onMessage(msg);
         this.browserAPI.onMessage(msg);
-        this.bmlDocument.onMessage(msg);
+        this.content.onMessage(msg);
     }
 
     public addEventListener<K extends keyof BMLBrowserEventMap>(type: K, callback: (this: undefined, evt: BMLBrowserEventMap[K]) => void, options?: AddEventListenerOptions | boolean) {
@@ -169,6 +169,6 @@ export class BMLBrowser {
             document.fonts.delete(font);
         }
         this.fonts.length = 0;
-        this.bmlDocument.unloadAllDRCS();
+        this.content.unloadAllDRCS();
     }
 }

@@ -1,15 +1,15 @@
 import { Indicator } from "./bml_browser";
-import { AribKeyCode, keyCodeToAribKey, BMLDocument } from "./document";
+import { AribKeyCode, keyCodeToAribKey, Content } from "./content";
 import { VideoPlayer } from "./player/video_player";
 import { RemoteControllerMessage } from "./remote_controller";
 
 export class RemoteControl implements Indicator {
-    public bmlDocument?: BMLDocument;
+    public content?: Content;
     public player?: VideoPlayer;
     element: HTMLElement;
     receivingStatusElement: HTMLElement;
-    constructor(element: HTMLElement, receivingStatusElement: HTMLElement, bmlDocument?: BMLDocument, player?: VideoPlayer) {
-        this.bmlDocument = bmlDocument;
+    constructor(element: HTMLElement, receivingStatusElement: HTMLElement, content?: Content, player?: VideoPlayer) {
+        this.content = content;
         this.player = player;
         this.element = element;
         this.receivingStatusElement = receivingStatusElement;
@@ -50,17 +50,17 @@ export class RemoteControl implements Indicator {
                 document.documentElement.style.transformOrigin = "left top";
                 this.player?.scale(2);
             } else if (remoteController.type === "button") {
-                this.bmlDocument?.processKeyDown(remoteController.keyCode as AribKeyCode);
-                this.bmlDocument?.processKeyUp(remoteController.keyCode as AribKeyCode);
+                this.content?.processKeyDown(remoteController.keyCode as AribKeyCode);
+                this.content?.processKeyUp(remoteController.keyCode as AribKeyCode);
             } else if (remoteController.type === "keydown") {
                 const k = keyCodeToAribKey(remoteController.key);
                 if (k != -1) {
-                    this.bmlDocument?.processKeyDown(k);
+                    this.content?.processKeyDown(k);
                 }
             } else if (remoteController.type === "keyup") {
                 const k = keyCodeToAribKey(remoteController.key);
                 if (k != -1) {
-                    this.bmlDocument?.processKeyUp(k);
+                    this.content?.processKeyUp(k);
                 }
             }
         }

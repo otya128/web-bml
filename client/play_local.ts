@@ -1,7 +1,7 @@
 import { ResponseMessage } from "../server/ws_api";
 import { BMLBrowser, BMLBrowserFontFace, EPG } from "./bml_browser";
 import { RemoteControl } from "./remote_controller_client";
-import { keyCodeToAribKey } from "./document";
+import { keyCodeToAribKey } from "./content";
 import { decodeTS } from "../server/decode_ts";
 import { CaptionPlayer } from "./player/caption_player";
 
@@ -40,7 +40,7 @@ const bmlBrowser = new BMLBrowser({
     epg,
 });
 
-remoteControl.bmlDocument = bmlBrowser.bmlDocument;
+remoteControl.content = bmlBrowser.content;
 // trueであればデータ放送の上に動画を表示させる非表示状態
 bmlBrowser.addEventListener("invisible", (evt) => {
     console.log("invisible", evt.detail);
@@ -72,7 +72,7 @@ window.addEventListener("keydown", (event) => {
         return;
     }
     event.preventDefault();
-    bmlBrowser.bmlDocument.processKeyDown(k);
+    bmlBrowser.content.processKeyDown(k);
 });
 
 window.addEventListener("keyup", (event) => {
@@ -84,7 +84,7 @@ window.addEventListener("keyup", (event) => {
         return;
     }
     event.preventDefault();
-    bmlBrowser.bmlDocument.processKeyUp(k);
+    bmlBrowser.content.processKeyUp(k);
 });
 
 const videoElement = videoContainer.querySelector("video") as HTMLVideoElement;

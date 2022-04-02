@@ -153,7 +153,7 @@ function requestAnimationFrameAsync(): Promise<void> {
     });
 }
 
-export class BMLDocument {
+export class Content {
     private documentElement: HTMLElement;
     private resources: Resources;
     private eventQueue: EventQueue;
