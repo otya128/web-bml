@@ -964,11 +964,15 @@ export namespace BML {
 
     // impl
     export class BMLBeitemElement extends HTMLElement {
+        // とりあえず関連する属性の値が変わったらリセットするようにしているけどこれらの前回発火したときの状態はリセットされることがあるのかは規格を読んでもよくわからない
         public internalTimerFired: boolean = false;
 
         public internalModuleUpdateStatus?: number;
         public internalModuleUpdateDataEventId?: number;
         public internalModuleUpdateVersion?: number;
+
+        // key: message_id, value: 前回受信したmessage_version
+        public internalMessageVersion?: Map<number, number>;
 
         public get type(): DOMString {
             return this.node.getAttribute("type") ?? "";
@@ -977,7 +981,10 @@ export namespace BML {
             return this.node.getAttribute("es_ref") ?? "";
         }
         public set esRef(value: DOMString) {
-            this.node.setAttribute("es_ref", value);
+            if (value !== this.esRef) {
+                this.node.setAttribute("es_ref", value);
+                this.internalMessageVersion = undefined;
+            }
         }
         public get messageId(): number {
             return attrToNumber(this.node.getAttribute("message_id")) ?? 255;
@@ -1049,8 +1056,10 @@ export namespace BML {
             return this.node.getAttribute("time_value") ?? "";
         }
         public set timeValue(value: DOMString) {
-            this.node.setAttribute("time_value", value);
-            this.internalTimerFired = false;
+            if (this.timeValue !== value) {
+                this.node.setAttribute("time_value", value);
+                this.internalTimerFired = false;
+            }
         }
         public get objectId() {
             return this.node.getAttribute("object_id") ?? "";
@@ -1074,6 +1083,7 @@ export namespace BML {
                     this.internalModuleUpdateStatus = undefined;
                     this.internalModuleUpdateDataEventId = undefined;
                     this.internalModuleUpdateVersion = undefined;
+                    this.internalMessageVersion = undefined;
                 }
                 this.node.setAttribute("subscribe", "subscribe");
             } else {

@@ -909,6 +909,9 @@ export class Content {
             const eventMessageFired = this.documentElement.querySelectorAll("beitem[type=\"EventMessageFired\"][subscribe=\"subscribe\"]");
             eventMessageFired.forEach((beitemNative) => {
                 const beitem = BML.nodeToBMLNode(beitemNative, this.bmlDocument) as BML.BMLBeitemElement;
+                if (!beitem.subscribe) {
+                    return;
+                }
                 const es_ref = beitem.esRef;
                 // message_group_idは0,1のみ運用される
                 // 省略時は0
@@ -947,10 +950,13 @@ export class Content {
                     if (message_version !== 255 && message_version !== eventMessageVersion) {
                         continue;
                     }
-                    if ((beitem as any).__prevVersion === eventMessageVersion) {
+                    if (beitem.internalMessageVersion == null) {
+                        beitem.internalMessageVersion = new Map<number, number>();
+                    }
+                    if (beitem.internalMessageVersion.get(eventMessageId) === eventMessageVersion) {
                         continue;
                     }
-                    (beitem as any).__prevVersion = eventMessageVersion;
+                    beitem.internalMessageVersion.set(eventMessageId, eventMessageVersion);
                     const privateData = decodeEUCJP(Uint8Array.from(event.privateDataByte));
                     console.log("EventMessageFired", eventMessageId, eventMessageVersion, privateData);
                     this.eventQueue.queueAsyncEvent(async () => {
