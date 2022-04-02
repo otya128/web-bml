@@ -82,13 +82,30 @@ export class Resources {
     }
 
     private _activeDocument: null | string = null;
+    private _currentComponentId: null | number = null;
+    private _currentModuleId: null | number = null;
 
     public set activeDocument(doc: string | null) {
+        const { componentId, moduleId } = this.parseURLEx(doc);
         this._activeDocument = doc;
+        this._currentComponentId = componentId;
+        this._currentModuleId = moduleId;
     }
 
     public get activeDocument(): string | null {
         return this._activeDocument;
+    }
+
+    public get currentComponentId(): number | null {
+        return this._currentComponentId;
+    }
+
+    public get currentModuleId(): number | null {
+        return this._currentModuleId;
+    }
+
+    public get currentDataEventId(): number | null {
+        return this._currentComponentId && (this.cachedComponents.get(this._currentComponentId)?.dataEventId ?? null);
     }
 
     private cachedComponents = new Map<number, CachedComponent>();

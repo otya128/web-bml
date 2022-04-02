@@ -974,13 +974,13 @@ export namespace BML {
             this.node.setAttribute("es_ref", value);
         }
         public get messageId(): number {
-            return attrToNumber(this.node.getAttribute("message_id")) ?? 0;
+            return attrToNumber(this.node.getAttribute("message_id")) ?? 255;
         }
         public set messageId(value: number) {
             this.node.setAttribute("message_id", String(value));
         }
         public get messageVersion(): number {
-            return attrToNumber(this.node.getAttribute("message_version")) ?? 0;
+            return attrToNumber(this.node.getAttribute("message_version")) ?? 255;
         }
         public set messageVersion(value: number) {
             this.node.setAttribute("message_version", String(value));

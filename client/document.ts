@@ -864,28 +864,26 @@ export class BMLDocument {
 
     public onMessage(msg: ResponseMessage) {
         if (msg.type === "esEventUpdated") {
-            const eventMessageFired = this.documentElement.querySelectorAll("beitem[type=\"EventMessageFired\"][subscribe=\"subscribe\"]");
-            const activeDocument = this.resources.activeDocument;
-            if (activeDocument == null) {
-                return;
-            }
-            const { componentId: activeComponentId } = this.resources.parseURLEx(activeDocument!);
+            const activeComponentId = this.resources.currentComponentId;
             if (activeComponentId == null) {
                 return;
             }
-            eventMessageFired.forEach((beitem) => {
-                const es_ref = beitem.getAttribute("es_ref");
-                // message_group_idは0のみ運用される
-                const message_group_id = Number.parseInt(beitem.getAttribute("message_group_id") ?? "0");
-                const message_id = Number.parseInt(beitem.getAttribute("message_id") ?? "255");
-                const message_version = Number.parseInt(beitem.getAttribute("message_version") ?? "255");
-                const onoccur = beitem.getAttribute("onoccur");
+            const eventMessageFired = this.documentElement.querySelectorAll("beitem[type=\"EventMessageFired\"][subscribe=\"subscribe\"]");
+            eventMessageFired.forEach((beitemNative) => {
+                const beitem = BML.nodeToBMLNode(beitemNative, this.bmlDocument) as BML.BMLBeitemElement;
+                const es_ref = beitem.esRef;
+                // message_group_idは0,1のみ運用される
+                // 省略時は0
+                const message_group_id = beitem.messageGroupId;
+                const message_id = beitem.messageId;
+                const message_version = beitem.messageVersion;
+                const onoccur = beitemNative.getAttribute("onoccur");
                 if (!onoccur) {
                     return;
                 }
                 let componentId = activeComponentId;
                 if (es_ref != null) {
-                    const esRefComponentId = this.resources.parseURLEx(es_ref)?.componentId;
+                    const esRefComponentId = this.resources.parseURLEx(es_ref).componentId;
                     if (esRefComponentId != null) {
                         componentId = esRefComponentId;
                     }
@@ -895,43 +893,53 @@ export class BMLDocument {
                     if (event.timeMode !== 0) {
                         continue;
                     }
-                    const eventMessageId = event.eventMessageId >> 8;
-                    const eventMessageVersion = event.eventMessageId & 0xff;
-                    if (message_id === 255 || message_id === eventMessageId) {
-                        if (message_version === 255 || message_version === eventMessageVersion) {
-                            if ((beitem as any).__prevVersion === eventMessageVersion) {
-                                continue;
-                            }
-                            (beitem as any).__prevVersion = eventMessageVersion;
-                            const privateData = decodeEUCJP(Uint8Array.from(event.privateDataByte));
-                            console.log("EventMessageFired", eventMessageId, eventMessageVersion, privateData);
-                            this.eventQueue.queueAsyncEvent(async () => {
-                                this.eventDispatcher.setCurrentBeventEvent({
-                                    type: "EventMessageFired",
-                                    target: beitem as HTMLElement,
-                                    status: 0,
-                                    privateData,
-                                    esRef: "/" + componentId.toString(16).padStart(2, "0"),
-                                    messageId: eventMessageId,
-                                    messageVersion: eventMessageVersion,
-                                    messageGroupId: event.eventMessageGroupId,
-                                    moduleRef: "",
-                                    languageTag: 0,//?
-                                    registerId: 0,
-                                    serviceId: 0,
-                                    eventId: 0,
-                                    peripheralRef: "",
-                                    object: null,
-                                    segmentId: null,
-                                });
-                                if (await this.eventQueue.executeEventHandler(onoccur)) {
-                                    return true;
-                                }
-                                this.eventDispatcher.resetCurrentEvent();
-                                return false;
-                            });
+                    if (event.eventMessageGroupId !== message_group_id) {
+                        continue;
+                    }
+                    if (event.eventMessageGroupId === 0) {
+                        if (this.resources.currentDataEventId !== msg.dataEventId) {
+                            continue;
                         }
                     }
+                    const eventMessageId = event.eventMessageId >> 8;
+                    const eventMessageVersion = event.eventMessageId & 0xff;
+                    if (message_id !== 255 && message_id !== eventMessageId) {
+                        continue;
+                    }
+                    if (message_version !== 255 && message_version !== eventMessageVersion) {
+                        continue;
+                    }
+                    if ((beitem as any).__prevVersion === eventMessageVersion) {
+                        continue;
+                    }
+                    (beitem as any).__prevVersion = eventMessageVersion;
+                    const privateData = decodeEUCJP(Uint8Array.from(event.privateDataByte));
+                    console.log("EventMessageFired", eventMessageId, eventMessageVersion, privateData);
+                    this.eventQueue.queueAsyncEvent(async () => {
+                        this.eventDispatcher.setCurrentBeventEvent({
+                            type: "EventMessageFired",
+                            target: beitemNative as HTMLElement,
+                            status: 0,
+                            privateData,
+                            esRef: "/" + componentId.toString(16).padStart(2, "0"),
+                            messageId: eventMessageId,
+                            messageVersion: eventMessageVersion,
+                            messageGroupId: event.eventMessageGroupId,
+                            moduleRef: "",
+                            languageTag: 0,
+                            registerId: 0,
+                            serviceId: 0,
+                            eventId: 0,
+                            peripheralRef: "",
+                            object: null,
+                            segmentId: null,
+                        });
+                        if (await this.eventQueue.executeEventHandler(onoccur)) {
+                            return true;
+                        }
+                        this.eventDispatcher.resetCurrentEvent();
+                        return false;
+                    });
                 }
                 this.eventQueue.processEventQueue();
             });

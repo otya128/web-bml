@@ -708,7 +708,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                     if (descriptor_length < 11) {
                         continue;
                     }
-                    const event_msg_group_id = descriptor.readUInt16BE(0) & 0b1111_1111_1111;
+                    const event_msg_group_id = (descriptor.readUInt16BE(0) >> 4) & 0b1111_1111_1111;
                     // 4bit reserved_future_use
                     const time_mode = descriptor.readUInt8(2);
 
