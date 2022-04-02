@@ -130,37 +130,70 @@ export class EventDispatcher {
         if (beitem.getAttribute("subscribe") !== "subscribe") {
             return;
         }
-        const moduleRef = beitem.getAttribute("module_ref");
-        if (moduleRef?.toLowerCase() === module.toLowerCase()) {
-            const onoccur = beitem.getAttribute("onoccur");
-            if (onoccur) {
-                this.eventQueue.queueAsyncEvent(async () => {
-                    this.setCurrentBeventEvent({
-                        type: "ModuleUpdated",
-                        target: beitem as HTMLElement,
-                        status,
-                        privateData: "",
-                        esRef: "",
-                        messageId: 0,
-                        messageVersion: 0,
-                        messageGroupId: 0,
-                        moduleRef: module,
-                        languageTag: 0,//?
-                        registerId: 0,
-                        serviceId: 0,
-                        eventId: 0,
-                        peripheralRef: "",
-                        object: null,
-                        segmentId: null,
-                    } as BMLBeventEvent);
-                    if (await this.eventQueue.executeEventHandler(onoccur)) {
-                        return true;
-                    }
-                    this.resetCurrentEvent();
-                    return false;
-                });
-                this.eventQueue.processEventQueue();
-            }
+        const onoccur = beitem.getAttribute("onoccur");
+        if (onoccur) {
+            this.eventQueue.queueAsyncEvent(async () => {
+                this.setCurrentBeventEvent({
+                    type: "ModuleUpdated",
+                    target: beitem as HTMLElement,
+                    status,
+                    privateData: "",
+                    esRef: "",
+                    messageId: 0,
+                    messageVersion: 0,
+                    messageGroupId: 0,
+                    moduleRef: module,
+                    languageTag: 0,//?
+                    registerId: 0,
+                    serviceId: 0,
+                    eventId: 0,
+                    peripheralRef: "",
+                    object: null,
+                    segmentId: null,
+                } as BMLBeventEvent);
+                if (await this.eventQueue.executeEventHandler(onoccur)) {
+                    return true;
+                }
+                this.resetCurrentEvent();
+                return false;
+            });
+            this.eventQueue.processEventQueue();
+        }
+    }
+
+    public dispatchTimerFiredEvent(status: number, beitem: Element) {
+        console.log("TimerFired", module, status);
+        if (beitem.getAttribute("subscribe") !== "subscribe") {
+            return;
+        }
+        const onoccur = beitem.getAttribute("onoccur");
+        if (onoccur) {
+            this.eventQueue.queueAsyncEvent(async () => {
+                this.setCurrentBeventEvent({
+                    type: "TimerFired",
+                    target: beitem as HTMLElement,
+                    status,
+                    privateData: "",
+                    esRef: "",
+                    messageId: 0,
+                    messageVersion: 0,
+                    messageGroupId: 0,
+                    moduleRef: "",
+                    languageTag: 0,//?
+                    registerId: 0,
+                    serviceId: 0,
+                    eventId: 0,
+                    peripheralRef: "",
+                    object: null,
+                    segmentId: null,
+                } as BMLBeventEvent);
+                if (await this.eventQueue.executeEventHandler(onoccur)) {
+                    return true;
+                }
+                this.resetCurrentEvent();
+                return false;
+            });
+            this.eventQueue.processEventQueue();
         }
     }
 

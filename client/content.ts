@@ -491,6 +491,7 @@ export class Content {
         console.debug("END PROC EVQ");
         // 雑だけど動きはする
         this.eventQueue.setInterval(() => {
+            this.processTimerEvent();
             const moduleUpdated = this.documentElement.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
             moduleUpdated.forEach(elem => {
                 const beitem = BML.nodeToBMLNode(elem, this.bmlDocument) as BML.BMLBeitemElement;
@@ -557,6 +558,43 @@ export class Content {
         }, 1000);
         this.indicator?.setUrl(this.resources.activeDocument, false);
         return false;
+    }
+
+    private processTimerEvent() {
+        const timerFired = this.documentElement.querySelectorAll("beitem[type=\"TimerFired\"]");
+        timerFired.forEach(elem => {
+            const beitem = BML.nodeToBMLNode(elem, this.bmlDocument) as BML.BMLBeitemElement;
+            if (!beitem.subscribe) {
+                return;
+            }
+            if (beitem.internalTimerFired) {
+                return;
+            }
+            const timeValue = beitem.timeValue;
+            if (beitem.timeMode === "absolute" || beitem.timeMode === "origAbsolute") {
+                if (timeValue.length !== 14) {
+                    return;
+                }
+                const year = Number.parseInt(timeValue.substring(0, 4));
+                const month = Number.parseInt(timeValue.substring(4, 6));
+                const day = Number.parseInt(timeValue.substring(6, 8));
+                const hour = Number.parseInt(timeValue.substring(8, 10));
+                const minute = Number.parseInt(timeValue.substring(10, 12));
+                const second = Number.parseInt(timeValue.substring(12, 14));
+                const date = new Date(year, month, day, hour, minute, second);
+                const time = date.getTime();
+                if (this.resources.currentTimeUnixMillis != null && time >= this.resources.currentTimeUnixMillis) {
+                    beitem.internalTimerFired = true;
+                    this.eventDispatcher.dispatchTimerFiredEvent(0, elem);
+                }
+            } else if (beitem.timeMode === "NPT") {
+                // FIXME: 未実装
+                const npt = Number.parseInt(timeValue);
+                if (Number.isNaN(npt)) {
+                    return;
+                }
+            }
+        });
     }
 
     public launchDocument(documentName: string) {

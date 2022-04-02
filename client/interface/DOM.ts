@@ -964,6 +964,7 @@ export namespace BML {
 
     // impl
     export class BMLBeitemElement extends HTMLElement {
+        public internalTimerFired: boolean = false;
         public get type(): DOMString {
             return this.node.getAttribute("type") ?? "";
         }
@@ -1039,6 +1040,7 @@ export namespace BML {
         }
         public set timeValue(value: DOMString) {
             this.node.setAttribute("time_value", value);
+            this.internalTimerFired = false;
         }
         public get objectId() {
             return this.node.getAttribute("object_id") ?? "";
@@ -1057,6 +1059,9 @@ export namespace BML {
         }
         public set subscribe(value: boolean) {
             if (value) {
+                if (!this.subscribe) {
+                    this.internalTimerFired = false;
+                }
                 this.node.setAttribute("subscribe", "subscribe");
             } else {
                 this.node.removeAttribute("subscribe");
