@@ -931,7 +931,7 @@ export class Content {
                 }
                 for (const event of msg.events) {
                     // 即時イベントのみ実装
-                    if (event.timeMode !== 0) {
+                    if (event.type !== "immediateEvent") {
                         continue;
                     }
                     if (event.eventMessageGroupId !== message_group_id) {

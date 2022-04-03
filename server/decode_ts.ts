@@ -695,15 +695,26 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                     if (descriptor_length < 18) {
                         continue;
                     }
+                    // 0のみ運用
                     const postDiscontinuityIndicator = descriptor[0] >> 7;
+                    // 運用しない (常に0)
                     const dsm_contentId = descriptor[0] & 127;
                     // 7bit reserved
                     const STC_Reference = descriptor.readUInt32BE(2) + ((descriptor[1] & 1) * 0x100000000);
                     // 31bit reserved
                     const NPT_Reference = descriptor.readUInt32BE(10) + ((descriptor[9] & 1) * 0x100000000);
+                    // 0/1か1/1のみ運用
                     const scaleNumerator = descriptor.readUInt16BE(14);
                     const scaleDenominator = descriptor.readUInt16BE(16);
-                    // console.log(STC_Reference, NPT_Reference);
+                    events.push({
+                        type: "nptReference",
+                        postDiscontinuityIndicator: !!postDiscontinuityIndicator,
+                        dsmContentId: dsm_contentId,
+                        STCReference: STC_Reference,
+                        NPTReference: NPT_Reference,
+                        scaleNumerator,
+                        scaleDenominator,
+                    });
                 } else if (descriptor_tag === 0x40) { // 汎用イベントメッセージ記述子 General_event_descriptor
                     if (descriptor_length < 11) {
                         continue;
@@ -719,6 +730,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                     if (time_mode === 0) {
                         // 40bit reserved_future_use
                         events.push({
+                            type: "immediateEvent",
                             eventMessageType: event_msg_type,
                             eventMessageGroupId: event_msg_group_id,
                             eventMessageId: event_msg_id,
@@ -732,6 +744,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                         // event_msg_NPT
                         const NPT = descriptor.readUInt32BE(4) | ((descriptor[3] & 1) * 0x100000000);
                         events.push({
+                            type: "nptEvent",
                             eventMessageType: event_msg_type,
                             eventMessageNPT: NPT,
                             eventMessageGroupId: event_msg_group_id,

@@ -86,9 +86,10 @@ export type ModuleListUpdatedMessage = {
     returnToEntryFlag?: boolean,
 };
 
-export type ESEvent = ESImmediateEvent | ESNPTEvent;
+export type ESEvent = ESImmediateEvent | ESNPTEvent | NPTReference;
 
 export type ESImmediateEvent = {
+    type: "immediateEvent",
     eventMessageGroupId: number,
     timeMode: 0,
     eventMessageType: number,
@@ -97,12 +98,23 @@ export type ESImmediateEvent = {
 };
 
 export type ESNPTEvent = {
+    type: "nptEvent",
     eventMessageGroupId: number,
     timeMode: 2,
     eventMessageNPT: number,
     eventMessageType: number,
     eventMessageId: number,
     privateDataByte: number[],
+};
+
+export type NPTReference = {
+    type: "nptReference",
+    postDiscontinuityIndicator: boolean,
+    dsmContentId: number,
+    STCReference: number,
+    NPTReference: number,
+    scaleNumerator: number,
+    scaleDenominator: number,  
 };
 
 export type ESEventUpdatedMessage = {

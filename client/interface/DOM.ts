@@ -965,6 +965,7 @@ export namespace BML {
     // impl
     export class BMLBeitemElement extends HTMLElement {
         // とりあえず関連する属性の値が変わったらリセットするようにしているけどこれらの前回発火したときの状態はリセットされることがあるのかは規格を読んでもよくわからない
+        // subscribe=false => subscribe=trueでリセットされるのはほぼ確実
         public internalTimerFired: boolean = false;
 
         public internalModuleUpdateStatus?: number;
