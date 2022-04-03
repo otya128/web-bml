@@ -362,13 +362,33 @@ export class Resources {
             this.currentTime = msg;
         } else if (msg.type === "error") {
             console.error(msg);
+        } else if (msg.type === "esEventUpdated") {
+            const nptReference = msg.events.find(x => x.type === "nptReference");
+            console.log(msg.componentId.toString(16).padStart(2, "0"), msg.dataEventId, nptReference);
         }
+    }
+
+    // 自ストリームのarib-dc://-1.-1.-1/を除去
+    private removeDCReferencePrefix(url: string): string {
+        const result = /^arib-dc:\/\/(?<originalNetworkId>[0-9a-f]+|-1)\.(?<transportStreamId>[0-9a-f]+|-1)\.(?<serviceId>[0-9a-f]+|-1)($|\/)/i.exec(url);
+        if (result?.groups == null) {
+            return url;
+        }
+        const { originalNetworkId, transportStreamId, serviceId } = result.groups;
+        if ((Number.parseInt(originalNetworkId, 16) === -1 || Number.parseInt(originalNetworkId, 16) === this.originalNetworkId) &&
+        (Number.parseInt(transportStreamId, 16) === -1 || Number.parseInt(transportStreamId, 16) === this.transportStreamId) &&
+        (Number.parseInt(serviceId, 16) === -1 || Number.parseInt(serviceId, 16) === this.serviceId)) {
+            const suffix = url.substring(result[0].length);
+            return "/" + suffix;
+        }
+        return url;
     }
 
     public parseURL(url: string | null | undefined): { component: string | null, module: string | null, filename: string | null } {
         if (url == null) {
             return { component: null, module: null, filename: null };
         }
+        url = this.removeDCReferencePrefix(url);
         if (url.startsWith("~/")) {
             url = ".." + url.substring(1);
         }
