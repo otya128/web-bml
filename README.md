@@ -2,9 +2,9 @@
 
 Webブラウザで動作するデータ放送ブラウザ(BMLブラウザ)
 
-![screenshot](https://user-images.githubusercontent.com/4075988/159119988-d57b4d1b-6940-45d5-8d54-87acb2f75781.png)
-
 デモ https://otya128.github.io/web-bml
+
+![screenshot](https://user-images.githubusercontent.com/4075988/159119988-d57b4d1b-6940-45d5-8d54-87acb2f75781.png)
 
 ## 動作環境
 
@@ -60,7 +60,7 @@ docker run --rm --name web-bml --net=xxxx -e MIRAK_URL=http://mirakurun:40772 -e
 
 null以外はffmpegが必須
 
-`?format=...&demultiplexServiceId=...`
+`?format=...&demultiplexServiceId=...&seek=bytes`
 
 * null
     * ブラウザ向けに動画をエンコードせずデータカルーセルのみをデコードする
@@ -149,4 +149,4 @@ Firefoxであれば一番大きいサイズが縮小されて表示されます�
 
 STD-B24, TR-B14, TR-B15の仕様を部分的に実装しています。
 
-一部のイベント(時刻タイマー、NPT、モジュール更新)やAPIは現状未実装です。
+NPT関係、一部のイベント(CCStatusChanged、MainAudioStreamChanged、MediaStopped)やAPI、inputmodeなどは現状未実装です。
