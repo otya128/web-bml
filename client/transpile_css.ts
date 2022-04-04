@@ -113,6 +113,10 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                 type: "declaration",
                 property: "--" + origProperty,
                 value: origValue,
+            }, {
+                type: "declaration",
+                property: "--" + origProperty + "2",
+                value: decl.value,
             }];
         } else if (decl.property) {
             const sub = colorIndexRules.get(decl.property);
@@ -125,6 +129,10 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                     type: "declaration",
                     property: "--" + origProperty,
                     value: origValue,
+                }, {
+                    type: "declaration",
+                    property: "--" + sub,
+                    value: decl.value,
                 }];
             }
         }

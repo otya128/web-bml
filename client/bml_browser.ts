@@ -33,6 +33,11 @@ interface BMLBrowserEventMap {
     "load": CustomEvent<{ resolution: { width: number, height: number }, displayAspectRatio: { numerator: number, denominator: number } }>;
     // invisibleが設定されているときtrue
     "invisible": CustomEvent<boolean>;
+    /**
+     * 動画の位置や大きさが変わった際に呼ばれるイベント
+     * invisibleがtrueである場合渡される矩形に関わらず全面に表示する必要がある
+     */
+    "videochanged": CustomEvent<{ boundingRect: DOMRect }>;
 }
 
 interface CustomEventTarget<M> {
@@ -74,6 +79,11 @@ export type BMLBrowserOptions = {
     // フォーカスを受け付けキー入力を受け取る
     tabIndex?: number;
     epg?: EPG;
+    /**
+     * 動画像プレーンモードを有効化
+     * 動画像が配置されている部分が切り抜かれるためvideochangedイベントに合わせて動画を配置する
+     */
+    videoPlaneModeEnabled?: boolean;
 };
 
 export class BMLBrowser {
@@ -116,7 +126,7 @@ export class BMLBrowser {
         this.eventQueue = new EventQueue(this.interpreter);
         this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget);
         this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
-        this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator);
+        this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false);
         this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter);
 
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);

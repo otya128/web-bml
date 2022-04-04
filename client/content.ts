@@ -164,7 +164,9 @@ export class Content {
     private bmlEventTarget: BMLBrowserEventTarget;
     private indicator?: Indicator;
     private fonts: FontFace[] = [];
-    public constructor(bmlDocument: BML.BMLDocument,
+    private readonly videoPlaneModeEnabled: boolean;
+    public constructor(
+        bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
         resources: Resources,
         eventQueue: EventQueue,
@@ -172,7 +174,9 @@ export class Content {
         interpreter: Interpreter,
         videoContainer: HTMLElement,
         bmlEventTarget: BMLBrowserEventTarget,
-        indicator?: Indicator) {
+        indicator: Indicator | undefined,
+        videoPlaneModeEnabled: boolean
+    ) {
         this.bmlDocument = bmlDocument;
         this.documentElement = documentElement;
         this.resources = resources;
@@ -182,6 +186,7 @@ export class Content {
         this.videoContainer = videoContainer;
         this.bmlEventTarget = bmlEventTarget;
         this.indicator = indicator;
+        this.videoPlaneModeEnabled = videoPlaneModeEnabled;
 
         this.documentElement.addEventListener("keydown", (event) => {
             if (event.altKey || event.ctrlKey || event.metaKey) {
@@ -326,6 +331,37 @@ export class Content {
         return this.documentElement.querySelector("body");
     }
 
+    private clipVideoPlane(videoElement: Element | null) {
+        const body = this.getBody()!;
+        body.style.background = "transparent";
+        body.style.setProperty("background", "transparent", "important");
+        const aribBG = document.createElement("arib-bg");
+        body.insertAdjacentElement("afterbegin", aribBG);
+        if (videoElement != null) {
+            let bgJpeg: HTMLElement | null = body.querySelector("object[arib-type=\"image/jpeg\"]");
+            if ((bgJpeg?.compareDocumentPosition(videoElement) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING) {
+            } else {
+                bgJpeg = null;
+            }
+            const changed = () => {
+                const rect = videoElement.getBoundingClientRect();
+                const { left, top, right, bottom } = rect;
+                aribBG.style.clipPath = `polygon(0% 0%, 0% 100%, ${left}px 100%, ${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px, ${left}px 100%, 100% 100%, 100% 0%)`;
+                if (bgJpeg != null) {
+                    bgJpeg.style.clipPath = `polygon(0% 0%, 0% 100%, ${left}px 100%, ${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px, ${left}px 100%, 100% 100%, 100% 0%)`;
+                }
+                this.bmlEventTarget.dispatchEvent<"videochanged">(new CustomEvent("videochanged", { detail: { boundingRect: rect } }));
+            };
+            const observer = new MutationObserver(changed);
+            observer.observe(videoElement, {
+                attributes: true,
+                childList: false,
+                subtree: false,
+            });
+            changed();
+        }
+    }
+
     private async loadDocumentToDOM(data: string): Promise<void> {
         const xhtmlDocument = new DOMParser().parseFromString(`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja"></html>`, "application/xhtml+xml");
         const documentElement = xhtmlDocument.createElement("html");
@@ -370,6 +406,10 @@ export class Content {
         newBody.removeAttribute("arib-loading");
         for (const n of p) {
             n.remove();
+        }
+
+        if (this.videoPlaneModeEnabled) {
+            this.clipVideoPlane(videoElementNew);
         }
     }
 

@@ -362,9 +362,6 @@ export class Resources {
             this.currentTime = msg;
         } else if (msg.type === "error") {
             console.error(msg);
-        } else if (msg.type === "esEventUpdated") {
-            const nptReference = msg.events.find(x => x.type === "nptReference");
-            console.log(msg.componentId.toString(16).padStart(2, "0"), msg.dataEventId, nptReference);
         }
     }
 
