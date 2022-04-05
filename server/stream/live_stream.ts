@@ -1,5 +1,5 @@
-import { ChildProcessWithoutNullStreams, spawn } from "child_process";
-import { Transform, Readable } from "stream";
+import { ChildProcessByStdio, spawn } from "child_process";
+import { Transform, Readable, Writable } from "stream";
 import { WebSocket } from "ws";
 
 export type DataBroadcastingStream = {
@@ -16,18 +16,17 @@ export type DataBroadcastingStream = {
 };
 
 export class LiveStream {
-    encoderProcess: ChildProcessWithoutNullStreams;
+    encoderProcess: ChildProcessByStdio<Writable, Readable, Readable | null>;
     public constructor(ffmpeg: string, args: string[], tsStream: Transform) {
-        this.encoderProcess = spawn(ffmpeg, args);
+        this.encoderProcess = spawn(ffmpeg, args, {
+            stdio: ["pipe", "pipe", process.env.FFMPEG_OUTPUT == "1" ? "inherit" : "ignore"]
+        });
         tsStream.unpipe();
         tsStream.pipe(this.encoderProcess.stdin);
         this.encoderProcess.stdin.on("error", (err) => {
             console.error("enc stdin err", err);
         });
         tsStream.resume();
-        if (process.env.FFMPEG_OUTPUT == "1") {
-            this.encoderProcess.stderr.on("data", (data) => process.stderr.write(data));
-        }
     }
 
     public destroy() {
