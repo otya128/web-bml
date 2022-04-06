@@ -55,8 +55,12 @@ function replacePLTE(png: Buffer, plte: Buffer, trns: Buffer): Buffer {
     return output.subarray(0, outOff);
 }
 
-export function aribPNGToPNG(png: Buffer, clut: number[][]): Buffer {
+export function aribPNGToPNG(png: Buffer, clut: number[][]): { data: Buffer, width?: number, height?: number } {
     const plte = preparePLTE(clut);
     const trns = prepareTRNS(clut);
-    return replacePLTE(png, plte, trns);
+    const data = replacePLTE(png, plte, trns);
+    // IHDR
+    const width = png.length >= 33 ? png.readUInt32BE(8 + 8) : undefined;
+    const height = png.length >= 33 ? png.readUInt32BE(8 + 12) : undefined;
+    return { data, width, height };
 }

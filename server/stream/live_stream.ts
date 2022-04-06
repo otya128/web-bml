@@ -16,7 +16,7 @@ export type DataBroadcastingStream = {
 };
 
 export class LiveStream {
-    encoderProcess: ChildProcessByStdio<Writable, Readable, Readable | null>;
+    encoderProcess: ChildProcessByStdio<Writable, Readable, null>;
     public constructor(ffmpeg: string, args: string[], tsStream: Transform) {
         this.encoderProcess = spawn(ffmpeg, args, {
             stdio: ["pipe", "pipe", process.env.FFMPEG_OUTPUT == "1" ? "inherit" : "ignore"]

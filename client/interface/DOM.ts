@@ -1,6 +1,6 @@
 import { EventQueue } from "../event_queue";
 import { BMLCSS2Properties } from "./BMLCSS2Properties";
-import { Resources } from "../resource";
+import { CachedFileMetadata, Resources } from "../resource";
 import { aribPNGToPNG } from "../arib_png";
 import { readCLUT } from "../clut";
 import { defaultCLUT } from "../default_clut";
@@ -529,7 +529,7 @@ export namespace BML {
                     return;
                 }
 
-                let imageUrl: string | undefined;
+                let imageUrl: CachedFileMetadata | undefined;
                 const isPNG = aribType?.toLowerCase() === "image/x-arib-png";
                 const isMNG = aribType?.toLowerCase() === "image/x-arib-mng";
                 let imageType: string | undefined;
@@ -555,7 +555,7 @@ export namespace BML {
                         this.effect = new KeyframeEffect(this.node, keyframes.keyframes, keyframes.options);
                         this.animation = new Animation(this.effect);
                         for (const blob of keyframes.blobs) {
-                            fetched.blobUrl.set(blob, blob);
+                            fetched.blobUrl.set(blob, { blobUrl: blob });
                         }
                         const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("resolution"), keyframes.width, keyframes.height, (aribType ?? this.type));
                         if (width != null && height != null) {
@@ -578,8 +578,8 @@ export namespace BML {
                         if (imageUrl == null) {
                             const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
                             const png = aribPNGToPNG(Buffer.from(fetched.data), clut);
-                            const blob = new Blob([png], { type: "image/png" });
-                            imageUrl = URL.createObjectURL(blob);
+                            const blob = new Blob([png.data], { type: "image/png" });
+                            imageUrl = { blobUrl: URL.createObjectURL(blob), width: png.width, height: png.height };
                             fetched.blobUrl.set(fetchedClut, imageUrl);
                         }
                         imageType = "image/png";
@@ -602,24 +602,17 @@ export namespace BML {
                     this.delete();
                     return;
                 }
-                // jpeg/png程度ならバイナリ解析すればImage使わずとも大きさは取得できそう
-                const img = new Image();
-                const imageType2 = imageType;
-                img.onload = () => {
-                    if (this.__version !== version) {
-                        return;
-                    }
-                    const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("--resolution"), img.width, img.height, (aribType ?? this.type));
+                if (imageUrl.width != null && imageUrl.height != null) {
+                    const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("--resolution"), imageUrl.width, imageUrl.height, (aribType ?? this.type));
                     if (width != null && height != null) {
                         this.node.style.maxWidth = width + "px";
                         this.node.style.minWidth = width + "px";
                         this.node.style.maxHeight = height + "px";
                         this.node.style.minHeight = height + "px";
                     }
-                    this.node.type = imageType2;
-                    this.node.data = img.src;
-                };
-                img.src = imageUrl;
+                }
+                this.node.type = imageType;
+                this.node.data = imageUrl.blobUrl;
             })();
         }
         public get type() {

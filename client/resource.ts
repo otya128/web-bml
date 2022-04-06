@@ -26,11 +26,17 @@ export type CachedModule = {
     dataEventId: number,
 };
 
+export type CachedFileMetadata = {
+    blobUrl: string,
+    width?: number,
+    height?: number,
+};
+
 export type CachedFile = {
     contentLocation: string | null,
     contentType: MediaType,
     data: Uint8Array,
-    blobUrl: Map<any, string>,
+    blobUrl: Map<any, CachedFileMetadata>,
 };
 
 export type LockedComponent = {
@@ -125,12 +131,12 @@ export class Resources {
     private downloadComponents = new Map<number, DownloadComponentInfo>();
 
     public getCachedFileBlobUrl(file: CachedFile, key?: any): string {
-        let b = file.blobUrl.get(key);
+        let b = file.blobUrl.get(key)?.blobUrl;
         if (b != null) {
             return b;
         }
         b = URL.createObjectURL(new Blob([file.data], { type: `${file.contentType.type}/${file.contentType.originalSubtype}` }));
-        file.blobUrl.set(key, b);
+        file.blobUrl.set(key, { blobUrl: b });
         return b;
     }
 
@@ -373,8 +379,8 @@ export class Resources {
         }
         const { originalNetworkId, transportStreamId, serviceId } = result.groups;
         if ((Number.parseInt(originalNetworkId, 16) === -1 || Number.parseInt(originalNetworkId, 16) === this.originalNetworkId) &&
-        (Number.parseInt(transportStreamId, 16) === -1 || Number.parseInt(transportStreamId, 16) === this.transportStreamId) &&
-        (Number.parseInt(serviceId, 16) === -1 || Number.parseInt(serviceId, 16) === this.serviceId)) {
+            (Number.parseInt(transportStreamId, 16) === -1 || Number.parseInt(transportStreamId, 16) === this.transportStreamId) &&
+            (Number.parseInt(serviceId, 16) === -1 || Number.parseInt(serviceId, 16) === this.serviceId)) {
             const suffix = url.substring(result[0].length);
             return "/" + suffix;
         }

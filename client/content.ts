@@ -925,12 +925,12 @@ export class Content {
         // background-imageはJPEGのみ運用される (STD-B24 第二分冊(2/2) 付属2 4.4.6)
         let bt709 = res.blobUrl.get("BT.709");
         if (bt709 != null) {
-            return bt709;
+            return bt709.blobUrl;
         }
         const bt601 = this.resources.getCachedFileBlobUrl(res);
         bt709 = await convertJPEG(bt601);
         res.blobUrl.set("BT.709", bt709);
-        return bt709;
+        return bt709.blobUrl;
     }
 
     private loadObjects() {
