@@ -344,13 +344,24 @@ export class Content {
                 bgJpeg = null;
             }
             const changed = () => {
-                const rect = videoElement.getBoundingClientRect();
-                const { left, top, right, bottom } = rect;
-                aribBG.style.clipPath = `polygon(0% 0%, 0% 100%, ${left}px 100%, ${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px, ${left}px 100%, 100% 100%, 100% 0%)`;
-                if (bgJpeg != null) {
-                    bgJpeg.style.clipPath = `polygon(0% 0%, 0% 100%, ${left}px 100%, ${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px, ${left}px 100%, 100% 100%, 100% 0%)`;
+                // transformの影響を受けないbodyからの相対座標を算出
+                let element: HTMLElement | null = videoElement as HTMLElement;
+                const body = this.getBody();
+                let left = 0;
+                let top = 0;
+                while (element != null && element !== body) {
+                    left += element.offsetLeft;
+                    top += element.offsetTop;
+                    element = element.parentElement;
                 }
-                this.bmlEventTarget.dispatchEvent<"videochanged">(new CustomEvent("videochanged", { detail: { boundingRect: rect } }));
+                const right = left + videoElement.clientWidth;
+                const bottom = top + videoElement.clientHeight;
+                const clipPath = `polygon(0% 0%, 0% 100%, ${left}px 100%, ${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px, ${left}px 100%, 100% 100%, 100% 0%)`;
+                aribBG.style.clipPath = clipPath;
+                if (bgJpeg != null) {
+                    bgJpeg.style.clipPath = clipPath;
+                }
+                this.bmlEventTarget.dispatchEvent<"videochanged">(new CustomEvent("videochanged", { detail: { boundingRect: videoElement.getBoundingClientRect(), clientRect: { left, top, right, bottom } } }));
             };
             const observer = new MutationObserver(changed);
             observer.observe(videoElement, {

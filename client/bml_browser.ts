@@ -37,7 +37,7 @@ interface BMLBrowserEventMap {
      * 動画の位置や大きさが変わった際に呼ばれるイベント
      * invisibleがtrueである場合渡される矩形に関わらず全面に表示する必要がある
      */
-    "videochanged": CustomEvent<{ boundingRect: DOMRect }>;
+    "videochanged": CustomEvent<{ clientRect: { left: number, top: number, right: number, bottom: number }, boundingRect: DOMRect }>;
 }
 
 interface CustomEventTarget<M> {
