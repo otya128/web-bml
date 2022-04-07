@@ -74,7 +74,7 @@ function decodeAIFF(aiff: Buffer): { comm: COMM, soundData: Buffer } | null {
             off += 4;
             const blockSize = aiff.readUInt32BE(off);
             off += 4;
-            aiff.copy(soundData, off, offset, nextOff);
+            aiff.copy(soundData, offset, off, nextOff);
         }
         off = nextOff;
     }
