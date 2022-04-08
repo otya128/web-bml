@@ -408,7 +408,8 @@ Interpreter.prototype.run = function() {
   return this.paused_;
 };
 
-Interpreter.prototype.runAsync = function() {
+Interpreter.prototype.runAsync = function(timeout, timeoutCallback) {
+  var startTime = performance.now();
   while (!this.paused_) {
     var promise = this.step();
     if (promise instanceof Promise) {
@@ -416,6 +417,10 @@ Interpreter.prototype.runAsync = function() {
     }
     if (!promise) {
       break;
+    }
+    var elapsedInMillis = performance.now() - startTime;
+    if (elapsedInMillis >= timeout) {
+      return timeoutCallback();
     }
   }
   return Promise.resolve(this.paused_);

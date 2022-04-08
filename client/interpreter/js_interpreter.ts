@@ -536,7 +536,14 @@ export class JSInterpreter implements Interpreter {
             this._isExecuting = true;
             while (true) {
                 interpreterTrace("RUN SCRIPT", exeNum, prevContext, this.content.context);
-                const r = await this.interpreter.runAsync();
+                const r = await this.interpreter.runAsync(500, () => {
+                    console.warn("script execution timeout");
+                    return new Promise((resolve) => {
+                        setTimeout(() => {
+                            resolve(true);
+                        }, 100);
+                    });
+                });
                 interpreterTrace("RETURN RUN SCRIPT", exeNum, r, prevContext, this.content.context);
                 if (r === true) {
                     continue;
