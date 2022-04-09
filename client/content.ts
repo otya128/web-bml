@@ -1045,4 +1045,12 @@ export class Content {
         this.fonts.push(font);
         document.fonts.add(font);
     }
+
+    public get invisible(): boolean | undefined {
+        const body = this.getBody();
+        if (body == null) {
+            return undefined;
+        }
+        return (BML.nodeToBMLNode(body, this.bmlDocument) as BML.BMLBodyElement).invisible;
+    }
 }
