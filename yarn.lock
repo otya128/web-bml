@@ -699,7 +699,7 @@ arib-subtitle-timedmetadater@^4.0.9:
     arib-mpeg2ts-parser "^3.0.7"
     commander "^7.1.0"
 
-aribb24.js@^1.9.6:
+aribb24.js@^1.9.7:
   version "1.9.7"
   resolved "https://registry.yarnpkg.com/aribb24.js/-/aribb24.js-1.9.7.tgz#cbacc84f2ff1170b46640b85f8e7a1c9fa294e9f"
   integrity sha512-mbt0A+N97667D0T4EIoQHN8fTtrROXlJK2j80zPEWUAGOgIAmgM4styqTxRUp5ZSmeXMXbp1xOEZlTTn4kSIew==
