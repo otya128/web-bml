@@ -9,7 +9,7 @@
     "@babel/traverse": "^7.17.3",
     "@babel/types": "^7.17.0",
     "arib-subtitle-timedmetadater": "^4.0.9",
-    "aribb24.js": "^1.9.6",
+    "aribb24.js": "^1.9.7",
     "assert": "^2.0.0",
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
