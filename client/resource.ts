@@ -563,7 +563,7 @@ export class Resources {
     }
 
     public clearCache(): void {
-        this.cachedComponents.clear();
+        // this.cachedComponents.clear();
     }
 
     // Cプロファイルだと0x50

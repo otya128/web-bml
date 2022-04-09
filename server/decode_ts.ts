@@ -545,6 +545,10 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                 dataEventId: data_event_id,
                 returnToEntryFlag,
             });
+            const cachedComponent = cachedComponents.get(componentId);
+            if (cachedComponent != null) {
+                cachedComponent.modules.clear();
+            }
             downloadComponents.set(componentId, componentInfo);
         } else if (data.table_id === 0x3c) {
             if (bxmlInfo == null) {
