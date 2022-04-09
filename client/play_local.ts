@@ -132,7 +132,7 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
             const prevPCR = pcr;
             tsStream._transform(chunk!.subarray(i, i + chunkSize), null, () => { });
             const curPCR = pcr;
-            const nowTime = new Date().getTime();
+            const nowTime = performance.now();
             if (prevPCR == null) {
                 baseTime = nowTime;
                 basePCR = curPCR;
