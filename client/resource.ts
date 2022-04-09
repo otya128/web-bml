@@ -274,11 +274,20 @@ export class Resources {
         return this.currentProgramInfo?.transportStreamId ?? null;
     }
 
-    private currentTime: CurrentTime | null = null;
+    private currentTimeNearestPCRBase?: number;
+    private _currentTimeUnixMillis?: number;
 
     public get currentTimeUnixMillis(): number | null {
-        return this.currentTime?.timeUnixMillis ?? null;
+        if (this._currentTimeUnixMillis != null && this.nearestPCRBase != null && this.currentTimeNearestPCRBase != null) {
+            const pcr = this.nearestPCRBase - this.currentTimeNearestPCRBase;
+            if (pcr > 0) {
+                return this._currentTimeUnixMillis + Math.floor(pcr / 90);
+            }
+        }
+        return this._currentTimeUnixMillis ?? null;
     }
+
+    nearestPCRBase?: number;
 
     public onMessage(msg: ResponseMessage) {
         if (msg.type === "moduleDownloaded") {
@@ -365,7 +374,10 @@ export class Resources {
             }
             this.setReceivingStatus();
         } else if (msg.type === "currentTime") {
-            this.currentTime = msg;
+            this.currentTimeNearestPCRBase = this.nearestPCRBase;
+            this._currentTimeUnixMillis = msg.timeUnixMillis;
+        } else if (msg.type === "pcr") {
+            this.nearestPCRBase = msg.pcrBase;
         } else if (msg.type === "error") {
             console.error(msg);
         }
