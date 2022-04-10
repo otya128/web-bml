@@ -364,6 +364,19 @@ export class Resources {
             this.pmtRetrieved = true;
             const prevComponents = this.pmtComponents;
             this.pmtComponents = new Map(msg.components.map(x => [x.componentId, x]));
+            for (const [componentId, creqs] of this.componentRequests) {
+                if (this.pmtComponents.has(componentId)) {
+                    continue;
+                }
+                for (const [moduleId, mreqs] of creqs.moduleRequests) {
+                    // PMTに存在しない
+                    for (const mreq of mreqs) {
+                        console.warn("async fetch done (failed)", moduleAndComponentToString(componentId, moduleId));
+                        mreq.resolve(null);
+                    }
+                    mreqs.length = 0;
+                }
+            }
             this.eventTarget.dispatchEvent<"pmtupdated">(new CustomEvent("pmtupdated", { detail: { components: this.pmtComponents, prevComponents } }));
         } else if (msg.type === "programInfo") {
             this.currentProgramInfo = msg;
