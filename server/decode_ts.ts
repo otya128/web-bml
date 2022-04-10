@@ -48,6 +48,7 @@ type CachedComponent = {
 export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?: number, parsePES?: boolean): TsStream {
     const tsStream = new TsStream();
     const tsUtil = new TsUtil();
+    let pmtRetrieved = false;
     let pidToComponent = new Map<number, ComponentPMT>();
     let componentToPid = new Map<number, ComponentPMT>();
     let currentTime: number | null = null;
@@ -129,6 +130,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
             if (serviceId != null && pat.size !== 1) {
                 console.warn("multiplexed!");
             }
+            pmtRetrieved = false;
         }
         pidToProgramNumber = pat;
     });
@@ -308,10 +310,11 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         }
         pcr_pid = data.PCR_PID;
         pidToComponent = ptc;
-        if (componentToPid.size !== ctp.size || [...componentToPid.keys()].some((x) => !ctp.has(x))) {
+        if (!pmtRetrieved || componentToPid.size !== ctp.size || [...componentToPid.keys()].some((x) => !ctp.has(x))) {
             // PMTが変更された
             // console.log("PMT changed");
             componentToPid = ctp;
+            pmtRetrieved = true;
             const msg: wsApi.PMTMessage = {
                 type: "pmt",
                 components: [...componentToPid.values()]

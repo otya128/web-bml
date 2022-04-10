@@ -377,6 +377,7 @@ export class Resources {
                     mreqs.length = 0;
                 }
             }
+            this.setReceivingStatus();
             this.eventTarget.dispatchEvent<"pmtupdated">(new CustomEvent("pmtupdated", { detail: { components: this.pmtComponents, prevComponents } }));
         } else if (msg.type === "programInfo") {
             this.currentProgramInfo = msg;
@@ -561,7 +562,14 @@ export class Resources {
 
     private setReceivingStatus() {
         if (this.programInfoCallbacks.length != 0 || [...this.componentRequests.values()].some(x => x.moduleRequests.size != 0)) {
-            this.indicator?.setReceivingStatus(true);
+            // エントリコンポーネントが存在しない場合か空カルーセルの場合データ放送番組でないのでデータ取得中を表示させない
+            if (this.pmtRetrieved && !this.pmtComponents.has(this.startupComponentId)) {
+                this.indicator?.setReceivingStatus(false);
+            } else if (this.downloadComponents.get(this.startupComponentId)?.modules?.size === 0) {
+                this.indicator?.setReceivingStatus(false);
+            } else {
+                this.indicator?.setReceivingStatus(true);
+            }
         } else {
             this.indicator?.setReceivingStatus(false);
         }
