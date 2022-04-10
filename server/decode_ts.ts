@@ -26,6 +26,7 @@ type DownloadModuleInfo = {
     contentType?: string,
     blocks: (Buffer | undefined)[],
     downloadedBlockCount: number,
+    dataEventId: number,
 };
 
 type CachedModuleFile = {
@@ -37,6 +38,7 @@ type CachedModuleFile = {
 type CachedModule = {
     downloadModuleInfo: DownloadModuleInfo,
     files?: Map<string | null, CachedModuleFile>,
+    dataEventId: number,
 };
 
 type CachedComponent = {
@@ -509,6 +511,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                     moduleSize,
                     blocks: new Array(Math.ceil(moduleSize / blockSize)),
                     downloadedBlockCount: 0,
+                    dataEventId: data_event_id,
                 };
                 modules.set(moduleId, moduleInfo);
                 // console.log(`   moduleId: ${moduleId.toString(16).padStart(4, "0")} moduleVersion: ${moduleVersion}`)
@@ -538,6 +541,10 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                     returnToEntryFlag = !!(privateData.descriptor[0] & 0x80);
                 }
             }
+            const cachedComponent = cachedComponents.get(componentId);
+            if (downloadComponents.get(componentId)?.dataEventId !== componentInfo.dataEventId && cachedComponent != null) {
+                cachedComponent.modules.clear();
+            }
             send({
                 type: "moduleListUpdated",
                 componentId,
@@ -545,10 +552,6 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                 dataEventId: data_event_id,
                 returnToEntryFlag,
             });
-            const cachedComponent = cachedComponents.get(componentId);
-            if (cachedComponent != null) {
-                cachedComponent.modules.clear();
-            }
             downloadComponents.set(componentId, componentInfo);
         } else if (data.table_id === 0x3c) {
             if (bxmlInfo == null) {
@@ -583,6 +586,9 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
             if (moduleInfo.moduleVersion !== moduleVersion) {
                 return;
             }
+            if (moduleInfo.dataEventId !== data_event_id) {
+                return;
+            }
             if (moduleInfo.blocks.length <= blockNumber) {
                 return;
             }
@@ -598,15 +604,16 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                 };
                 const cachedModule: CachedModule = {
                     downloadModuleInfo: moduleInfo,
+                    dataEventId: data_event_id,
                 };
                 let moduleData = Buffer.concat(moduleInfo.blocks as Buffer[]);
-                if (moduleInfo.compressionType === CompressionType.Zlib) {
-                    moduleData = zlib.inflateSync(moduleData);
-                }
                 const previousCachedModule = cachedComponent.modules.get(moduleInfo.moduleId);
-                if (previousCachedModule != null && previousCachedModule.downloadModuleInfo.moduleVersion === moduleInfo.moduleVersion) {
+                if (previousCachedModule != null && previousCachedModule.downloadModuleInfo.moduleVersion === moduleInfo.moduleVersion && previousCachedModule.dataEventId === moduleInfo.dataEventId) {
                     // 更新されていない
                     return;
+                }
+                if (moduleInfo.compressionType === CompressionType.Zlib) {
+                    moduleData = zlib.inflateSync(moduleData);
                 }
                 const mediaType = moduleInfo.contentType == null ? null : parseMediaTypeFromString(moduleInfo.contentType);
                 // console.info(`component ${componentId.toString(16).padStart(2, "0")} module ${moduleId.toString(16).padStart(4, "0")}updated`);
