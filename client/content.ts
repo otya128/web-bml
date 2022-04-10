@@ -277,6 +277,15 @@ export class Content {
             this.eventQueue.processEventQueue();
         });
 
+        this.resources.addEventListener("moduleupdated", (event) => {
+            const { componentId, moduleId } = event.detail;
+            if (this.resources.activeDocument == null) {
+                if (componentId === this.resources.startupComponentId && moduleId === this.resources.startupModuleId) {
+                    this.resources.getProgramInfoAsync().then(_ => this.launchStartup());
+                }
+            }
+        });
+
         // TR-B14 第二分冊 2.1.10.3 PMT更新時の受信機動作
         this.resources.addEventListener("pmtupdated", (event) => {
             const { components, prevComponents } = event.detail;
@@ -304,7 +313,8 @@ export class Content {
                 (prevEntryPID != null && prevEntryPID !== currentEntryPID)) {
                 // エントリコンポーネントが消滅
                 if (currentEntryPID == null) {
-                    // FIXME: データ放送エンジンを終了
+                    this.quitDocument();
+                    return;
                 }
                 console.error("PID changed", prevPID, currentPID, prevEntryPID, currentEntryPID);
                 this.eventQueue.queueGlobalAsyncEvent(async () => {
@@ -447,7 +457,7 @@ export class Content {
         return this._context;
     }
 
-    private async loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
+    private async unloadDocument() {
         // スクリプトが呼ばれているときにさらにスクリプトが呼ばれることはないがonunloadだけ例外
         this.interpreter.resetStack();
         const onunload = this.getBody()?.getAttribute("arib-onunload");
@@ -458,8 +468,27 @@ export class Content {
                 return true;
             }
         }
-        this._context = { from: this.resources.activeDocument, to: documentName };
         this.interpreter.reset();
+        this.currentDateMode = 0;
+    }
+
+    public async quitDocument() {
+        await this.unloadDocument();
+        this.eventQueue.reset();
+        this.unloadAllDRCS();
+        this.resources.unlockModules();
+        this._context = { from: this.resources.activeDocument, to: null };
+        this.resources.activeDocument = null;
+        this.bmlEventTarget.dispatchEvent<"invisible">(new CustomEvent("invisible", { detail: true }));
+        const p = Array.from(this.documentElement.childNodes).filter(x => x.nodeName.toLowerCase() === "body" || x.nodeName.toLowerCase() === "head");
+        for (const n of p) {
+            n.remove();
+        }
+    }
+
+    private async loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
+        await this.unloadDocument();
+        this._context = { from: this.resources.activeDocument, to: documentName };
         this.resources.activeDocument = documentName;
         this.bmlDocument._currentFocus = null;
         // 提示中の文書と同一サービス内の別コンポーネントへの遷移の場合lockModuleOnMemoryでロックしたモジュールのロックは解除される TR-B14 第二分冊 表5-11
@@ -468,7 +497,6 @@ export class Content {
         if (prevComponent !== nextComponent) {
             this.resources.unlockModules("lockModuleOnMemory");
         }
-        this.currentDateMode = 0;
         await requestAnimationFrameAsync();
         await this.loadDocumentToDOM(decodeEUCJP(file.data));
         this.loadObjects();
@@ -653,7 +681,7 @@ export class Content {
         return NaN;
     }
 
-    public async launchStartup(): Promise<boolean> {
+    private async launchStartup(): Promise<boolean> {
         const module = `/${this.resources.startupComponentId.toString(16).padStart(2, "0")}/${this.resources.startupModuleId.toString(16).padStart(4, "0")}`;
         await this.resources.fetchResourceAsync(module);
         if (this.resources.fetchLockedResource(module + "/startup.bml")) {
@@ -662,6 +690,8 @@ export class Content {
         } else if (this.resources.fetchLockedResource(module)) {
             await this.launchDocumentAsync(module);
             return true;
+        } else {
+            this.quitDocument();
         }
         return false;
     }

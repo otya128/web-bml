@@ -188,4 +188,3 @@ if (tsUrlSubmit != null) {
         }
     });
 }
-bmlBrowser.launchStartupDocument();

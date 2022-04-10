@@ -146,11 +146,6 @@ export class BMLBrowser {
             document.fonts.add(font);
         }
     }
-    // スタートアップ文書を表示させる
-    public async launchStartupDocument(): Promise<void> {
-        await this.resources.getProgramInfoAsync();
-        await this.content.launchStartup();
-    }
 
     public emitMessage(msg: ResponseMessage) {
         if (msg.type === "programInfo") {

@@ -168,5 +168,3 @@ ws.addEventListener("message", (event) => {
     const msg = JSON.parse(event.data) as ResponseMessage;
     onMessage(msg);
 });
-
-bmlBrowser.launchStartupDocument();
