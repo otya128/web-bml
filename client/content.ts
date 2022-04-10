@@ -7,7 +7,7 @@ import { transpileCSS } from "./transpile_css";
 import { Buffer } from "buffer";
 import { BML } from "./interface/DOM";
 import { bmlToXHTMLFXP } from "./bml_to_xhtml";
-import { ResponseMessage } from "../server/ws_api";
+import { ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { Interpreter } from "./interpreter/interpreter";
 import { BMLBrowserEventTarget, Indicator } from "./bml_browser";
@@ -165,6 +165,7 @@ export class Content {
     private indicator?: Indicator;
     private fonts: FontFace[] = [];
     private readonly videoPlaneModeEnabled: boolean;
+    private currentProgramInfo?: Promise<ProgramInfoMessage>;
     public constructor(
         bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
@@ -281,7 +282,12 @@ export class Content {
             const { componentId, moduleId } = event.detail;
             if (this.resources.activeDocument == null) {
                 if (componentId === this.resources.startupComponentId && moduleId === this.resources.startupModuleId) {
-                    this.resources.getProgramInfoAsync().then(_ => this.launchStartup());
+                    if (this.currentProgramInfo == null) {
+                        this.currentProgramInfo = this.resources.getProgramInfoAsync();
+                        this.currentProgramInfo.then(_ => this.launchStartup());
+                    } else if (this.resources.eventId != null) {
+                        this.launchStartup();
+                    }
                 }
             }
         });
