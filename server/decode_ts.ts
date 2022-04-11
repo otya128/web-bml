@@ -45,7 +45,7 @@ type CachedComponent = {
     modules: Map<number, CachedModule>,
 };
 
-export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?: number, parsePES?: boolean): TsStream {
+export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?: number, parsePES?: boolean, dumpError?: boolean): TsStream {
     const tsStream = new TsStream();
     const tsUtil = new TsUtil();
     let pmtRetrieved = false;
@@ -62,19 +62,20 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
     tsStream.on("data", () => {
     });
 
-    tsStream.on("drop", (pid: any, counter: any, expected: any) => {
-        let time = "unknown";
+    if (dumpError) {
+        tsStream.on("drop", (pid: any, counter: any, expected: any) => {
+            let time = "unknown";
 
-        if (tsUtil.hasTime()) {
-            let date = tsUtil.getTime();
-            if (date) {
-                time = `${("0" + date.getHours()).slice(-2)}:${("0" + date.getMinutes()).slice(-2)}:${("0" + date.getSeconds()).slice(-2)}`;
+            if (tsUtil.hasTime()) {
+                let date = tsUtil.getTime();
+                if (date) {
+                    time = `${("0" + date.getHours()).slice(-2)}:${("0" + date.getMinutes()).slice(-2)}:${("0" + date.getSeconds()).slice(-2)}`;
+                }
             }
-        }
 
-        console.error(`pid: 0x${("000" + pid.toString(16)).slice(-4)}, counter: ${counter}, expected: ${expected}, time: ${time}`);
-        console.error("");
-    });
+            console.error(`pid: 0x${("000" + pid.toString(16)).slice(-4)}, counter: ${counter}, expected: ${expected}, time: ${time}`);
+        });
+    }
 
     tsStream.on("info", (data: any) => {
         console.error("");
@@ -363,6 +364,10 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
     });
 
     tsStream.on("bit", (_pid, data) => {
+        // FIXME: node-aribts側の問題でCRCが不一致だと変なobjBitが送られてきてしまう
+        if (data.broadcaster_descriptors == null) {
+            
+        }
         // data.first_descriptorsはSI伝送記述子のみ
         // 地上波だとbroadcaster_idは255
         const original_network_id: number = data.original_network_id;
@@ -397,6 +402,10 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         send(msg);
     });
     tsStream.on("eit", (pid, data) => {
+        // FIXME: node-aribts側の問題でCRCが不一致だと変なobjEitが送られてきてしまう
+        if (data.events == null) {
+            return;
+        }
         tsUtil.addEit(pid, data);
 
         let ids: any;
