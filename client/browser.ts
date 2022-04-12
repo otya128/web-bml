@@ -297,7 +297,7 @@ export class BrowserAPI {
             if (componentId == null || moduleId == null) {
                 return NaN;
             }
-            return this.resources.unlockModule(componentId, moduleId, false) ? 1 : NaN;
+            return this.resources.unlockModule(componentId, moduleId, "lockModuleOnMemory") ? 1 : NaN;
         },
         unlockModuleOnMemoryEx: (module: string | null | undefined): number => {
             console.log("unlockModuleOnMemoryEx", module);
@@ -305,7 +305,7 @@ export class BrowserAPI {
             if (componentId == null || moduleId == null) {
                 return NaN;
             }
-            return this.resources.unlockModule(componentId, moduleId, true) ? 1 : NaN;
+            return this.resources.unlockModule(componentId, moduleId, "lockModuleOnMemoryEx") ? 1 : NaN;
         },
         unlockAllModulesOnMemory: (): number => {
             console.log("unlockAllModulesOnMemory");

@@ -197,9 +197,16 @@ export class Resources {
         }
     }
 
-    public unlockModule(componentId: number, moduleId: number, isEx: boolean): boolean {
+    public unlockModule(componentId: number, moduleId: number, lockedBy?: "lockModuleOnMemory" | "lockModuleOnMemoryEx"): boolean {
         const m = this.lockedComponents.get(componentId);
         if (m != null) {
+            const lockedModule = m.modules.get(moduleId);
+            if (lockedModule == null) {
+                return false;
+            }
+            if (lockedModule.lockedBy !== lockedBy) {
+                return false;
+            }
             return m.modules.delete(moduleId);
         }
         return false;
