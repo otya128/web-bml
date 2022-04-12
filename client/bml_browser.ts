@@ -11,6 +11,16 @@ import { Resources } from "./resource";
 // @ts-ignore
 import defaultCSS from "../public/default.css";
 
+export interface AudioContextProvider {
+    getAudioContext(): AudioContext;
+}
+
+class DefaultAudioContextProvider implements AudioContextProvider {
+    getAudioContext(): AudioContext {
+        return new AudioContext();
+    }
+}
+
 export interface Indicator {
     // arib-dc://<..>/以降
     setUrl(name: string, loading: boolean): void;
@@ -84,6 +94,7 @@ export type BMLBrowserOptions = {
      * 動画像が配置されている部分が切り抜かれるためvideochangedイベントに合わせて動画を配置する
      */
     videoPlaneModeEnabled?: boolean;
+    audioContextProvider?: AudioContextProvider;
 };
 
 export class BMLBrowser {
@@ -124,10 +135,11 @@ export class BMLBrowser {
         this.epg = options.epg ?? {};
         this.interpreter = new JSInterpreter();
         this.eventQueue = new EventQueue(this.interpreter);
-        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget);
+        const audioContextProvider = options.audioContextProvider ?? new DefaultAudioContextProvider();
+        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioContextProvider);
         this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
         this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false);
-        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter);
+        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioContextProvider);
 
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);

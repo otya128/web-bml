@@ -32,16 +32,16 @@ function sine(sampleRate: number, i: number, freq: number) {
     return Math.sin(i / (sampleFreq / (Math.PI * 2)));
 }
 
-export function playRomSound(soundId: number) {
+export function playRomSound(soundId: number, context: AudioContext) {
     switch (soundId) {
         case 5:
-            playSound5();
+            playSound5(context);
             break;
         case 7:
-            playSound7();
+            playSound7(context);
             break;
         case 9:
-            playSound9();
+            playSound9(context);
             break;
         default:
             break;
@@ -49,8 +49,7 @@ export function playRomSound(soundId: number) {
 }
 
 // 選択音
-function playSound5() {
-    const context = new AudioContext();
+function playSound5(context: AudioContext) {
     const buf = new Float32Array(context.sampleRate * 0.2), volume = 0.1;
     const len = context.sampleRate * 0.2;
     for (let i = 0; i < len; i++) {
@@ -60,7 +59,7 @@ function playSound5() {
         buf[i] += sine(context.sampleRate, i, 4160) * volume * (1 - i / len);
     }
     for (let i = 0; i < len; i++) {
-        buf[i] += sine(context.sampleRate, i, 3640) * volume * 0.25  * (1 - i / len);
+        buf[i] += sine(context.sampleRate, i, 3640) * volume * 0.25 * (1 - i / len);
     }
     for (let i = 0; i < len; i++) {
         buf[i] += sine(context.sampleRate, i, 520) * volume * (1 - i / len);
@@ -71,8 +70,7 @@ function playSound5() {
 // 6は5の連続
 
 // 決定音
-function playSound7() {
-    const context = new AudioContext();
+function playSound7(context: AudioContext) {
     const buf = new Float32Array(context.sampleRate * 0.2), volume = 0.1;
     for (let i = 0; i < context.sampleRate * 0.05; i++) {
         buf[i] += sine(context.sampleRate, i, 2100) * volume;
@@ -89,8 +87,7 @@ function playSound7() {
 // 8は7の連続
 
 // 選択音
-function playSound9() {
-    const context = new AudioContext();
+function playSound9(context: AudioContext) {
     const buf = new Float32Array(context.sampleRate * 0.09), volume = 0.1;
     const len = context.sampleRate * 0.09;
     for (let i = 0; i < len; i++) {
