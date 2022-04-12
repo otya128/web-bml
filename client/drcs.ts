@@ -580,9 +580,16 @@ function writeCBDT(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
             for (let y = 0; y < strike.height; y++) {
                 for (let x = 0; x < strike.width; x++) {
                     // ひとまず線形補間でストライクの大きさに合わせた拡大縮小を行う
-                    const y1 = Math.floor(y / strike.height * g.height);
-                    const x1 = Math.floor(x / strike.width * g.width);
-                    writer.writeUInt8(Math.round(g.bitmap[x1 + y1 * g.width] / (g.depth - 1) * 255));
+                    const y1 = y / strike.height * g.height;
+                    const x1 = x / strike.width * g.width;
+                    const fx = x1 - Math.floor(x1);
+                    const fy = y1 - Math.floor(y1);
+                    let b = 0;
+                    b += g.bitmap[Math.floor(x1) + Math.floor(y1) * g.width] * (1 - fx) * (1 - fy);
+                    b += g.bitmap[Math.min(g.width - 1, Math.floor(x1 + 1)) + Math.floor(y1) * g.width] * (fx) * (1 - fy);
+                    b += g.bitmap[Math.floor(x1) + Math.min(g.height - 1, Math.floor(y1 + 1)) * g.width] * (1 - fx) * (fy);
+                    b += g.bitmap[Math.min(g.width - 1, Math.floor(x1 + 1)) + Math.min(g.height - 1, Math.floor(y1 + 1)) * g.width] * (fx) * (fy);
+                    writer.writeUInt8(Math.round(b / (g.depth - 1) * 255));
                 }
             }
         }
