@@ -537,7 +537,7 @@ function writeCBLC(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
         let sbitOffset = 0;
         for (let i = 1; i <= glyphs.length; i++) {
             const glyph = findBestBitmap(glyphs, strike, i);
-            sbitOffset += sizeofSmallGlyphMetrics + 1 * glyph.width * glyph.height;
+            sbitOffset += sizeofSmallGlyphMetrics + 1 * strike.width * strike.height;
             writer.writeUInt32BE(sbitOffset); // sbitOffsets
         }
         ebdtOffset += sbitOffset;
@@ -553,16 +553,15 @@ function findBestBitmap(glyphs: DRCSGlyphs[], strike: Strike, glyphIndex: number
     if (bitmaps.length === 1) {
         return bitmaps[0];
     }
-    // 可能な限りstrikeのwidth, heightに近くなおかつそれ以下の大きさの外字を選ぶ
-    const a = bitmaps.map(x => ({ score: (strike.width * strike.height) - (x.width * x.height), bitmap: x }));
+    // 可能な限りstrikeのwidth, heightに近くなおかつそれ以上の大きさの外字を選ぶ
+    const a = bitmaps.map(x => ({ score: (x.width * x.height) - (strike.width * strike.height), bitmap: x }));
     a.sort((a, b) => a.score - b.score);
     const bestSmall = a.find(x => x.score >= 0);
     if (bestSmall) {
         return bestSmall.bitmap;
     }
-    // 見つからなければ妥協して一番小さいのを返す
-    a.sort((a, b) => b.score - a.score);
-    return a[0]?.bitmap as DRCSGlyph;
+    // 見つからなければ妥協して一番大きいのを返す
+    return a[a.length - 1]?.bitmap as DRCSGlyph;
 }
 
 function writeCBDT(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
@@ -573,14 +572,17 @@ function writeCBDT(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     for (const strike of strikes) {
         for (let i = 1; i <= glyphs.length; i++) {
             const g = findBestBitmap(glyphs, strike, i);
-            writer.writeUInt8(g.height);
-            writer.writeUInt8(g.width);
+            writer.writeUInt8(strike.height);
+            writer.writeUInt8(strike.width);
             writer.writeUInt8(0); // bearingX
-            writer.writeUInt8(g.height + Math.round(-g.width * 123 / 1024)); // bearingY
-            writer.writeUInt8(g.width); // advance
-            for (let y = 0; y < g.height; y++) {
-                for (let x = 0; x < g.width; x++) {
-                    writer.writeUInt8(Math.round(g.bitmap[x + y * g.width] / (g.depth - 1) * 255));
+            writer.writeUInt8(strike.height + Math.round(-strike.width * 123 / 1024)); // bearingY
+            writer.writeUInt8(strike.width); // advance
+            for (let y = 0; y < strike.height; y++) {
+                for (let x = 0; x < strike.width; x++) {
+                    // ひとまず線形補間でストライクの大きさに合わせた拡大縮小を行う
+                    const y1 = Math.floor(y / strike.height * g.height);
+                    const x1 = Math.floor(x / strike.width * g.width);
+                    writer.writeUInt8(Math.round(g.bitmap[x1 + y1 * g.width] / (g.depth - 1) * 255));
                 }
             }
         }
