@@ -837,6 +837,7 @@ export namespace BML {
             return this.node.getAttribute("invisible") === "invisible";
         }
         public set invisible(v: boolean) {
+            v = Boolean(v);
             if (v) {
                 this.node.setAttribute("invisible", "invisible");
             } else {
