@@ -466,11 +466,16 @@ export class Content {
         this.interpreter.resetStack();
         const onunload = this.getBody()?.getAttribute("arib-onunload");
         if (onunload != null) {
+            this.eventDispatcher.setCurrentEvent({
+                target: null,
+                type: "unload",
+            });
             if (await this.eventQueue.executeEventHandler(onunload)) {
                 // readPersistentArray writePersistentArray unlockModuleOnMemoryEx unlockAllModulesOnMemoryしか呼び出せないので終了したらおかしい
                 console.error("onunload");
                 return true;
             }
+            this.eventDispatcher.resetCurrentEvent();
         }
         this.interpreter.reset();
         this.currentDateMode = 0;
@@ -556,9 +561,14 @@ export class Content {
             const onload = this.getBody()?.getAttribute("arib-onload");
             if (onload != null) {
                 console.debug("START ONLOAD");
+                this.eventDispatcher.setCurrentEvent({
+                    target: null,
+                    type: "load",
+                });
                 if (exit = await this.eventQueue.executeEventHandler(onload)) {
                     return true;
                 }
+                this.eventDispatcher.resetCurrentEvent();
                 console.debug("END ONLOAD");
             }
         }
