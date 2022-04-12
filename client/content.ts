@@ -354,11 +354,9 @@ export class Content {
         const aribBG = document.createElement("arib-bg");
         body.insertAdjacentElement("afterbegin", aribBG);
         if (videoElement != null) {
-            let bgJpeg: HTMLElement | null = body.querySelector("object[arib-type=\"image/jpeg\"]");
-            if ((bgJpeg?.compareDocumentPosition(videoElement) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING) {
-            } else {
-                bgJpeg = null;
-            }
+            const bgJpegs: HTMLElement[] = Array.from(body.querySelectorAll("object[arib-type=\"image/jpeg\"]")).filter(x => {
+                return (x.compareDocumentPosition(videoElement) & Node.DOCUMENT_POSITION_FOLLOWING) === Node.DOCUMENT_POSITION_FOLLOWING;
+            }) as HTMLElement[];
             const changed = () => {
                 // transformの影響を受けないbodyからの相対座標を算出
                 let element: HTMLElement | null = videoElement as HTMLElement;
@@ -374,7 +372,7 @@ export class Content {
                 const bottom = top + videoElement.clientHeight;
                 const clipPath = `polygon(0% 0%, 0% 100%, ${left}px 100%, ${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px, ${left}px 100%, 100% 100%, 100% 0%)`;
                 aribBG.style.clipPath = clipPath;
-                if (bgJpeg != null) {
+                for (const bgJpeg of bgJpegs) {
                     bgJpeg.style.clipPath = clipPath;
                 }
                 this.bmlEventTarget.dispatchEvent<"videochanged">(new CustomEvent("videochanged", { detail: { boundingRect: videoElement.getBoundingClientRect(), clientRect: { left, top, right, bottom } } }));
