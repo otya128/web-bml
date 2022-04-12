@@ -2476,7 +2476,9 @@ Interpreter.prototype['stepAssignmentExpression'] =
     case '+=':   value +=   rightValue; break;
     case '-=':   value -=   rightValue; break;
     case '*=':   value *=   rightValue; break;
-    case '/=':   value /=   rightValue; break;
+    case '/=':
+      value = Math.trunc(value / rightValue);
+      break;
     case '%=':   value %=   rightValue; break;
     case '<<=':  value <<=  rightValue; break;
     case '>>=':  value >>=  rightValue; break;
