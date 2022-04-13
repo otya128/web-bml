@@ -184,13 +184,25 @@ export namespace BML {
             return wrapNode(this.node.parentNode, this.ownerDocument);
         }
         public get firstChild(): Node | null {
-            return wrapNode(this.node.firstChild, this.ownerDocument);
+            let firstChild = this.node.firstChild;
+            if (firstChild != null && firstChild.nodeName.toLowerCase() === "arib-bg") {
+                firstChild = firstChild.nextSibling;
+            }
+            return wrapNode(firstChild, this.ownerDocument);
         }
         public get lastChild(): Node | null {
-            return wrapNode(this.node.lastChild, this.ownerDocument);
+            let lastChild = this.node.lastChild;
+            if (lastChild != null && lastChild.nodeName.toLowerCase() === "arib-bg") {
+                lastChild = null;
+            }
+            return wrapNode(lastChild, this.ownerDocument);
         }
         public get previousSibling(): Node | null {
-            return wrapNode(this.node.previousSibling, this.ownerDocument);
+            let previousSibling = this.node.previousSibling;
+            if (previousSibling != null && previousSibling.nodeName.toLowerCase() === "arib-bg") {
+                previousSibling = null;
+            }
+            return wrapNode(previousSibling, this.ownerDocument);
         }
         get nextSibling(): Node | null {
             return wrapNode(this.node.nextSibling, this.ownerDocument);
