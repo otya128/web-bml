@@ -1,4 +1,4 @@
-import { ComponentPMT, CurrentTime, MediaType, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
+import { ComponentPMT, MediaType, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
 import { Indicator } from "./bml_browser";
 
 type Module = {
@@ -283,12 +283,13 @@ export class Resources {
 
     private currentTimeNearestPCRBase?: number;
     private _currentTimeUnixMillis?: number;
+    private maxTOTIntervalMillis = 30 * 1000; // STD-B10的には30秒に1回は送る必要がある ただし実際の運用は5秒間隔で送られる
 
     public get currentTimeUnixMillis(): number | null {
         if (this._currentTimeUnixMillis != null && this.nearestPCRBase != null && this.currentTimeNearestPCRBase != null) {
             const pcr = this.nearestPCRBase - this.currentTimeNearestPCRBase;
             if (pcr > 0) {
-                return this._currentTimeUnixMillis + Math.floor(pcr / 90);
+                return this._currentTimeUnixMillis + Math.min(this.maxTOTIntervalMillis, Math.floor(pcr / 90));
             }
         }
         return this._currentTimeUnixMillis ?? null;
