@@ -297,7 +297,11 @@ export namespace BML {
             this.node = node;
         }
         public get tagName(): string {
-            return this.node.tagName.toLowerCase();
+            const tagName = this.node.tagName.toLowerCase();
+            if (tagName.startsWith("arib-")) {
+                return tagName.substring("arib-".length);
+            }
+            return tagName;
         }
     }
 
