@@ -366,7 +366,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
     tsStream.on("bit", (_pid, data) => {
         // FIXME: node-aribts側の問題でCRCが不一致だと変なobjBitが送られてきてしまう
         if (data.broadcaster_descriptors == null) {
-            
+            return;
         }
         // data.first_descriptorsはSI伝送記述子のみ
         // 地上波だとbroadcaster_idは255
@@ -627,7 +627,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                 if (moduleInfo.compressionType === CompressionType.Zlib) {
                     moduleData = zlib.inflateSync(moduleData);
                 }
-                const mediaType = moduleInfo.contentType == null ? null : parseMediaTypeFromString(moduleInfo.contentType);
+                const mediaType = moduleInfo.contentType == null ? null : parseMediaTypeFromString(moduleInfo.contentType).mediaType;
                 // console.info(`component ${componentId.toString(16).padStart(2, "0")} module ${moduleId.toString(16).padStart(4, "0")}updated`);
                 if (mediaType == null || (mediaType.type === "multipart" && mediaType.subtype === "mixed")) {
                     const parser = new EntityParser(moduleData);
@@ -648,15 +648,18 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
                                 continue;
                             }
                             const mediaType = parseMediaType(contentType.value);
-                            if (mediaType == null) {
-                                console.error("failed to parse Content-Type");
+                            if (mediaType.mediaType == null) {
+                                console.error("failed to parse Content-Type", entityHeaderToString(contentType));
                                 continue;
+                            }
+                            if (mediaType.error) {
+                                console.log("failed to parse Content-Type", entityHeaderToString(contentType));
                             }
                             const locationString = entityHeaderToString(location);
                             // console.log("    ", locationString, entityHeaderToString(contentType));
                             files.set(locationString, {
                                 contentLocation: locationString,
-                                contentType: mediaType,
+                                contentType: mediaType.mediaType,
                                 data: entity.body,
                             });
                         }

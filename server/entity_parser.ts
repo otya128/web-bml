@@ -73,7 +73,7 @@ export type Entity = {
     multipartBody: Entity[] | null,
 }
 
-export function parseMediaTypeFromString(mediaType: string): MediaType | null {
+export function parseMediaTypeFromString(mediaType: string): { mediaType: MediaType | null, error: boolean } {
     const parser = new EntityParser(Buffer.from(mediaType));
     const fv = parser.readFieldValue();
     return parseMediaType(fv);
@@ -121,7 +121,7 @@ export class EntityParser {
         const contentType = headers.find(x => x.name === "content-type");
         let multipartBody = null;
         if (contentType != null && contentType.name === "content-type") {
-            const mediaType = parseMediaType(contentType.value);
+            const mediaType = parseMediaType(contentType.value).mediaType;
             if (mediaType != null && mediaType.type === "multipart" && mediaType.subtype === "mixed") {
                 multipartBody = this.readMultipartEntityBody(mediaType);
             }
@@ -438,20 +438,26 @@ export class EntityParser {
 // value          = token | quoted-string
 // > The type, subtype, and parameter attribute names are case-insensitive.  Parameter values may or may not be case-sensitive, depending on the semantics of the parameter name
 // > Linear white space (LWS) MUST NOT be used between the type and subtype, nor between an attribute and its value.
-export function parseMediaType(tokens: FieldValue[]): MediaType | null {
+export function parseMediaType(tokens: FieldValue[]): { mediaType: MediaType | null, error: boolean } {
     let offset = 0;
     const type = tokens[offset];
     if (type?.type !== "token") {
-        return null;
+        return { mediaType: null, error: true };
     }
     offset++;
     if (tokens[offset]?.type !== "tspecials" || tokens[offset]?.value !== "/") {
-        return null;
+        return {
+            mediaType: { type: type.value.toLowerCase(), originalType: type.value, subtype: "", originalSubtype: "", parameters: [] },
+            error: true
+        };
     }
     offset++;
     const subtype = tokens[offset];
     if (type?.type !== "token") {
-        return null;
+        return {
+            mediaType: { type: type.value.toLowerCase(), originalType: type.value, subtype: "", originalSubtype: "", parameters: [] },
+            error: true
+        };
     }
     offset++;
     const parameters: MediaTypeParameter[] = [];
@@ -482,11 +488,17 @@ export function parseMediaType(tokens: FieldValue[]): MediaType | null {
         }
         const parameter = parseMediaTypeParameter();
         if (parameter == null) {
-            return null;
+            return {
+                mediaType: { type: type.value.toLowerCase(), originalType: type.value, subtype: subtype.value.toLowerCase(), originalSubtype: subtype.value, parameters },
+                error: true
+            };
         }
         parameters.push(parameter);
     }
-    return { type: type.value.toLowerCase(), originalType: type.value, subtype: subtype.value.toLowerCase(), originalSubtype: subtype.value, parameters };
+    return {
+        mediaType: { type: type.value.toLowerCase(), originalType: type.value, subtype: subtype.value.toLowerCase(), originalSubtype: subtype.value, parameters },
+        error: false
+    };
 }
 export type MediaType = {
     type: string,
