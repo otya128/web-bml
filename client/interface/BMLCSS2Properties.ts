@@ -20,8 +20,12 @@ export class BMLCSS2Properties {
 
     private setColorIndexVariable(bmlPropName: string, propName: keyof typeof this.declaration, value: DOMString | null) {
         this.declarationToSet.setProperty("--" + bmlPropName, value);
-        if (propName === "backgroundColor") {   
+        if (propName === "backgroundColor") {
             this.declarationToSet.setProperty("--background-color", colorIndexToVar(value) ?? "");
+            // videoPlaneModeEnabledの場合bodyにはbackground-colorを設定しない
+            if (this.declarationToSet.backgroundColor === "transparent") {
+                return;
+            }
         }
         this.declarationToSet[propName as any] = colorIndexToVar(value) ?? "";
     }
