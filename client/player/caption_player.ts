@@ -83,6 +83,8 @@ export class CaptionPlayer extends VideoPlayer {
                 ...this.captionOption,
                 svg: this.svg,
             });
+            this.svg.style.transform = `scaleY(${this.container.clientHeight / this.svg.clientHeight})`;
+            this.svg.style.transformOrigin = `0px 0px`;
         }
     }
 
