@@ -353,36 +353,59 @@ export class Content {
         body.style.setProperty("background", "transparent", "important");
         const aribBG = document.createElement("arib-bg");
         body.insertAdjacentElement("afterbegin", aribBG);
+        type Rect = { left: number, right: number, top: number, bottom: number };
+        function getRect(baseElement: HTMLElement, elem: HTMLElement): Rect {
+            let left = 0;
+            let top = 0;
+            let element: HTMLElement | null = elem;
+            while (element != null && element !== baseElement) {
+                left += element.offsetLeft;
+                top += element.offsetTop;
+                element = element.parentElement;
+            }
+            return { left, top, right: left + elem.clientWidth, bottom: top + elem.clientHeight };
+        }
+        function intersectRect(rect1: Rect, rect2: Rect): Rect | null {
+            if (rect1.left < rect2.right && rect2.left < rect1.right && rect1.top < rect2.bottom && rect2.top < rect1.bottom) {
+                const left = Math.max(rect1.left, rect2.left);
+                const right = Math.min(rect1.right, rect2.right);
+                const top = Math.max(rect1.top, rect2.top);
+                const bottom = Math.min(rect1.bottom, rect2.bottom);
+                return { left, top, right, bottom };
+            } else {
+                return null;
+            }
+        }
         if (videoElement != null) {
             const bgJpegs: HTMLElement[] = Array.from(body.querySelectorAll("object[arib-type=\"image/jpeg\"]")).filter(x => {
                 return (x.compareDocumentPosition(videoElement) & Node.DOCUMENT_POSITION_FOLLOWING) === Node.DOCUMENT_POSITION_FOLLOWING;
             }) as HTMLElement[];
             const changed = () => {
                 // transformの影響を受けないbodyからの相対座標を算出
-                let element: HTMLElement | null = videoElement as HTMLElement;
-                const body = this.getBody();
-                let left = 0;
-                let top = 0;
-                while (element != null && element !== body) {
-                    left += element.offsetLeft;
-                    top += element.offsetTop;
-                    element = element.parentElement;
-                }
-                const right = left + videoElement.clientWidth;
-                const bottom = top + videoElement.clientHeight;
-                const clipPath = `polygon(0% 0%, 0% 100%, ${left}px 100%, ${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px, ${left}px 100%, 100% 100%, 100% 0%)`;
+                const body = this.getBody()!;
+                const videoRect = getRect(body, videoElement as HTMLElement);
+                const clipPath = `polygon(0% 0%, 0% 100%, ${videoRect.left}px 100%, ${videoRect.left}px ${videoRect.top}px, ${videoRect.right}px ${videoRect.top}px, ${videoRect.right}px ${videoRect.bottom}px, ${videoRect.left}px ${videoRect.bottom}px, ${videoRect.left}px 100%, 100% 100%, 100% 0%)`;
                 aribBG.style.clipPath = clipPath;
                 for (const bgJpeg of bgJpegs) {
-                    bgJpeg.style.clipPath = clipPath;
+                    const jpegRect = getRect(body, bgJpeg);
+                    const intersect = intersectRect(videoRect, jpegRect);
+                    if (intersect != null) {
+                        intersect.left -= jpegRect.left;
+                        intersect.right -= jpegRect.left;
+                        intersect.top -= jpegRect.top;
+                        intersect.bottom -= jpegRect.top;
+                        bgJpeg.style.clipPath = `polygon(0% 0%, 0% 100%, ${intersect.left}px 100%, ${intersect.left}px ${intersect.top}px, ${intersect.right}px ${intersect.top}px, ${intersect.right}px ${intersect.bottom}px, ${intersect.left}px ${intersect.bottom}px, ${intersect.left}px 100%, 100% 100%, 100% 0%)`;
+                    } else {
+                        bgJpeg.style.clipPath = "";
+                    }
                 }
-                this.bmlEventTarget.dispatchEvent<"videochanged">(new CustomEvent("videochanged", { detail: { boundingRect: videoElement.getBoundingClientRect(), clientRect: { left, top, right, bottom } } }));
+                this.bmlEventTarget.dispatchEvent<"videochanged">(new CustomEvent("videochanged", { detail: { boundingRect: videoElement.getBoundingClientRect(), clientRect: videoRect } }));
             };
             const observer = new MutationObserver(changed);
-            observer.observe(videoElement, {
-                attributes: true,
-                childList: false,
-                subtree: false,
-            });
+            observer.observe(videoElement, { attributes: true });
+            for (const bgJpeg of bgJpegs) {
+                observer.observe(bgJpeg, { attributes: true });
+            }
             changed();
         }
     }
