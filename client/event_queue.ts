@@ -71,7 +71,26 @@ export class EventDispatcher {
         this.bmlDocument._currentEvent = new BML.BMLIntrinsicEvent(c);
     }
 
-    public setCurrentBeventEvent(a: BMLBeventEvent) {
+    public setCurrentBeventEvent(ev: Partial<BMLBeventEvent> & BMLEvent) {
+        const a: BMLBeventEvent = {
+            ...{
+                target: null,
+                status: 0,
+                privateData: "",
+                esRef: "",
+                messageId: 0,
+                messageVersion: 0,
+                messageGroupId: 0,
+                moduleRef: "",
+                languageTag: 0,
+                registerId: 0,
+                serviceId: 0,
+                eventId: 0,
+                peripheralRef: "",
+                object: null,
+                segmentId: null,
+            }, ...ev
+        };
         const { target: _1, object: _2, ...b } = a;
         const c = { target: BML.htmlElementToBMLHTMLElement(a.target, this.bmlDocument), object: BML.htmlElementToBMLHTMLElement(a.object, this.bmlDocument) as (BML.BMLObjectElement | null), ...b }
         this.bmlDocument._currentEvent = new BML.BMLBeventEvent(c);
@@ -99,19 +118,7 @@ export class EventDispatcher {
                             type: "ModuleLocked",
                             target: beitem as HTMLElement,
                             status,
-                            privateData: "",
-                            esRef: "",
-                            messageId: 0,
-                            messageVersion: 0,
-                            messageGroupId: 0,
                             moduleRef: module,
-                            languageTag: 0,//?
-                            registerId: 0,
-                            serviceId: 0,
-                            eventId: 0,
-                            peripheralRef: "",
-                            object: null,
-                            segmentId: null,
                         } as BMLBeventEvent);
                         if (await this.eventQueue.executeEventHandler(onoccur)) {
                             return true;
@@ -137,20 +144,8 @@ export class EventDispatcher {
                     type: "ModuleUpdated",
                     target: beitem as HTMLElement,
                     status,
-                    privateData: "",
-                    esRef: "",
-                    messageId: 0,
-                    messageVersion: 0,
-                    messageGroupId: 0,
                     moduleRef: module,
-                    languageTag: 0,//?
-                    registerId: 0,
-                    serviceId: 0,
-                    eventId: 0,
-                    peripheralRef: "",
-                    object: null,
-                    segmentId: null,
-                } as BMLBeventEvent);
+                });
                 if (await this.eventQueue.executeEventHandler(onoccur)) {
                     return true;
                 }
@@ -173,20 +168,7 @@ export class EventDispatcher {
                     type: "TimerFired",
                     target: beitem as HTMLElement,
                     status,
-                    privateData: "",
-                    esRef: "",
-                    messageId: 0,
-                    messageVersion: 0,
-                    messageGroupId: 0,
-                    moduleRef: "",
-                    languageTag: 0,//?
-                    registerId: 0,
-                    serviceId: 0,
-                    eventId: 0,
-                    peripheralRef: "",
-                    object: null,
-                    segmentId: null,
-                } as BMLBeventEvent);
+                });
                 if (await this.eventQueue.executeEventHandler(onoccur)) {
                     return true;
                 }
@@ -211,20 +193,7 @@ export class EventDispatcher {
                         type: "DataButtonPressed",
                         target: beitem as HTMLElement,
                         status: 0,
-                        privateData: "",
-                        esRef: "",
-                        messageId: 0,
-                        messageVersion: 0,
-                        messageGroupId: 0,
-                        moduleRef: "",
-                        languageTag: 0,
-                        registerId: 0,
-                        serviceId: 0,
-                        eventId: 0,
-                        peripheralRef: "",
-                        object: null,
-                        segmentId: null,
-                    } as BMLBeventEvent);
+                    });
                     if (await this.eventQueue.executeEventHandler(onoccur)) {
                         return true;
                     }

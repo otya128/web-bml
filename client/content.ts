@@ -242,19 +242,6 @@ export class Content {
                             type: "DataEventChanged",
                             target: elem as HTMLElement,
                             status: component.modules.size === 0 ? 1 : 0,
-                            privateData: "",
-                            esRef: "",
-                            messageId: 0,
-                            messageVersion: 0,
-                            messageGroupId: 0,
-                            moduleRef: "",
-                            languageTag: 0,//?
-                            registerId: 0,
-                            serviceId: 0,
-                            eventId: 0,
-                            peripheralRef: "",
-                            object: null,
-                            segmentId: null,
                         });
                         if (await this.eventQueue.executeEventHandler(onoccur)) {
                             return true;
@@ -1086,14 +1073,6 @@ export class Content {
                             messageId: eventMessageId,
                             messageVersion: eventMessageVersion,
                             messageGroupId: event.eventMessageGroupId,
-                            moduleRef: "",
-                            languageTag: 0,
-                            registerId: 0,
-                            serviceId: 0,
-                            eventId: 0,
-                            peripheralRef: "",
-                            object: null,
-                            segmentId: null,
                         });
                         if (await this.eventQueue.executeEventHandler(onoccur)) {
                             return true;
