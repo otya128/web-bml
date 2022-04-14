@@ -165,7 +165,7 @@ export class Content {
     private indicator?: Indicator;
     private fonts: FontFace[] = [];
     private readonly videoPlaneModeEnabled: boolean;
-    private currentProgramInfo?: Promise<ProgramInfoMessage>;
+    private loaded = false;
     public constructor(
         bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
@@ -282,11 +282,9 @@ export class Content {
             const { componentId, moduleId } = event.detail;
             if (this.resources.activeDocument == null) {
                 if (componentId === this.resources.startupComponentId && moduleId === this.resources.startupModuleId) {
-                    if (this.currentProgramInfo == null) {
-                        this.currentProgramInfo = this.resources.getProgramInfoAsync();
-                        this.currentProgramInfo.then(_ => this.launchStartup());
-                    } else if (this.resources.eventId != null) {
-                        this.launchStartup();
+                    if (!this.loaded) {
+                        this.loaded = true;
+                        this.resources.getProgramInfoAsync().then(_ => this.launchStartup());
                     }
                 }
             }
@@ -516,6 +514,7 @@ export class Content {
         for (const n of p) {
             n.remove();
         }
+        this.loaded = false;
     }
 
     private async loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
