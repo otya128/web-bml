@@ -66,12 +66,13 @@ export class CaptionPlayer extends VideoPlayer {
             }
             const provider: SVGProvider = new SVGProvider(pes, 0);
             const estimate = provider.render({
-                ... this.captionOption,
+                ...this.captionOption,
             });
             if (estimate == null) {
                 return;
             }
-            this.peses.push({ pes, pts, endTime: Number.isFinite(estimate.endTime) ? estimate.endTime * 1000 : Number.MAX_SAFE_INTEGER });
+            // 3分以上未受信ならば初期化する(TR-B14 第一分冊7.2.5.1)
+            this.peses.push({ pes, pts, endTime: Math.min(Number.isFinite(estimate.endTime) ? estimate.endTime * 1000 : Number.MAX_SAFE_INTEGER, 3 * 60 * 1000) });
             this.peses.sort((a, b) => a.pts - b.pts);
         }
     }
