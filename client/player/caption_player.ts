@@ -1,17 +1,17 @@
 import { SVGProvider, SVGRenderer } from "aribb24.js";
 import { VideoPlayer } from "./video_player";
 
-type RendererOption = ConstructorParameters<typeof SVGRenderer>[0];
-
+type ProviderOption = Exclude<Parameters<SVGProvider["render"]>[0], undefined>;
 // 別途PESを受け取って字幕を描画する
-// あんまり厳密じゃない
 export class CaptionPlayer extends VideoPlayer {
     svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    captionOption: RendererOption;
+    superSVG = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    captionOption: ProviderOption;
     public constructor(video: HTMLVideoElement, container: HTMLElement) {
         super(video, container);
         this.scale(1);
         this.container.append(this.svg);
+        this.container.append(this.superSVG);
         this.captionOption = {
             normalFont: "丸ゴシック",
             forceStrokeColor: "black",
@@ -24,6 +24,7 @@ export class CaptionPlayer extends VideoPlayer {
     pes: Uint8Array | undefined;
     pts: number | undefined;
     endTime: number | undefined;
+    superEndPCR: number | undefined;
 
     peses: {
         pes: Uint8Array,
@@ -42,6 +43,9 @@ export class CaptionPlayer extends VideoPlayer {
             this.pts = undefined;
             this.endTime = undefined;
         }
+        if (this.superEndPCR != null && this.superEndPCR < this.pcr) {
+            this.superSVG.replaceChildren();
+        }
         let pesIndex: number = this.peses.findIndex(x => x.pts > pcr);
         if (pesIndex === -1) {
             pesIndex = this.peses.length;
@@ -58,8 +62,8 @@ export class CaptionPlayer extends VideoPlayer {
         }
     }
 
-    public push(streamId: number, pes: Uint8Array, pts: number) {
-        if (streamId === 0xbd) {
+    public push(streamId: number, pes: Uint8Array, pts?: number) {
+        if (pts != null && streamId === 0xbd) {
             pts /= 90;
             if (this.pcr == null) {
                 return;
@@ -74,6 +78,29 @@ export class CaptionPlayer extends VideoPlayer {
             // 3分以上未受信ならば初期化する(TR-B14 第一分冊7.2.5.1)
             this.peses.push({ pes, pts, endTime: Math.min(Number.isFinite(estimate.endTime) ? estimate.endTime * 1000 : Number.MAX_SAFE_INTEGER, 3 * 60 * 1000) });
             this.peses.sort((a, b) => a.pts - b.pts);
+        } else if (streamId ===0xbf) {
+            if (this.pcr == null) {
+                return;
+            }
+            const estimate = new SVGProvider(pes, 0).render({
+                ...this.captionOption,
+                data_identifier: 0x81,
+            });
+            if (estimate == null) {
+                return;
+            }
+            const svgProvider = new SVGProvider(pes, 0);
+            svgProvider.render({
+                ...this.captionOption,
+                data_identifier: 0x81,
+                svg: this.superSVG,
+            });
+            this.superSVG.style.transform = `scaleY(${this.container.clientHeight / this.superSVG.clientHeight})`;
+            this.superSVG.style.transformOrigin = `0px 0px`;
+            this.superSVG.style.position = "absolute";
+            this.superSVG.style.left = "0px";
+            this.superSVG.style.top = "0px";
+            this.superEndPCR = this.pcr + Math.min(Number.isFinite(estimate.endTime) ? estimate.endTime * 1000 : Number.MAX_SAFE_INTEGER, 3 * 60 * 1000);
         }
     }
 

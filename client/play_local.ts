@@ -61,6 +61,8 @@ bmlBrowser.addEventListener("load", (evt) => {
     console.log("load", evt.detail);
     browserElement.style.width = evt.detail.resolution.width + "px";
     browserElement.style.height = evt.detail.resolution.height + "px";
+    ccContainer.style.width = evt.detail.resolution.width + "px";
+    ccContainer.style.height = evt.detail.resolution.height + "px";
 });
 
 window.addEventListener("keydown", (event) => {
@@ -97,9 +99,7 @@ remoteControl.player = player;
 
 function onMessage(msg: ResponseMessage) {
     if (msg.type === "pes") {
-        if (msg.pts != null) {
-            player.push(msg.streamId, Uint8Array.from(msg.data), msg.pts);
-        }
+        player.push(msg.streamId, Uint8Array.from(msg.data), msg.pts);
     } else if (msg.type === "pcr") {
         pcr = (msg.pcrBase + msg.pcrExtension / 300) / 90;
     }
@@ -137,7 +137,8 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
                 baseTime = nowTime;
                 basePCR = curPCR;
             } else if (curPCR != null && prevPCR < curPCR && baseTime != null && basePCR != null) {
-                const delay = (curPCR - basePCR) - (nowTime - baseTime);
+                const playingSpeed = 1.0;
+                const delay = ((curPCR - basePCR) / playingSpeed) - (nowTime - baseTime);
                 if (delay >= 1) {
                     await delayAsync(Math.min(delay, 10000));
                 } else if (delay < -1000) {
