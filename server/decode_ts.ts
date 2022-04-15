@@ -326,7 +326,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
 
 
     tsStream.on("packet", (pid, data) => {
-        if (privatePes.has(pid)) {
+        if (privatePes.has(pid) && data.data_byte != null) {
             const info = (tsStream.info as any)[pid];
             if (data.payload_unit_start_indicator) {
                 info.buffer.reset();
@@ -808,7 +808,14 @@ function decodePES(pes: Buffer): wsApi.PESMessage | null {
     pos++;
     const pesPacketLength = pes.readUInt16BE(pos);
     pos += 2;
-    if (streamId === 0xBE || streamId === 0xBF) {
+    if (streamId === 0xBF) {
+        return {
+            type: "pes",
+            data: Array.from(pes.subarray(pos, pos + pesPacketLength)),
+            streamId
+        };
+    }
+    if (streamId === 0xBE) {
         return null;
     }
     if ((pes[pos] >> 6) !== 0b10) {
