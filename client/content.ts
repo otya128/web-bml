@@ -507,7 +507,6 @@ export class Content {
     private async loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
         await this.unloadDocument();
         this._context = { from: this.resources.activeDocument, to: documentName };
-        this.resources.activeDocument = documentName;
         this.bmlDocument._currentFocus = null;
         // 提示中の文書と同一サービス内の別コンポーネントへの遷移の場合lockModuleOnMemoryでロックしたモジュールのロックは解除される TR-B14 第二分冊 表5-11
         const { componentId: nextComponent } = this.resources.parseURLEx(documentName);
@@ -515,6 +514,7 @@ export class Content {
         if (prevComponent !== nextComponent) {
             this.resources.unlockModules("lockModuleOnMemory");
         }
+        this.resources.activeDocument = documentName;
         await requestAnimationFrameAsync();
         await this.loadDocumentToDOM(decodeEUCJP(file.data));
         this.loadObjects();
