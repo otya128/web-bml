@@ -399,7 +399,7 @@ export class NVRAM {
             // 書き込める (TR-B14 第二分冊 5.2.7 表5-2参照)
         } else if (uri === "nvram://receiverinfo/zipcode") {
             localStorage.setItem(this.prefix + "prefix=receiverinfo%2Fzipcode", window.btoa(String.fromCharCode(...data).substring(0, 7)));
-            return NaN;
+            return data.length;
         }
         const binfo = this.getBroadcasterInfo();
         const result = this.findNvramArea(uri, binfo);
