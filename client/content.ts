@@ -166,6 +166,9 @@ export class Content {
     private fonts: FontFace[] = [];
     private readonly videoPlaneModeEnabled: boolean;
     private loaded = false;
+    // trueであれば厳密なテキストのレンダリングを有効にする
+    // letter-spacingなどの挙動の差異をどうにかする
+    private strictTextRenderingEnabled = true;
     public constructor(
         bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
@@ -395,6 +398,21 @@ export class Content {
         }
     }
 
+    private replaceTextCDATA(element: Node, result: Element[]) {
+        element.childNodes.forEach(e => {
+            if (e.nodeType === Node.COMMENT_NODE) {
+                return;
+            }
+            if (e.nodeType === Node.TEXT_NODE || e.nodeType === Node.CDATA_SECTION_NODE) {
+                result.push(e as Element);
+            } else {
+                if (e.nodeName.toLowerCase() !== "object") {
+                    this.replaceTextCDATA(e, result);
+                }
+            }
+        });
+    }
+
     private async loadDocumentToDOM(data: string): Promise<void> {
         const xhtmlDocument = new DOMParser().parseFromString(`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja"></html>`, "application/xhtml+xml");
         const documentElement = xhtmlDocument.createElement("html");
@@ -436,9 +454,37 @@ export class Content {
         if (videoElementNew != null) {
             videoElementNew.appendChild(this.videoContainer);
         }
+        if (this.strictTextRenderingEnabled) {
+            const t: Element[] = [];
+            this.replaceTextCDATA(newBody, t);
+            for (const e of t) {
+                const elem = document.createElement(e.nodeType === Node.TEXT_NODE ? "arib-text" : "arib-cdata");
+                elem.textContent = e.textContent;
+                e.replaceWith(elem);
+            }
+        }
         newBody.removeAttribute("arib-loading");
         for (const n of p) {
             n.remove();
+        }
+        if (this.strictTextRenderingEnabled) {
+            newBody.querySelectorAll("arib-text, arib-cdata").forEach(elem => {
+                const cd = BML.nodeToBMLNode(elem, this.bmlDocument) as unknown as BML.CharacterData;
+                cd.internalReflow();
+            });
+            const observer = new MutationObserver((recs) => {
+                for (const rec of recs) {
+                    (rec.target as Element).querySelectorAll("arib-text, arib-cdata").forEach(elem => {
+                        const cd = BML.nodeToBMLNode(elem, this.bmlDocument) as unknown as BML.CharacterData;
+                        cd.internalReflow();
+                    });
+                }
+            });
+            observer.observe(newBody, {
+                attributeFilter: ["style"],
+                attributes: true,
+                subtree: true,
+            });
         }
 
         if (this.videoPlaneModeEnabled) {

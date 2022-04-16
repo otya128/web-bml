@@ -265,3 +265,13 @@ arib-bg {
     left: 0px !important;
     top: 0px !important;
 }
+
+arib-text, arib-cdata {
+    display: inline !important;
+    font: inherit !important;
+    letter-spacing: inherit !important;
+    text-align: inherit !important;
+    line-height: inherit !important;
+    visibility: unset !important;
+    border: none !important;
+}

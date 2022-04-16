@@ -11,6 +11,7 @@ import { AudioContextProvider, BMLBrowserEventTarget } from "../bml_browser";
 import { convertJPEG } from "../arib_jpeg";
 import { aribMNGToCSSAnimation } from "../arib_mng";
 import { playAIFF } from "../arib_aiff";
+import { unicodeToJISMap } from "../unicode_to_jis_map";
 
 export namespace BML {
     type DOMString = string;
@@ -104,6 +105,10 @@ export namespace BML {
             return BMLBeventElement;
         } else if (node instanceof globalThis.HTMLElement && node.nodeName.toLowerCase() === "beitem") {
             return BMLBeitemElement;
+        } else if (node instanceof globalThis.HTMLElement && node.nodeName.toLowerCase() === "arib-cdata") {
+            return CDATASection;
+        } else if (node instanceof globalThis.HTMLElement && node.nodeName.toLowerCase() === "arib-text") {
+            return Text;
         } else if (node instanceof globalThis.HTMLBodyElement) {
             return BMLBodyElement;
         } else if (node instanceof globalThis.HTMLParagraphElement) {
@@ -212,14 +217,130 @@ export namespace BML {
     // impl
     export class CharacterData extends Node {
         protected node: globalThis.CharacterData;
+        protected textNode: globalThis.HTMLElement;
+        protected parentBlock: globalThis.HTMLElement;
+        protected root: ShadowRoot;
+        protected textNodeInRoot?: globalThis.CharacterData;
+        protected textData: string;
         constructor(node: globalThis.CharacterData, ownerDocument: BMLDocument) {
             super(node, ownerDocument);
+            // strictTextRenderingが有効の場合
+            if (node.nodeName.toLowerCase() === "arib-text" || node.nodeName.toLowerCase() === "arib-cdata") {
+                this.textNode = node as unknown as globalThis.HTMLElement;
+                this.textData = this.textNode.textContent ?? "";
+                this.textNode.replaceChildren();
+                this.root = this.textNode.attachShadow({ mode: "closed" });
+                this.parentBlock = this.getParentBlock()!;
+            } else {
+                this.textNode = undefined!;
+                this.root = undefined!;
+                this.textData = undefined!;
+                this.parentBlock = undefined!;
+            }
             this.node = node;
         }
+
+        private getParentBlock() {
+            let parent: globalThis.HTMLElement | null = this.textNode.parentElement;
+            while (parent != null) {
+                if (window.getComputedStyle(parent).display !== "inline") {
+                    return parent;
+                }
+                parent = parent.parentElement;
+            }
+            return null;
+        }
+
+        private flowText(text: string) {
+            const nextElement = this.textNode.nextElementSibling;
+            const computedStyle = window.getComputedStyle(this.textNode);
+            if (computedStyle.letterSpacing === "normal" || computedStyle.letterSpacing === "0px") {
+                if (this.textNodeInRoot == null) {
+                    // shadow DOMの中なので外の* {}のようなCSSは適用されない一方プロパティは継承される
+                    this.textNodeInRoot = document.createTextNode(text);
+                    this.root.replaceChildren(this.textNodeInRoot);
+                }
+                return;
+            }
+            if (this.textNodeInRoot != null) {
+                this.textNodeInRoot = undefined;
+            }
+            const left = this.textNode.clientLeft;
+            const top = this.textNode.clientTop;
+            const parent = this.parentBlock;
+            const width = parent.clientWidth;
+            let fontSize = Number.parseInt(computedStyle.fontSize);
+            if (Number.isNaN(fontSize)) {
+                fontSize = 16;
+            }
+            let letterSpacing = Number.parseInt(computedStyle.letterSpacing);
+            if (Number.isNaN(letterSpacing)) {
+                letterSpacing = 0;
+            }
+            let lineHeight = Number.parseInt(computedStyle.lineHeight);
+            if (Number.isNaN(lineHeight)) {
+                lineHeight = fontSize * 1;
+            }
+            let x = left;
+            let y = top;
+            const children: globalThis.Node[] = [];
+            for (let i = 0; i < text.length; i++) {
+                const c = text.charAt(i);
+                const isLast = nextElement != null && i === text.length - 1;
+                if (c === "\r") {
+                    continue;
+                }
+                if (c === "\n") {
+                    const char = document.createTextNode("\n");
+                    children.push(char);
+                    x = 0;
+                    y += lineHeight;
+                    continue;
+                }
+                const isFull = c.charCodeAt(0) in unicodeToJISMap;
+                const char = document.createElement("span");
+                char.textContent = c;
+                char.style.display = "inline-block";
+                char.style.textAlign = "center";
+                const fontWidth = isFull ? fontSize : fontSize / 2;
+                char.style.width = `${fontWidth}px`;
+                char.style.lineHeight = `${lineHeight}px`;
+                if (x + fontWidth > width) {
+                    x = 0;
+                    y += lineHeight;
+                }
+                // レタースペーシングは折り返し前と最後には付かない (STD-B24 第二分冊 (2/2) 第二編 付属１ 6.3.2参照)
+                if (!isLast && x + fontWidth + letterSpacing <= width) {
+                    char.style.marginRight = `${letterSpacing}px`;
+                    x += letterSpacing;
+                }
+                children.push(char);
+                x += fontWidth;
+            }
+            this.root.replaceChildren(...children);
+        }
+
+        public internalReflow() {
+            this.flowText(this.data);
+        }
+
         public get data(): string {
+            if (this.textNode) {
+                return this.textData;
+            }
             return this.node.data;
         }
         public set data(value: string) {
+            value = String(value);
+            if (this.textNode) {
+                this.textData = value;
+                if (this.textNodeInRoot != null) {
+                    this.textNodeInRoot.data = value;
+                } else {
+                    this.flowText(value);
+                }
+                return;
+            }
             this.node.data = value;
         }
         public get length(): number {
