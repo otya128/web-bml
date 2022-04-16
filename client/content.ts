@@ -957,29 +957,29 @@ export class Content {
         if (k === AribKeyCode.DataButton) {
             return;
         }
-        const focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
-        if (!focusElement) {
-            return;
-        }
-        const computedStyle = window.getComputedStyle(this.getBody()!);
-        const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
-        if (usedKeyList.length && usedKeyList[0] === "none") {
-            return;
-        }
-        const keyGroup = keyCodeToKeyGroup.get(k);
-        if (keyGroup == null) {
-            return;
-        }
-        if (usedKeyList.length === 0) {
-            if (keyGroup !== "basic" && keyGroup !== "data-button") {
-                return;
+        this.eventQueue.queueAsyncEvent(async () => {
+            const focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
+            if (!focusElement) {
+                return false;
             }
-        } else if (!usedKeyList.some(x => x === keyGroup)) {
-            return;
-        }
-        const onkeyup = focusElement.getAttribute("onkeyup");
-        if (onkeyup) {
-            this.eventQueue.queueAsyncEvent(async () => {
+            const computedStyle = window.getComputedStyle(this.getBody()!);
+            const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
+            if (usedKeyList.length && usedKeyList[0] === "none") {
+                return false;
+            }
+            const keyGroup = keyCodeToKeyGroup.get(k);
+            if (keyGroup == null) {
+                return false;
+            }
+            if (usedKeyList.length === 0) {
+                if (keyGroup !== "basic" && keyGroup !== "data-button") {
+                    return false;
+                }
+            } else if (!usedKeyList.some(x => x === keyGroup)) {
+                return false;
+            }
+            const onkeyup = focusElement.getAttribute("onkeyup");
+            if (onkeyup) {
                 this.eventDispatcher.setCurrentIntrinsicEvent({
                     keyCode: k,
                     type: "keyup",
@@ -997,10 +997,10 @@ export class Content {
                     }
                 }
                 this.eventDispatcher.resetCurrentEvent();
-                return false;
-            });
-            this.eventQueue.processEventQueue();
-        }
+            }
+            return false;
+        });
+        this.eventQueue.processEventQueue();
     }
 
     private clutToDecls(table: number[][]): css.Declaration[] {
