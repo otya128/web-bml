@@ -69,6 +69,14 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
     } else if (node.type === "rule") {
         const rule = node as css.Rule;
         if (rule.declarations) {
+            if (rule.selectors != null) {
+                // てきとうだけど使えるセレクタの制約が大きいので大体なんとかなる
+                rule.selectors = rule.selectors.map(selector => {
+                    return selector.replace(/(?<=\s*):(focus|active)(?=\s*)/i, (_substring: string, pseudoClass: string) => {
+                        return ".arib-" + pseudoClass;
+                    });
+                });
+            }
             let clut: string | undefined;
             for (let i = 0; i < rule.declarations.length; i++) {
                 const decl = rule.declarations[i];
