@@ -487,64 +487,64 @@ export class BinaryTable implements IBinaryTable {
                 let result = false;
                 switch (operator) {
                     case SearchOperator.Equal:
-                        result = column == compared;
+                        result = column == Number(compared);
                         break;
                     case SearchOperator.NotEqual:
-                        result = column != compared;
+                        result = column != Number(compared);
                         break;
                     case SearchOperator.Less: // <
-                        result = column < compared;
+                        result = column < Number(compared);
                         break;
                     case SearchOperator.LessEqual: // <=
-                        result = column <= compared;
+                        result = column <= Number(compared);
                         break;
                     case SearchOperator.Greater: // >
-                        result = column > compared;
+                        result = column > Number(compared);
                         break;
                     case SearchOperator.GreaterEqual: // >=
-                        result = column >= compared;
+                        result = column >= Number(compared);
                         break;
                     case SearchOperator.And: // &
-                        result = !!(column & compared);
+                        result = !!(column & Number(compared));
                         break;
                     case SearchOperator.Or: // |
-                        result = !!(column | compared);
+                        result = !!(column | Number(compared));
                         break;
                     case SearchOperator.Xor: // ^
-                        result = !!(column ^ compared);
+                        result = !!(column ^ Number(compared));
                         break;
                     case SearchOperator.Nand: // ~&
-                        result = !!~(column & compared);
+                        result = !!~(column & Number(compared));
                         break;
                     case SearchOperator.Nor: // ~|
-                        result = !!~(column | compared);
+                        result = !!~(column | Number(compared));
                         break;
                     case SearchOperator.Nxor: // ~^
-                        result = !!~(column ^ compared);
+                        result = !!~(column ^ Number(compared));
                         break;
                     case SearchOperator.StringMatches:
-                        result = column === compared;
+                        result = column === String(compared);
                         break;
                     case SearchOperator.StringIncludes:
-                        result = (column as string).includes(compared);
+                        result = String(column).includes(compared);
                         break;
                     case SearchOperator.StringStarsWith:
-                        result = (column as string).startsWith(compared);
+                        result = String(column).startsWith(compared);
                         break;
                     case SearchOperator.StringEndsWith:
-                        result = (column as string).endsWith(compared);
+                        result = String(column).endsWith(compared);
                         break;
                     case SearchOperator.StringNotMatch:
-                        result = column !== compared;
+                        result = column !== String(compared);
                         break;
                     case SearchOperator.StringNotInclude:
-                        result = !(column as string).includes(compared);
+                        result = !String(column).includes(compared);
                         break;
                     case SearchOperator.BoolEqualTo:
-                        result = column === compared;
+                        result = column === Boolean(compared);
                         break;
                     case SearchOperator.BoolNotEqualTo:
-                        result = column !== compared;
+                        result = column !== Boolean(compared);
                         break;
                     case SearchOperator.ZipInclude:
                         result = zipCodeInclude(column as ZipCode, Number(compared))
