@@ -71,7 +71,7 @@ export interface Browser {
     getConnectionType(): number;
     isIPConnected(): number;
     confirmIPNetwork(destination: string, confirmType: number, timeout?: number): [boolean, string | null, number | null] | null;
-    transmitTextDataOverIP(uri: string, text: string, charset: string): [number, string, string];
+    // async transmitTextDataOverIP(uri: string, text: string, charset: string): [number, string, string];
     // 非運用
     // saveHttpServerFileAs
     // saveHttpServerFile
@@ -143,7 +143,7 @@ export interface Browser {
     // 受信機音声制御
     playRomSound(soundID: string): number;
     // タイマ機能
-    sleep(interval: number): number | null;
+    // async sleep(interval: number): number | null;
     // setTimeout(func: string, interval: number): number;
     setInterval(func: string, interval: number, iteration: number): number;
     clearTimer(timerID: number): number;
@@ -151,7 +151,7 @@ export interface Browser {
     resumeTimer(timerID: number): number;
     setCurrentDateMode(time_mode: number): number;
     // 外字機能
-    loadDRCS(DRCS_ref: string): number;
+    // async loadDRCS(DRCS_ref: string): number;
     // unloadDRCS(): number;
     // 外部機器制御機能
     // 運用しない
@@ -189,7 +189,15 @@ export interface Browser {
     // AITコントロールドアプリケーション連携機能
     // オプション
     // CS事業者専用領域に対する放送用拡張関数 (TR-B15 第四分冊)
-    X_CSP_setAccessInfoToProviderArea(filename: string, structure: string): number;
+    // async X_CSP_setAccessInfoToProviderArea(filename: string, structure: string): number;
+}
+
+export interface AsyncBrowser {
+    loadDRCS(DRCS_ref: string): Promise<number>;
+    transmitTextDataOverIP(uri: string, text: string, charset: string): Promise<[number, string, string]>;
+    sleep(interval: number): Promise<number | null>;
+    unlockScreen(): Promise<number>;
+    X_CSP_setAccessInfoToProviderArea(filename: string, structure: string): Promise<number>;
 }
 
 export class BrowserAPI {
@@ -210,6 +218,65 @@ export class BrowserAPI {
         this.interpreter = interpreter;
         this.audioContextProvider = audioContextProvider;
     }
+
+    asyncBrowser: AsyncBrowser = {
+        loadDRCS: async (DRCS_ref: string): Promise<number> => {
+            console.log("loadDRCS", DRCS_ref);
+            const res = this.resources.fetchLockedResource(DRCS_ref) ?? await this.resources.fetchResourceAsync(DRCS_ref);
+            if (res?.data == null) {
+                return NaN;
+            }
+            for (const [id, fontFamily] of [
+                [1, "丸ゴシック"],
+                [2, "角ゴシック"],
+                [3, "太丸ゴシック"],
+            ]) {
+                const glyph = drcs.loadDRCS(Buffer.from(res.data), id as number);
+                const { ttf, unicodeCharacters } = drcs.toTTF(glyph);
+                if (unicodeCharacters.length === 0) {
+                    continue;
+                }
+                this.content.addDRCSFont(new FontFace(fontFamily as string, ttf, {
+                    unicodeRange: unicodeCharacters.map(x => "U+" + x.toString(16)).join(","),
+                }));
+            }
+            return 1;
+        },
+        transmitTextDataOverIP: async (uri: string, text: string, charset: string): Promise<[number, string, string]> => {
+            console.error("transmitTextDataOverIP");
+            return [NaN, "", ""];
+        },
+        sleep: async (interval: number): Promise<number | null> => {
+            return new Promise<number | null>((resolve) => {
+                console.log("SLEEP ", interval);
+                setTimeout(() => {
+                    console.log("END SLEEP ", interval);
+                    resolve(1);
+                }, interval);
+            });
+        },
+        unlockScreen: async (): Promise<number> => {
+            return new Promise<number>((resolve) => {
+                requestAnimationFrame(() => {
+                    resolve(1);
+                });
+            });
+        },
+        X_CSP_setAccessInfoToProviderArea: async (filename: string, structure: string): Promise<number> => {
+            if (structure !== "S:1V,U:2B") {
+                return NaN;
+            }
+            const res = await this.resources.fetchResourceAsync(filename)
+            if (res?.data == null) {
+                return NaN
+            } else if (this.nvram.cspSetAccessInfoToProviderArea(res.data)) {
+                return 1;
+            } else {
+                return NaN;
+            }
+        }
+    };
+
     browser: Browser = {
         Ureg: [...new Array(64)].map(_ => ""),
         Greg: [...new Array(64)].map(_ => ""),
@@ -538,38 +605,6 @@ export class BrowserAPI {
             }
             console.error("getProgramID", type);
             return null;
-        },
-        sleep(interval: number): number | null {
-            var xhr = new XMLHttpRequest();
-            xhr.open("GET", "/api/sleep?ms=" + interval, false);
-            xhr.send(null);
-            return 1;
-        },
-        loadDRCS: (DRCS_ref: string): number => {
-            console.log("loadDRCS", DRCS_ref);
-            const { componentId, moduleId, filename } = this.resources.parseURLEx(DRCS_ref);
-            if (componentId == null || moduleId == null) {
-                return NaN;
-            }
-            const res = this.resources.fetchLockedResource(DRCS_ref);
-            if (res?.data == null) {
-                return NaN;
-            }
-            for (const [id, fontFamily] of [
-                [1, "丸ゴシック"],
-                [2, "角ゴシック"],
-                [3, "太丸ゴシック"],
-            ]) {
-                const glyph = drcs.loadDRCS(Buffer.from(res.data), id as number);
-                const { ttf, unicodeCharacters } = drcs.toTTF(glyph);
-                if (unicodeCharacters.length === 0) {
-                    continue;
-                }
-                this.content.addDRCSFont(new FontFace(fontFamily as string, ttf, {
-                    unicodeRange: unicodeCharacters.map(x => "U+" + x.toString(16)).join(","),
-                }));
-            }
-            return 1;
         },
         playRomSound: (soundID: string): number => {
             console.log("playRomSound", soundID);

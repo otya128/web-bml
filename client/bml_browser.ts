@@ -144,7 +144,7 @@ export class BMLBrowser {
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
-        this.interpreter.setupEnvironment(this.browserAPI.browser, this.resources, this.content, this.epg, this.nvram);
+        this.interpreter.setupEnvironment(this.browserAPI.browser, this.browserAPI.asyncBrowser, this.resources, this.content, this.epg, this.nvram);
         if (options.fonts?.roundGothic) {
             this.fonts.push(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));
         }

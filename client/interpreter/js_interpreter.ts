@@ -10,21 +10,7 @@ const eventTrace = getTrace("js-interpreter.event");
 const browserLog = getLog("js-interpreter.browser");
 const interpreterTrace = getTrace("js-interpreter");
 
-function sleep(ms: number, callback: (result: any, resolveValue: any) => void) {
-    browserLog("SLEEP ", ms);
-    setTimeout(() => {
-        browserLog("END SLEEP ", ms);
-        callback(1, true);
-    }, ms);
-}
-
 const LAUNCH_DOCUMENT_CALLED = {};
-
-function unlockScreen(callback: (result: any, promiseValue: any) => void) {
-    requestAnimationFrame(() => {
-        callback(1, undefined);
-    });
-}
 
 /*
  * Object
@@ -44,7 +30,7 @@ function unlockScreen(callback: (result: any, promiseValue: any) => void) {
 
 import { BML } from "../interface/DOM";
 import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
-import { Browser } from "../browser";
+import { AsyncBrowser, Browser } from "../browser";
 import * as bmlDate from "../date";
 import * as bmlNumber from "../number";
 import * as bmlString from "../string";
@@ -262,7 +248,7 @@ export class JSInterpreter implements Interpreter {
 
     public reset() {
         const content = this.content;
-        function launchDocument(documentName: string, transitionStyle: string | undefined, callback: (result: any, promiseValue: any) => void): void {
+        function launchDocument(callback: (result: any, promiseValue: any) => void, documentName: string, transitionStyle: string | undefined): void {
             browserLog("launchDocument", documentName, transitionStyle);
             const r = content.launchDocument(documentName);
             callback(r, LAUNCH_DOCUMENT_CALLED);
@@ -276,7 +262,7 @@ export class JSInterpreter implements Interpreter {
 
         const epg = this.epg;
         const resources = this.resources;
-        function epgTune(service_ref: string, callback: (result: any, promiseValue: any) => void): void {
+        function epgTune(callback: (result: any, promiseValue: any) => void, service_ref: string): void {
             browserLog("%cepgTune", "font-size: 4em", service_ref);
             const { originalNetworkId, transportStreamId, serviceId } = resources.parseServiceReference(service_ref);
             if (originalNetworkId == null || transportStreamId == null || serviceId == null) {
@@ -287,6 +273,7 @@ export class JSInterpreter implements Interpreter {
             }
         }
         const browser = this.browser;
+        const asyncBrowser = this.asyncBrowser;
         this.interpreter = new Interpreter("", (interpreter: any, globalObject: any) => {
             interpreter.setProperty(globalObject, "___log", interpreter.createNativeFunction(function log(log: string) {
                 eventTrace(log);
@@ -319,11 +306,17 @@ export class JSInterpreter implements Interpreter {
             }
 
             interpreter.setProperty(globalObject, "browser", pseudoBrowser);
-            interpreter.setProperty(pseudoBrowser, "sleep", interpreter.createAsyncFunction(sleep));
+            for (const prop in asyncBrowser) {
+                const asyncFunc = (asyncBrowser as any)[prop];
+                interpreter.setProperty(pseudoBrowser, prop, interpreter.createAsyncFunction(function asyncWrap(callback: (result: any, resolveValue: any) => void, ...args: any[]): void {
+                    (asyncFunc(...args.map(x => interpreter.pseudoToNative(x))) as Promise<any>).then(result => {
+                        callback(interpreter.nativeToPseudo(result), undefined);
+                    });
+                }));
+            }
             interpreter.setProperty(pseudoBrowser, "launchDocument", interpreter.createAsyncFunction(launchDocument));
             interpreter.setProperty(pseudoBrowser, "reloadActiveDocument", interpreter.createAsyncFunction(reloadActiveDocument));
             interpreter.setProperty(pseudoBrowser, "epgTune", interpreter.createAsyncFunction(epgTune));
-            interpreter.setProperty(pseudoBrowser, "unlockScreen", interpreter.createAsyncFunction(unlockScreen));
             interpreter.setProperty(pseudoBrowser, "readPersistentArray", interpreter.createNativeFunction(function readPersistentArray(filename: string, structure: string): any[] | null {
                 return interpreter.arrayNativeToPseudo(browser.readPersistentArray(filename, structure));
             }));
@@ -331,7 +324,7 @@ export class JSInterpreter implements Interpreter {
                 return browser.writePersistentArray(filename, structure, interpreter.arrayPseudoToNative(data), period);
             }));
             const resources = this.resources;
-            interpreter.setProperty(pseudoBrowser, "getProgramID", interpreter.createAsyncFunction(function getProgramID(type: number, callback: (result: any, promiseValue: any) => void) {
+            interpreter.setProperty(pseudoBrowser, "getProgramID", interpreter.createAsyncFunction(function getProgramID(callback: (result: any, promiseValue: any) => void, type: number) {
                 resources.getProgramInfoAsync().then(_ => {
                     const pid = browser.getProgramID(type);
                     callback(pid, undefined);
@@ -341,22 +334,7 @@ export class JSInterpreter implements Interpreter {
             this.registerDOMClasses(interpreter, globalObject);
             interpreter.setProperty(globalObject, "document", this.domObjectToPseudo(interpreter, this.content.bmlDocument));
 
-            interpreter.setProperty(pseudoBrowser, "X_CSP_setAccessInfoToProviderArea", interpreter.createAsyncFunction((filename: string, structure: string, callback: (result: number, promiseValue: any) => void): void => {
-                if (structure !== "S:1V,U:2B") {
-                    callback(NaN, undefined);
-                    return;
-                }
-                resources.fetchResourceAsync(filename).then(x => {
-                    if (x?.data == null) {
-                        callback(NaN, undefined);
-                    } else if (this.nvram.cspSetAccessInfoToProviderArea(x.data)) {
-                        callback(1, undefined);
-                    } else {
-                        callback(NaN, undefined);
-                    }
-                });
-            }));
-            const pseudoBinaryTable = interpreter.createAsyncFunction(function BinaryTable(this: any, table_ref: string, structure: string, callback: (result: any, resolveValue: any) => void) {
+            const pseudoBinaryTable = interpreter.createAsyncFunction(function BinaryTable(this: any, callback: (result: any, resolveValue: any) => void, table_ref: string, structure: string) {
                 resources.fetchResourceAsync(table_ref).then(res => {
                     if (!res) {
                         browserLog("BinaryTable", table_ref, "not found");
@@ -499,6 +477,7 @@ export class JSInterpreter implements Interpreter {
     _isExecuting: boolean;
     // lazyinit
     browser: Browser = null!;
+    asyncBrowser: AsyncBrowser = null!;
     resources: Resources = null!;
     content: Content = null!;
     epg: EPG = null!;
@@ -507,8 +486,9 @@ export class JSInterpreter implements Interpreter {
         this._isExecuting = false;
     }
 
-    public setupEnvironment(browser: Browser, resources: Resources, content: Content, epg: EPG, nvram: NVRAM): void {
+    public setupEnvironment(browser: Browser, asyncBrowser: AsyncBrowser, resources: Resources, content: Content, epg: EPG, nvram: NVRAM): void {
         this.browser = browser;
+        this.asyncBrowser = asyncBrowser;
         this._isExecuting = false;
         this.resources = resources;
         this.content = content;

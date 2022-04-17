@@ -1,5 +1,5 @@
 import { EPG } from "../bml_browser";
-import { Browser } from "../browser";
+import { AsyncBrowser, Browser } from "../browser";
 import { Content } from "../content";
 import { NVRAM } from "../nvram";
 import { Resources } from "../resource";
@@ -13,5 +13,5 @@ export interface Interpreter {
     destroyStack(): void;
     resetStack(): void;
     get isExecuting(): boolean;
-    setupEnvironment(browser: Browser, resources: Resources, content: Content, epg: EPG, nvram: NVRAM): void;
+    setupEnvironment(browser: Browser, asyncBrowser: AsyncBrowser, resources: Resources, content: Content, epg: EPG, nvram: NVRAM): void;
 }
