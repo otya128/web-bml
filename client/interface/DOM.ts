@@ -168,10 +168,15 @@ export namespace BML {
         if (!isFocusable(node["node"])) {
             return;
         }
+        if (prevFocus != null) {
+            prevFocus["node"].classList.remove("arib-focus");
+            prevFocus["node"].classList.remove("arib-active");
+        }
         ownerDocument._currentFocus = node;
         if (prevFocus != null) {
             eventQueue.queueSyncEvent({ type: "blur", target: prevFocus["node"] });
         }
+        node["node"].classList.add("arib-focus");
         eventQueue.queueSyncEvent({ type: "focus", target: node["node"] });
     }
     function blur(node: HTMLElement, ownerDocument: BMLDocument, eventQueue: EventQueue) {
@@ -449,7 +454,7 @@ export namespace BML {
             return this.node.id;
         }
         public get className(): string {
-            return this.node.className;
+            return this.node.className.replace(/\s*arib-(focus|blur)\s*/gi, " ").trim();
         }
     }
 
