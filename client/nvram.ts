@@ -407,16 +407,16 @@ export class NVRAM {
     private writeNVRAM(uri: string, data: Uint8Array, force: boolean): number {
         // 書き込めない (TR-B14 第二分冊 5.2.7 表5-2参照)
         if (uri === "nvram://receiverinfo/prefecture") {
-            if (force) {
+            if (!force) {
                 return NaN;
             }
-            localStorage.setItem(this.prefix + "prefix=receiverinfo%2Fzipcode", window.btoa(String.fromCharCode(...data).substring(0, 1)));
+            localStorage.setItem(this.prefix + "prefix=receiverinfo%2Fprefecture", window.btoa(String.fromCharCode(...data).substring(0, 1)));
             return data.length;
         } else if (uri === "nvram://receiverinfo/regioncode") {
-            if (force) {
+            if (!force) {
                 return NaN;
             }
-            localStorage.setItem(this.prefix + "prefix=receiverinfo%2Fzipcode", window.btoa(String.fromCharCode(...data).substring(0, 2)));
+            localStorage.setItem(this.prefix + "prefix=receiverinfo%2Fregioncode", window.btoa(String.fromCharCode(...data).substring(0, 2)));
             return data.length;
             // 書き込める (TR-B14 第二分冊 5.2.7 表5-2参照)
         } else if (uri === "nvram://receiverinfo/zipcode") {
