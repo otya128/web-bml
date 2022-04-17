@@ -348,6 +348,20 @@ export class NVRAM {
             strg = localStorage.getItem(this.prefix + "prefix=receiverinfo%2Fzipcode");
             isFixed = true;
             size = 7;
+        } else if (uri === "nvram://receiverinfo/prefecture") {
+            strg = localStorage.getItem(this.prefix + "prefix=receiverinfo%2Fprefecture");
+            if (strg == null || strg.length === 0) {
+                strg = window.btoa(String.fromCharCode(255));
+            }
+            isFixed = true;
+            size = 1;
+        } else if (uri === "nvram://receiverinfo/regioncode") {
+            strg = localStorage.getItem(this.prefix + "prefix=receiverinfo%2Fregioncode");
+            if (strg == null || strg.length === 0) {
+                strg = window.btoa(String.fromCharCode(0) + String.fromCharCode(0));
+            }
+            isFixed = true;
+            size = 2;
         } else {
             const binfo = this.getBroadcasterInfo();
             const result = this.findNvramArea(uri, binfo);
@@ -390,12 +404,20 @@ export class NVRAM {
         return a;
     }
 
-    private writeNVRAM(uri: string, data: Uint8Array): number {
+    private writeNVRAM(uri: string, data: Uint8Array, force: boolean): number {
         // 書き込めない (TR-B14 第二分冊 5.2.7 表5-2参照)
         if (uri === "nvram://receiverinfo/prefecture") {
-            return NaN;
+            if (force) {
+                return NaN;
+            }
+            localStorage.setItem(this.prefix + "prefix=receiverinfo%2Fzipcode", window.btoa(String.fromCharCode(...data).substring(0, 1)));
+            return data.length;
         } else if (uri === "nvram://receiverinfo/regioncode") {
-            return NaN;
+            if (force) {
+                return NaN;
+            }
+            localStorage.setItem(this.prefix + "prefix=receiverinfo%2Fzipcode", window.btoa(String.fromCharCode(...data).substring(0, 2)));
+            return data.length;
             // 書き込める (TR-B14 第二分冊 5.2.7 表5-2参照)
         } else if (uri === "nvram://receiverinfo/zipcode") {
             localStorage.setItem(this.prefix + "prefix=receiverinfo%2Fzipcode", window.btoa(String.fromCharCode(...data).substring(0, 7)));
@@ -434,14 +456,6 @@ export class NVRAM {
         if (!filename?.startsWith("nvram://")) {
             return null;
         }
-        // TR-B14 5.2.7
-        // FIXME: 郵便番号から算出すべきかも
-        // ただし都道府県は郵便番号から一意に定まらないし多くの受像機だと別に設定できるようになってそう
-        if (filename === "nvram://receiverinfo/prefecture") {
-            return [255];
-        } else if (filename === "nvram://receiverinfo/regioncode") {
-            return [0];
-        }
         const fields = parseBinaryStructure(structure);
         if (!fields) {
             return null;
@@ -454,7 +468,7 @@ export class NVRAM {
         return result;
     }
 
-    public writePersistentArray(filename: string, structure: string, data: any[], period?: Date): number {
+    public writePersistentArray(filename: string, structure: string, data: any[], period?: Date, force?: boolean): number {
         if (!filename?.startsWith("nvram://")) {
             return NaN;
         }
@@ -467,7 +481,7 @@ export class NVRAM {
             return NaN;
         }
         let bin = writeBinaryFields(data, fields);
-        return this.writeNVRAM(filename, bin);
+        return this.writeNVRAM(filename, bin, force ?? false);
     }
 
     // key: <original_network_id>.<broadcaster_id>
@@ -546,7 +560,7 @@ export class NVRAM {
             return NaN;
         }
         let bin = writeBinaryFields(data, fields);
-        return this.writeNVRAM(filename, bin);
+        return this.writeNVRAM(filename, bin, false);
     }
 
     public checkAccessInfoOfPersistentArray(uri: string): number {
