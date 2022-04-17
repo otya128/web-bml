@@ -286,7 +286,7 @@ export namespace BML {
             const children: globalThis.Node[] = [];
             for (let i = 0; i < text.length; i++) {
                 const c = text.charAt(i);
-                const isLast = nextElement != null && i === text.length - 1;
+                const isLast = nextElement == null && i === text.length - 1;
                 if (c === "\r") {
                     continue;
                 }
