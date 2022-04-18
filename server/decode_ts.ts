@@ -292,6 +292,36 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
         send(msg);
     });
 
+    function getStreamInfo() {
+        if (!tsUtil.hasOriginalNetworkId() || !tsUtil.hasTransportStreamId() || !tsUtil.hasServiceIds() || !tsUtil.hasTransportStreams(tsUtil.getOriginalNetworkId())) {
+            return;
+        }
+
+        return {
+            onid: (tsUtil.getTransportStreams(tsUtil.getOriginalNetworkId()) as { [key: number]: any })[tsUtil.getTransportStreamId()].original_network_id,
+            tsid: tsUtil.getTransportStreamId(),
+            sid: serviceId ?? tsUtil.getServiceIds()[0]
+        };
+    }
+
+    function sendStreamInfo() {
+        if (currentProgramInfo == null) {
+            const ids = getStreamInfo();
+            if (ids != null) {
+                currentProgramInfo = {
+                    type: "programInfo",
+                    eventId: null,
+                    transportStreamId: ids.tsid,
+                    originalNetworkId: ids.onid,
+                    serviceId: ids.sid,
+                    eventName: null,
+                    startTimeUnixMillis: null,
+                };
+                send(currentProgramInfo);
+            }
+        }
+    }
+
     tsStream.on("eit", (pid, data) => {
         // FIXME: node-aribts側の問題でCRCが不一致だと変なobjEitが送られてきてしまう
         if (data.events == null) {
@@ -299,25 +329,16 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
         }
         tsUtil.addEit(pid, data);
 
-        let ids: any;
+        const ids = getStreamInfo();
+
         if (ids == null) {
-            if (tsUtil.hasOriginalNetworkId() && tsUtil.hasTransportStreamId() && tsUtil.hasServiceIds()) {
-                ids = {
-                    onid: tsUtil.getOriginalNetworkId(),
-                    tsid: tsUtil.getTransportStreamId(),
-                    sid: serviceId ?? tsUtil.getServiceIds()[0]
-                };
-            } else {
-                return;
-            }
+            return;
         }
 
         if (!tsUtil.hasPresent(ids.onid, ids.tsid, ids.sid)) {
-            if (eitPresentFollowingFlag.get(ids.sid) !== false) {
-                // EITが提供されているので待つ
-                return;
-            }
+            return;
         }
+
         const p = tsUtil.getPresent(ids.onid, ids.tsid, ids.sid);
         const prevProgramInfo = currentProgramInfo;
         currentProgramInfo = {
@@ -341,6 +362,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
 
     tsStream.on("nit", (pid, data) => {
         tsUtil.addNit(pid, data);
+        sendStreamInfo();
     });
 
     tsStream.on("sdt", (pid, data) => {
@@ -356,6 +378,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                 }
             }
         }
+        sendStreamInfo();
     });
 
     tsStream.on("dsmcc", (pid: any, data: any) => {
