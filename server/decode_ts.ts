@@ -41,6 +41,13 @@ type CachedModule = {
     dataEventId: number,
 };
 
+export type DecodeTSOptions = {
+    sendCallback: (msg: wsApi.ResponseMessage) => void;
+    serviceId?: number;
+    parsePES?: boolean;
+    dumpError?: boolean;
+};
+
 type CachedComponent = {
     modules: Map<number, CachedModule>,
 };
@@ -58,9 +65,12 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
     // SDTのEIT_present_following_flag
     // key: service_id
     const eitPresentFollowingFlag = new Map<number, boolean>();
-
-    tsStream.on("data", () => {
-    });
+    // program_number = service_id
+    let pidToProgramNumber = new Map<number, number>();
+    let programNumber: number | null = null;
+    let pcr_pid: number | null = null;
+    // 字幕/文字スーパーのPESのPID
+    let privatePes = new Set<number>();
 
     if (dumpError) {
         tsStream.on("drop", (pid: any, counter: any, expected: any) => {
@@ -109,20 +119,15 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         }
     });
 
-    // program_number = service_id
-    let pidToProgramNumber = new Map<number, number>();
-    let programNumber: number | null = null;
-    let pcr_pid: number | null = null;
-    let privatePes = new Set<number>();
-
-    tsStream.on("pat", (_pid: any, data: any) => {
+    tsStream.on("pat", (pid: any, data: any) => {
+        tsUtil.addPat(pid, data);
         const programs: { program_number: number, network_PID?: number, program_map_PID?: number }[] = data.programs;
         const pat = new Map<number, number>();
         programNumber = null;
         for (const program of programs) {
             if (program.program_map_PID != null) {
-                // 多重化されていればとりあえず一番小さいprogram_number使っておく
-                programNumber = Math.min(programNumber ?? Number.MAX_VALUE, program.program_number);
+                // 多重化されていればとりあえず一番最初のprogram_number使っておく
+                programNumber ??= program.program_number;
                 pat.set(program.program_map_PID, program.program_number);
             }
         }
@@ -135,122 +140,6 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         }
         pidToProgramNumber = pat;
     });
-
-
-    function decodeAdditionalAribBXMLInfo(additional_data_component_info: Buffer): AdditionalAribBXMLInfo {
-        let off = 0;
-        // 地上波についてはTR-B14 第二分冊 2.1.4 表2-3を参照
-        // BSについてはTR-B15 第一分冊 5.1.5 表5-4を参照
-        // BS, CSについてはTR-B15 第四分冊 5.1.5 表5-4を参照
-        // 00: データカルーセル伝送方式およびイベントメッセージ伝送方式 これのみが運用される
-        // 01: データカルーセル伝送方式(蓄積専用データサービス)
-        const transmission_format = ((additional_data_component_info[off] & 0b11000000) >> 6) & 0b11;
-        // component_tag=0x40のとき必ず1となる
-        // startup.xmlが最初に起動される (STD-B24 第二分冊 (1/2) 第二編 9.2.2参照)
-        const entry_point_flag = ((additional_data_component_info[off] & 0b00100000) >> 5) & 0b1;
-        const bxmlInfo: AdditionalAribBXMLInfo = {
-            transmissionFormat: transmission_format,
-            entryPointFlag: !!entry_point_flag,
-        };
-        // STD-B24 第二分冊 (1/2) 第二編 9.3参照
-        if (entry_point_flag) {
-            // 運用
-            const auto_start_flag = ((additional_data_component_info[off] & 0b00010000) >> 4) & 0b1;
-            // 以下が運用される
-            // 0011: 960x540 (16:9)
-            // 0100: 640x480 (16:9)
-            // 0101: 640x480 (4:3)
-
-            // 以下は仕様のみ
-            // 0000: 混在
-            // 0001: 1920x1080 (16:9)
-            // 0010: 1280x720 (16:9)
-            // 0110: 320x240 (4:3)
-            // 1111: 指定しない (Cプロファイルでのみ運用)
-            const document_resolution = ((additional_data_component_info[off] & 0b00001111) >> 0) & 0b1111;
-            off++;
-            // 0のみが運用される
-            const use_xml = ((additional_data_component_info[off] & 0b10000000) >> 7) & 0b1;
-            // 地上波, CSでは0のみが運用される
-            // BSでは1(bml_major_version=1, bml_minor_version=0)が指定されることもある
-            const default_version_flag = ((additional_data_component_info[off] & 0b01000000) >> 6) & 0b1;
-            // 地上波では1のみ運用, BS/CSの場合1の場合単独視聴可能, 0の場合単独視聴不可
-            const independent_flag = ((additional_data_component_info[off] & 0b00100000) >> 5) & 0b1;
-            // 運用される
-            const style_for_tv_flag = ((additional_data_component_info[off] & 0b00010000) >> 4) & 0b1;
-            // reserved
-            off++;
-            bxmlInfo.entryPointInfo = {
-                autoStartFlag: !!auto_start_flag,
-                documentResolution: document_resolution,
-                useXML: !!use_xml,
-                defaultVersionFlag: !!default_version_flag,
-                independentFlag: !!independent_flag,
-                styleForTVFlag: !!style_for_tv_flag,
-                bmlMajorVersion: 1,
-                bmlMinorVersion: 0,
-            };
-            // BSではbml_major_versionは1
-            // CSではbml_major_versionは2
-            // 地上波ではbml_major_versionは3
-            if (default_version_flag === 0) {
-                let bml_major_version = additional_data_component_info[off] << 16;
-                off++;
-                bml_major_version |= additional_data_component_info[off];
-                bxmlInfo.entryPointInfo.bmlMajorVersion = bml_major_version;
-                off++;
-                let bml_minor_version = additional_data_component_info[off] << 16;
-                off++;
-                bml_minor_version |= additional_data_component_info[off];
-                bxmlInfo.entryPointInfo.bmlMinorVersion = bml_minor_version;
-                off++;
-                // 運用されない
-                if (use_xml == 1) {
-                    let bxml_major_version = additional_data_component_info[off] << 16;
-                    off++;
-                    bxml_major_version |= additional_data_component_info[off];
-                    bxmlInfo.entryPointInfo.bxmlMajorVersion = bxml_major_version;
-                    off++;
-                    let bxml_minor_version = additional_data_component_info[off] << 16;
-                    off++;
-                    bxml_minor_version |= additional_data_component_info[off];
-                    bxmlInfo.entryPointInfo.bxmlMinorVersion = bxml_minor_version;
-                    off++;
-                }
-            }
-        } else {
-            // reserved
-            off++;
-        }
-        if (transmission_format === 0) {
-            // additional_arib_carousel_info (STD-B24 第三分冊 第三編 C.1)
-            // 常に0xF
-            const data_event_id = ((additional_data_component_info[off] & 0b11110000) >> 4) & 0b1111;
-            // 常に1
-            const event_section_flag = ((additional_data_component_info[off] & 0b00001000) >> 3) & 0b1;
-            //reserved
-            off++;
-            // 地上波ならば常に1, BS/CSなら1/0
-            const ondemand_retrieval_flag = ((additional_data_component_info[off] & 0b10000000) >> 7) & 0b1;
-            // 地上波ならば常に0, BS/CSなら/-
-            const file_storable_flag = ((additional_data_component_info[off] & 0b01000000) >> 6) & 0b1;
-            // 運用
-            const start_priority = ((additional_data_component_info[off] & 0b00100000) >> 5) & 0b1;
-            bxmlInfo.additionalAribCarouselInfo = {
-                dataEventId: data_event_id,
-                eventSectionFlag: !!event_section_flag,
-                ondemandRetrievalFlag: !!ondemand_retrieval_flag,
-                fileStorableFlag: !!file_storable_flag,
-                startPriority: start_priority,
-            };
-            // reserved
-            off++;
-        } else if (transmission_format == 1) {
-            // reserved
-            off++;
-        }
-        return bxmlInfo;
-    }
 
     tsStream.on("pmt", (pid: any, data: any) => {
         // 多重化されている
@@ -401,6 +290,7 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         };
         send(msg);
     });
+
     tsStream.on("eit", (pid, data) => {
         // FIXME: node-aribts側の問題でCRCが不一致だと変なobjEitが送られてきてしまう
         if (data.events == null) {
@@ -446,10 +336,6 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
             prevProgramInfo?.eventName !== currentProgramInfo.eventName) {
             send(currentProgramInfo);
         }
-    });
-
-    tsStream.on("pat", (pid, data) => {
-        tsUtil.addPat(pid, data);
     });
 
     tsStream.on("nit", (pid, data) => {
@@ -793,6 +679,121 @@ export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?:
         }
     });
     return tsStream;
+}
+
+function decodeAdditionalAribBXMLInfo(additional_data_component_info: Buffer): AdditionalAribBXMLInfo {
+    let off = 0;
+    // 地上波についてはTR-B14 第二分冊 2.1.4 表2-3を参照
+    // BSについてはTR-B15 第一分冊 5.1.5 表5-4を参照
+    // BS, CSについてはTR-B15 第四分冊 5.1.5 表5-4を参照
+    // 00: データカルーセル伝送方式およびイベントメッセージ伝送方式 これのみが運用される
+    // 01: データカルーセル伝送方式(蓄積専用データサービス)
+    const transmission_format = ((additional_data_component_info[off] & 0b11000000) >> 6) & 0b11;
+    // component_tag=0x40のとき必ず1となる
+    // startup.xmlが最初に起動される (STD-B24 第二分冊 (1/2) 第二編 9.2.2参照)
+    const entry_point_flag = ((additional_data_component_info[off] & 0b00100000) >> 5) & 0b1;
+    const bxmlInfo: AdditionalAribBXMLInfo = {
+        transmissionFormat: transmission_format,
+        entryPointFlag: !!entry_point_flag,
+    };
+    // STD-B24 第二分冊 (1/2) 第二編 9.3参照
+    if (entry_point_flag) {
+        // 運用
+        const auto_start_flag = ((additional_data_component_info[off] & 0b00010000) >> 4) & 0b1;
+        // 以下が運用される
+        // 0011: 960x540 (16:9)
+        // 0100: 640x480 (16:9)
+        // 0101: 640x480 (4:3)
+
+        // 以下は仕様のみ
+        // 0000: 混在
+        // 0001: 1920x1080 (16:9)
+        // 0010: 1280x720 (16:9)
+        // 0110: 320x240 (4:3)
+        // 1111: 指定しない (Cプロファイルでのみ運用)
+        const document_resolution = ((additional_data_component_info[off] & 0b00001111) >> 0) & 0b1111;
+        off++;
+        // 0のみが運用される
+        const use_xml = ((additional_data_component_info[off] & 0b10000000) >> 7) & 0b1;
+        // 地上波, CSでは0のみが運用される
+        // BSでは1(bml_major_version=1, bml_minor_version=0)が指定されることもある
+        const default_version_flag = ((additional_data_component_info[off] & 0b01000000) >> 6) & 0b1;
+        // 地上波では1のみ運用, BS/CSの場合1の場合単独視聴可能, 0の場合単独視聴不可
+        const independent_flag = ((additional_data_component_info[off] & 0b00100000) >> 5) & 0b1;
+        // 運用される
+        const style_for_tv_flag = ((additional_data_component_info[off] & 0b00010000) >> 4) & 0b1;
+        // reserved
+        off++;
+        bxmlInfo.entryPointInfo = {
+            autoStartFlag: !!auto_start_flag,
+            documentResolution: document_resolution,
+            useXML: !!use_xml,
+            defaultVersionFlag: !!default_version_flag,
+            independentFlag: !!independent_flag,
+            styleForTVFlag: !!style_for_tv_flag,
+            bmlMajorVersion: 1,
+            bmlMinorVersion: 0,
+        };
+        // BSではbml_major_versionは1
+        // CSではbml_major_versionは2
+        // 地上波ではbml_major_versionは3
+        if (default_version_flag === 0) {
+            let bml_major_version = additional_data_component_info[off] << 16;
+            off++;
+            bml_major_version |= additional_data_component_info[off];
+            bxmlInfo.entryPointInfo.bmlMajorVersion = bml_major_version;
+            off++;
+            let bml_minor_version = additional_data_component_info[off] << 16;
+            off++;
+            bml_minor_version |= additional_data_component_info[off];
+            bxmlInfo.entryPointInfo.bmlMinorVersion = bml_minor_version;
+            off++;
+            // 運用されない
+            if (use_xml == 1) {
+                let bxml_major_version = additional_data_component_info[off] << 16;
+                off++;
+                bxml_major_version |= additional_data_component_info[off];
+                bxmlInfo.entryPointInfo.bxmlMajorVersion = bxml_major_version;
+                off++;
+                let bxml_minor_version = additional_data_component_info[off] << 16;
+                off++;
+                bxml_minor_version |= additional_data_component_info[off];
+                bxmlInfo.entryPointInfo.bxmlMinorVersion = bxml_minor_version;
+                off++;
+            }
+        }
+    } else {
+        // reserved
+        off++;
+    }
+    if (transmission_format === 0) {
+        // additional_arib_carousel_info (STD-B24 第三分冊 第三編 C.1)
+        // 常に0xF
+        const data_event_id = ((additional_data_component_info[off] & 0b11110000) >> 4) & 0b1111;
+        // 常に1
+        const event_section_flag = ((additional_data_component_info[off] & 0b00001000) >> 3) & 0b1;
+        //reserved
+        off++;
+        // 地上波ならば常に1, BS/CSなら1/0
+        const ondemand_retrieval_flag = ((additional_data_component_info[off] & 0b10000000) >> 7) & 0b1;
+        // 地上波ならば常に0, BS/CSなら/-
+        const file_storable_flag = ((additional_data_component_info[off] & 0b01000000) >> 6) & 0b1;
+        // 運用
+        const start_priority = ((additional_data_component_info[off] & 0b00100000) >> 5) & 0b1;
+        bxmlInfo.additionalAribCarouselInfo = {
+            dataEventId: data_event_id,
+            eventSectionFlag: !!event_section_flag,
+            ondemandRetrievalFlag: !!ondemand_retrieval_flag,
+            fileStorableFlag: !!file_storable_flag,
+            startPriority: start_priority,
+        };
+        // reserved
+        off++;
+    } else if (transmission_format == 1) {
+        // reserved
+        off++;
+    }
+    return bxmlInfo;
 }
 
 function decodePES(pes: Buffer): wsApi.PESMessage | null {
