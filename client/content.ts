@@ -428,7 +428,7 @@ export class Content {
                 const href = style.getAttribute("href");
                 if (href != null) {
                     const newStyle = document.createElement("style");
-                    const res = this.resources.fetchLockedResource(href);
+                    const res = await this.resources.fetchResourceAsync(href);
                     if (res != null) {
                         newStyle.textContent = await transpileCSS(decodeEUCJP(res.data), { inline: false, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
                         style.parentElement?.appendChild(newStyle);
