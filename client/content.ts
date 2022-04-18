@@ -945,7 +945,7 @@ export class Content {
             }
             focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
             if (k == AribKeyCode.Enter && focusElement) {
-                focusElement.classList.add("arib-active");
+                focusElement.setAttribute("arib-active", "arib-active");
                 this.eventQueue.queueSyncEvent({ type: "click", target: focusElement });
             }
             // FIXME: [11] accessKeyの場合focusElementに対し決定キーのkeyupを発生させる必要がある
@@ -964,7 +964,7 @@ export class Content {
                 return false;
             }
             if (k === AribKeyCode.Enter) {
-                focusElement.classList.remove("arib-active");
+                focusElement.removeAttribute("arib-active");
             }
             const computedStyle = window.getComputedStyle(this.getBody()!);
             const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);

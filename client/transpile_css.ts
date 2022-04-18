@@ -73,7 +73,7 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                 // てきとうだけど使えるセレクタの制約が大きいので大体なんとかなる
                 rule.selectors = rule.selectors.map(selector => {
                     return selector.replace(/(?<=\s*):(focus|active)(?=\s*)/i, (_substring: string, pseudoClass: string) => {
-                        return ".arib-" + pseudoClass;
+                        return "[arib-" + pseudoClass + "]";
                     });
                 });
             }
