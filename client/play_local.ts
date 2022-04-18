@@ -119,7 +119,7 @@ async function delayAsync(msec: number): Promise<void> {
 
 async function openReadableStream(stream: ReadableStream<Uint8Array>) {
     const reader = stream.getReader();
-    const tsStream = decodeTS(onMessage, undefined, true);
+    const tsStream = decodeTS({ sendCallback: onMessage, parsePES: true });
     while (true) {
         const r = await reader.read();
         if (r.done) {

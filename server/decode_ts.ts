@@ -52,7 +52,8 @@ type CachedComponent = {
     modules: Map<number, CachedModule>,
 };
 
-export function decodeTS(send: (msg: wsApi.ResponseMessage) => void, serviceId?: number, parsePES?: boolean, dumpError?: boolean): TsStream {
+export function decodeTS(options: DecodeTSOptions): TsStream {
+    const { sendCallback: send, serviceId, parsePES, dumpError } = options;
     const tsStream = new TsStream();
     const tsUtil = new TsUtil();
     let pmtRetrieved = false;

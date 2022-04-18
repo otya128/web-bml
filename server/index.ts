@@ -536,7 +536,7 @@ router.get('/api/ws', async (ctx) => {
     const id = randomUUID();
 
     readStream.pause();
-    const tsStream = decodeTS((msg) => ws.send(JSON.stringify(msg)), serviceId);
+    const tsStream = decodeTS({ sendCallback: (msg) => ws.send(JSON.stringify(msg)), serviceId });
     readStream.pipe(tsStream);
 
     const dbs: DataBroadcastingStream = {
