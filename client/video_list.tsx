@@ -19,8 +19,9 @@ async function fetchChannels(): Promise<MirakChannel[]> {
 };
 
 function Record({ record }: { record: EPGRecordedItem }) {
+    const videoId = record.videoFiles?.filter(file => file.type == "ts")[0].id;
     return (
-        <a href={`/videos/${record.id}`}>
+        <a href={`/videos/${videoId}`}>
             {record.name.length === 0 ? "番組名なし" : record.name} {new Date(record.startAt).toLocaleString()}
         </a>
     );
