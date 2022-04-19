@@ -138,13 +138,41 @@ export namespace BML {
     function getNormalStyle(node: globalThis.HTMLElement): BMLCSS2Properties {
         return new BMLCSS2Properties(window.getComputedStyle(node), node.style);
     }
+
     function getFocusStyle(node: globalThis.HTMLElement): BMLCSS2Properties {
-        console.error("focusStyle is not implemented");
-        return new BMLCSS2Properties(window.getComputedStyle(node), node.style);
+        console.error("focusStyle is halfplemented");
+        const prevFocus = node.getAttribute("arib-focus");
+        const prevActive = node.getAttribute("arib-active");
+        node.setAttribute("arib-focus", "arib-focus");
+        node.removeAttribute("arib-active");
+        const comuptedStyle = window.getComputedStyle(node);
+        if (prevFocus != null) {
+            node.setAttribute("arib-focus", prevFocus);
+        } else {
+            node.removeAttribute("arib-focus");
+        }
+        if (prevActive != null) {
+            node.setAttribute("arib-active", prevActive);
+        }
+        return new BMLCSS2Properties(comuptedStyle, node.style);
     }
+
     function getActiveStyle(node: globalThis.HTMLElement): BMLCSS2Properties {
-        console.error("activeStyle is not implemented");
-        return new BMLCSS2Properties(window.getComputedStyle(node), node.style);
+        console.error("activeStyle is halfplemented");
+        const prevFocus = node.getAttribute("arib-focus");
+        const prevActive = node.getAttribute("arib-active");
+        node.removeAttribute("arib-focus");
+        node.setAttribute("arib-active", "arib-active");
+        const comuptedStyle = window.getComputedStyle(node);
+        if (prevFocus != null) {
+            node.setAttribute("arib-focus", prevFocus);
+        }
+        if (prevActive != null) {
+            node.setAttribute("arib-active", prevActive);
+        } else {
+            node.removeAttribute("arib-active");
+        }
+        return new BMLCSS2Properties(comuptedStyle, node.style);
     }
 
     export function isFocusable(elem: globalThis.Element) {
