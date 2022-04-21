@@ -7,7 +7,7 @@ import { EventDispatcher, EventQueue } from "./event_queue";
 import { Content } from "./content";
 import { ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
-import { AudioContextProvider } from "./bml_browser";
+import { AudioNodeProvider } from "./bml_browser";
 // browser疑似オブジェクト
 
 export type LockedModuleInfo = [moduleName: string, func: number, status: number];
@@ -207,16 +207,16 @@ export class BrowserAPI {
     private content: Content;
     private nvram: NVRAM;
     private interpreter: Interpreter;
-    private audioContextProvider: AudioContextProvider;
+    private audioNodeProvider: AudioNodeProvider;
 
-    constructor(resources: resource.Resources, eventQueue: EventQueue, eventDispatcher: EventDispatcher, content: Content, nvram: NVRAM, interpreter: Interpreter, audioContextProvider: AudioContextProvider) {
+    constructor(resources: resource.Resources, eventQueue: EventQueue, eventDispatcher: EventDispatcher, content: Content, nvram: NVRAM, interpreter: Interpreter, audioNodeProvider: AudioNodeProvider) {
         this.resources = resources;
         this.eventQueue = eventQueue;
         this.eventDispatcher = eventDispatcher;
         this.content = content;
         this.nvram = nvram;
         this.interpreter = interpreter;
-        this.audioContextProvider = audioContextProvider;
+        this.audioNodeProvider = audioNodeProvider;
     }
 
     asyncBrowser: AsyncBrowser = {
@@ -610,7 +610,7 @@ export class BrowserAPI {
             console.log("playRomSound", soundID);
             const groups = /romsound:\/\/(?<soundID>\d+)/.exec(soundID)?.groups;
             if (groups != null) {
-                playRomSound(Number.parseInt(groups.soundID), this.audioContextProvider.getAudioContext());
+                playRomSound(Number.parseInt(groups.soundID), this.audioNodeProvider.getAudioDestinationNode());
             }
             return 1;
         },

@@ -11,13 +11,13 @@ import { Resources } from "./resource";
 // @ts-ignore
 import defaultCSS from "../public/default.css";
 
-export interface AudioContextProvider {
-    getAudioContext(): AudioContext;
+export interface AudioNodeProvider {
+    getAudioDestinationNode(): AudioDestinationNode;
 }
 
-class DefaultAudioContextProvider implements AudioContextProvider {
-    getAudioContext(): AudioContext {
-        return new AudioContext();
+class DefaultAudioNodeProvider implements AudioNodeProvider {
+    getAudioDestinationNode(): AudioDestinationNode {
+        return new AudioContext().destination;
     }
 }
 
@@ -94,7 +94,7 @@ export type BMLBrowserOptions = {
      * 動画像が配置されている部分が切り抜かれるためvideochangedイベントに合わせて動画を配置する
      */
     videoPlaneModeEnabled?: boolean;
-    audioContextProvider?: AudioContextProvider;
+    audioNodeProvider?: AudioNodeProvider;
 };
 
 export class BMLBrowser {
@@ -135,7 +135,7 @@ export class BMLBrowser {
         this.epg = options.epg ?? {};
         this.interpreter = new JSInterpreter();
         this.eventQueue = new EventQueue(this.interpreter);
-        const audioContextProvider = options.audioContextProvider ?? new DefaultAudioContextProvider();
+        const audioContextProvider = options.audioNodeProvider ?? new DefaultAudioNodeProvider();
         this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioContextProvider);
         this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
         this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false);

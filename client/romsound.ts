@@ -20,12 +20,12 @@
 
 const sampleRate = 12000 * 2;
 
-function playBuffer(context: AudioContext, buf: Float32Array, sampleRate: number) {
-    const buffer = context.createBuffer(1, buf.length, sampleRate)
+function playBuffer(destination: AudioDestinationNode, buf: Float32Array, sampleRate: number) {
+    const buffer = destination.context.createBuffer(1, buf.length, sampleRate)
     buffer.copyToChannel(buf, 0)
-    const source = context.createBufferSource();
+    const source = destination.context.createBufferSource();
     source.buffer = buffer;
-    source.connect(context.destination);
+    source.connect(destination);
     source.start(0);
 }
 
@@ -35,7 +35,8 @@ function sine(sampleRate: number, i: number, freq: number) {
 }
 
 const romSoundCache = new Map<number, Float32Array>();
-export function playRomSound(soundId: number, context: AudioContext) {
+
+export function playRomSound(soundId: number, destination: AudioDestinationNode) {
     let cache = romSoundCache.get(soundId);
     if (cache == null) {
         switch (soundId) {
@@ -56,7 +57,7 @@ export function playRomSound(soundId: number, context: AudioContext) {
         }
     }
     if (cache != null) {
-        playBuffer(context, cache, sampleRate);
+        playBuffer(destination, cache, sampleRate);
         return;
     }
 }

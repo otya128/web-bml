@@ -7,7 +7,7 @@ import { defaultCLUT } from "../default_clut";
 import { parseCSSValue } from "../transpile_css";
 import { Buffer } from "buffer";
 import { Interpreter } from "../interpreter/interpreter";
-import { AudioContextProvider, BMLBrowserEventTarget } from "../bml_browser";
+import { AudioNodeProvider, BMLBrowserEventTarget } from "../bml_browser";
 import { convertJPEG } from "../arib_jpeg";
 import { aribMNGToCSSAnimation } from "../arib_mng";
 import { playAIFF } from "../arib_aiff";
@@ -433,15 +433,15 @@ export namespace BML {
         public eventQueue: EventQueue;
         public resources: Resources;
         public browserEventTarget: BMLBrowserEventTarget;
-        public audioContextProvider: AudioContextProvider;
-        public constructor(node: globalThis.HTMLElement, interpreter: Interpreter, eventQueue: EventQueue, resources: Resources, browserEventTarget: BMLBrowserEventTarget, audioContextProvider: AudioContextProvider) {
+        public audioNodeProvider: AudioNodeProvider;
+        public constructor(node: globalThis.HTMLElement, interpreter: Interpreter, eventQueue: EventQueue, resources: Resources, browserEventTarget: BMLBrowserEventTarget, audioNodeProvider: AudioNodeProvider) {
             super(node as any, null!); // !
             this.ownerDocument = this; // !!
             this.interpreter = interpreter;
             this.eventQueue = eventQueue;
             this.resources = resources;
             this.browserEventTarget = browserEventTarget;
-            this.audioContextProvider = audioContextProvider;
+            this.audioNodeProvider = audioNodeProvider;
         }
 
         public get documentElement(): HTMLElement {
@@ -902,7 +902,7 @@ export namespace BML {
                         if (data == null) {
                             return;
                         }
-                        this.audioBufferSourceNode = playAIFF(this.ownerDocument.audioContextProvider.getAudioContext(), Buffer.from(data)) ?? undefined;
+                        this.audioBufferSourceNode = playAIFF(this.ownerDocument.audioNodeProvider.getAudioDestinationNode(), Buffer.from(data)) ?? undefined;
                         this.node.setAttribute("streamstatus", "play");
                         if (this.audioBufferSourceNode != null) {
                             const sourceNode = this.audioBufferSourceNode;

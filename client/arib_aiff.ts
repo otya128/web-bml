@@ -84,7 +84,7 @@ function decodeAIFF(aiff: Buffer): { comm: COMM, soundData: Buffer } | null {
     return { comm, soundData };
 }
 
-export function playAIFF(context: AudioContext, aiff: Buffer): AudioBufferSourceNode | null {
+export function playAIFF(destination: AudioDestinationNode, aiff: Buffer): AudioBufferSourceNode | null {
     const a = decodeAIFF(aiff);
     if (a == null) {
         return null;
@@ -101,11 +101,11 @@ export function playAIFF(context: AudioContext, aiff: Buffer): AudioBufferSource
     for (let i = 0; i < comm.numSampleFrames; i++) {
         soundDataF32[i] = (((soundData[i * 2] << 8) | (soundData[i * 2 + 1])) << 16 >> 16) / 32768;
     }
-    const buffer = context.createBuffer(1, soundDataF32.length, comm.sampleRate);
+    const buffer = destination.context.createBuffer(1, soundDataF32.length, comm.sampleRate);
     buffer.copyToChannel(soundDataF32, 0);
-    const source = context.createBufferSource();
+    const source = destination.context.createBufferSource();
     source.buffer = buffer;
-    source.connect(context.destination);
+    source.connect(destination.context.destination);
     source.start(0);
     return source;
 }
