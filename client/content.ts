@@ -147,6 +147,11 @@ export function keyCodeToAribKey(keyCode: string): AribKeyCode | -1 {
     }
 }
 
+type KeyProcessStatus = {
+    keyCode: AribKeyCode,
+    isAccessKey: boolean,
+};
+
 function requestAnimationFrameAsync(): Promise<void> {
     return new Promise<void>((resolve, _) => {
         requestAnimationFrame((_time) => resolve());
@@ -533,6 +538,7 @@ export class Content {
         }
         this.interpreter.reset();
         this.currentDateMode = 0;
+        this.keyProcessStatus = undefined;
     }
 
     public async quitDocument() {
@@ -798,12 +804,22 @@ export class Content {
         }) as (HTMLElement | undefined);
     }
 
+    private keyProcessStatus?: KeyProcessStatus;
+
     public processKeyDown(k: AribKeyCode) {
         if (k === AribKeyCode.DataButton) {
             // データボタンの場合DataButtonPressedのみが発生する
             this.eventDispatcher.dispatchDataButtonPressedEvent();
             return;
         }
+        if (this.keyProcessStatus != null) {
+            return;
+        }
+        const keyProcessStatus: KeyProcessStatus = {
+            keyCode: k,
+            isAccessKey: false,
+        };
+        this.keyProcessStatus = keyProcessStatus;
         let focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
         if (!focusElement) {
             return;
@@ -911,6 +927,7 @@ export class Content {
                         }
                         this.eventDispatcher.resetCurrentEvent();
                     }
+                    keyProcessStatus.isAccessKey = true;
                 }
             }
             focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
@@ -948,7 +965,7 @@ export class Content {
                 focusElement.setAttribute("arib-active", "arib-active");
                 this.eventQueue.queueSyncEvent({ type: "click", target: focusElement });
             }
-            // FIXME: [11] accessKeyの場合focusElementに対し決定キーのkeyupを発生させる必要がある
+            // [11] accessKeyの場合focusElementに対し決定キーのkeyupを発生させる必要がある
             return false;
         });
         this.eventQueue.processEventQueue();
@@ -959,11 +976,18 @@ export class Content {
             return;
         }
         this.eventQueue.queueAsyncEvent(async () => {
+            const keyProcessStatus = this.keyProcessStatus;
+            if (keyProcessStatus?.keyCode !== k) {
+                return false;
+            } else {
+                this.keyProcessStatus = undefined;
+            }
             const focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
             if (!focusElement) {
                 return false;
             }
-            if (k === AribKeyCode.Enter) {
+            const keyCode = keyProcessStatus.isAccessKey ? AribKeyCode.Enter : k;
+            if (keyCode === AribKeyCode.Enter) {
                 focusElement.removeAttribute("arib-active");
             }
             const computedStyle = window.getComputedStyle(this.getBody()!);
@@ -971,7 +995,7 @@ export class Content {
             if (usedKeyList.length && usedKeyList[0] === "none") {
                 return false;
             }
-            const keyGroup = keyCodeToKeyGroup.get(k);
+            const keyGroup = keyCodeToKeyGroup.get(keyCode);
             if (keyGroup == null) {
                 return false;
             }
@@ -985,7 +1009,7 @@ export class Content {
             const onkeyup = focusElement.getAttribute("onkeyup");
             if (onkeyup) {
                 this.eventDispatcher.setCurrentIntrinsicEvent({
-                    keyCode: k,
+                    keyCode,
                     type: "keyup",
                     target: focusElement,
                 });
