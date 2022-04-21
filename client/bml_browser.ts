@@ -12,11 +12,11 @@ import { Resources } from "./resource";
 import defaultCSS from "../public/default.css";
 
 export interface AudioNodeProvider {
-    getAudioDestinationNode(): AudioDestinationNode;
+    getAudioDestinationNode(): AudioNode;
 }
 
 class DefaultAudioNodeProvider implements AudioNodeProvider {
-    getAudioDestinationNode(): AudioDestinationNode {
+    getAudioDestinationNode(): AudioNode {
         return new AudioContext().destination;
     }
 }

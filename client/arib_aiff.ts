@@ -84,7 +84,7 @@ function decodeAIFF(aiff: Buffer): { comm: COMM, soundData: Buffer } | null {
     return { comm, soundData };
 }
 
-export function playAIFF(destination: AudioDestinationNode, aiff: Buffer): AudioBufferSourceNode | null {
+export function playAIFF(destination: AudioNode, aiff: Buffer): AudioBufferSourceNode | null {
     const a = decodeAIFF(aiff);
     if (a == null) {
         return null;

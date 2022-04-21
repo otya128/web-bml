@@ -20,7 +20,7 @@
 
 const sampleRate = 12000 * 2;
 
-function playBuffer(destination: AudioDestinationNode, buf: Float32Array, sampleRate: number) {
+function playBuffer(destination: AudioNode, buf: Float32Array, sampleRate: number) {
     const buffer = destination.context.createBuffer(1, buf.length, sampleRate)
     buffer.copyToChannel(buf, 0)
     const source = destination.context.createBufferSource();
@@ -36,7 +36,7 @@ function sine(sampleRate: number, i: number, freq: number) {
 
 const romSoundCache = new Map<number, Float32Array>();
 
-export function playRomSound(soundId: number, destination: AudioDestinationNode) {
+export function playRomSound(soundId: number, destination: AudioNode) {
     let cache = romSoundCache.get(soundId);
     if (cache == null) {
         switch (soundId) {
