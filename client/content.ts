@@ -778,6 +778,7 @@ export class Content {
         const componentId = Number.parseInt(component ?? "", 16);
         const moduleId = Number.parseInt(module ?? "", 16);
         if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
+            await this.quitDocument();
             return NaN;
         }
         let normalizedDocument;
@@ -790,6 +791,7 @@ export class Content {
         const res = await this.resources.fetchResourceAsync(documentName);
         if (res == null) {
             console.error("NOT FOUND");
+            await this.quitDocument();
             return NaN;
         }
         const ad = this.resources.activeDocument;
