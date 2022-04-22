@@ -596,6 +596,14 @@ export class Content {
         body.style.maxHeight = height + "px";
         body.style.minHeight = height + "px";
         bmlBody.invisible = bmlBody.invisible;
+        const usedKeyList = bodyStyle.getPropertyValue("--used-key-list");
+        this.bmlEventTarget.dispatchEvent<"usedkeylistchanged">(new CustomEvent("usedkeylistchanged", {
+            detail: {
+                usedKeyList: new Set(usedKeyList.split(" ").filter((x): x is "basic" | "numeric-tuning" | "data-button" => {
+                    return x === "basic" || x === "numeric-tuning" || x === "data-button";
+                }))
+            }
+        }));
         // フォーカスはonloadの前に当たるがonloadが実行されるまではイベントは実行されない
         // STD-B24 第二分冊(2/2) 第二編 付属1 5.1.3参照
         this.eventQueue.lockSyncEventQueue();

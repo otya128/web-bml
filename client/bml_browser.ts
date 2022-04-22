@@ -48,6 +48,7 @@ interface BMLBrowserEventMap {
      * invisibleがtrueである場合渡される矩形に関わらず全面に表示する必要がある
      */
     "videochanged": CustomEvent<{ clientRect: { left: number, top: number, right: number, bottom: number }, boundingRect: DOMRect }>;
+    "usedkeylistchanged": CustomEvent<{ usedKeyList: Set<"basic" | "data-button" | "numeric-tuning"> }>;
 }
 
 interface CustomEventTarget<M> {

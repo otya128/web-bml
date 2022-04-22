@@ -135,11 +135,11 @@ export namespace BML {
         }
         return Node;
     }
-    function getNormalStyle(node: globalThis.HTMLElement): BMLCSS2Properties {
-        return new BMLCSS2Properties(window.getComputedStyle(node), node.style);
+    function getNormalStyle(node: globalThis.HTMLElement, eventTarget: BMLBrowserEventTarget): BMLCSS2Properties {
+        return new BMLCSS2Properties(window.getComputedStyle(node), node.style, node, eventTarget);
     }
 
-    function getFocusStyle(node: globalThis.HTMLElement): BMLCSS2Properties {
+    function getFocusStyle(node: globalThis.HTMLElement, eventTarget: BMLBrowserEventTarget): BMLCSS2Properties {
         console.error("focusStyle is halfplemented");
         const prevFocus = node.getAttribute("arib-focus");
         const prevActive = node.getAttribute("arib-active");
@@ -154,10 +154,10 @@ export namespace BML {
         if (prevActive != null) {
             node.setAttribute("arib-active", prevActive);
         }
-        return new BMLCSS2Properties(comuptedStyle, node.style);
+        return new BMLCSS2Properties(comuptedStyle, node.style, node, eventTarget);
     }
 
-    function getActiveStyle(node: globalThis.HTMLElement): BMLCSS2Properties {
+    function getActiveStyle(node: globalThis.HTMLElement, eventTarget: BMLBrowserEventTarget): BMLCSS2Properties {
         console.error("activeStyle is halfplemented");
         const prevFocus = node.getAttribute("arib-focus");
         const prevActive = node.getAttribute("arib-active");
@@ -172,7 +172,7 @@ export namespace BML {
         } else {
             node.removeAttribute("arib-active");
         }
-        return new BMLCSS2Properties(comuptedStyle, node.style);
+        return new BMLCSS2Properties(comuptedStyle, node.style, node, eventTarget);
     }
 
     export function isFocusable(elem: globalThis.Element) {
@@ -429,11 +429,11 @@ export namespace BML {
     export class BMLDocument extends HTMLDocument {
         _currentFocus: HTMLElement | null = null;
         _currentEvent: BMLEvent | null = null;
-        public interpreter: Interpreter;
-        public eventQueue: EventQueue;
-        public resources: Resources;
-        public browserEventTarget: BMLBrowserEventTarget;
-        public audioNodeProvider: AudioNodeProvider;
+        public readonly interpreter: Interpreter;
+        public readonly eventQueue: EventQueue;
+        public readonly resources: Resources;
+        public readonly browserEventTarget: BMLBrowserEventTarget;
+        public readonly audioNodeProvider: AudioNodeProvider;
         public constructor(node: globalThis.HTMLElement, interpreter: Interpreter, eventQueue: EventQueue, resources: Resources, browserEventTarget: BMLBrowserEventTarget, audioNodeProvider: AudioNodeProvider) {
             super(node as any, null!); // !
             this.ownerDocument = this; // !!
@@ -494,7 +494,7 @@ export namespace BML {
     // impl
     export class BMLBRElement extends HTMLBRElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node);
+            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
         }
     }
 
@@ -529,13 +529,13 @@ export namespace BML {
     // impl
     export class BMLAnchorElement extends HTMLAnchorElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node);
+            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node);
+            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node);
+            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
         }
     }
 
@@ -587,13 +587,13 @@ export namespace BML {
     // impl
     export class BMLInputElement extends HTMLInputElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node);
+            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node);
+            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node);
+            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
         }
     }
 
@@ -795,13 +795,13 @@ export namespace BML {
             return this.node.type;
         }
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node);
+            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node);
+            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node);
+            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get accessKey(): string {
             return this.node.accessKey;
@@ -977,13 +977,13 @@ export namespace BML {
     // impl
     export class BMLSpanElement extends HTMLElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node);
+            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node);
+            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node);
+            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get accessKey(): string {
             return this.node.accessKey;
@@ -1016,7 +1016,7 @@ export namespace BML {
             this.ownerDocument.browserEventTarget.dispatchEvent<"invisible">(new CustomEvent("invisible", { detail: v }));
         }
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node);
+            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
         }
     }
 
@@ -1028,13 +1028,13 @@ export namespace BML {
     // impl
     export class BMLDivElement extends HTMLDivElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node);
+            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node);
+            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node);
+            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get accessKey(): string {
             return this.node.accessKey;
@@ -1055,13 +1055,13 @@ export namespace BML {
     // impl
     export class BMLParagraphElement extends HTMLParagraphElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node);
+            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node);
+            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node);
+            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
         }
         public get accessKey(): string {
             return this.node.accessKey;

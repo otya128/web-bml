@@ -1,13 +1,18 @@
+import { BMLBrowserEventTarget } from "../bml_browser";
 import { colorIndexToVar, varToColorIndex } from "../transpile_css";
 
 type DOMString = string;
 
 export class BMLCSS2Properties {
-    private declaration: CSSStyleDeclaration;
-    private declarationToSet: CSSStyleDeclaration;
-    public constructor(declaration: CSSStyleDeclaration, declarationToSet: CSSStyleDeclaration) {
+    private readonly declaration: CSSStyleDeclaration;
+    private readonly declarationToSet: CSSStyleDeclaration;
+    private readonly node: HTMLElement;
+    private readonly eventTarget: BMLBrowserEventTarget;
+    public constructor(declaration: CSSStyleDeclaration, declarationToSet: CSSStyleDeclaration, node: HTMLElement, eventTarget: BMLBrowserEventTarget) {
         this.declaration = declaration;
         this.declarationToSet = declarationToSet;
+        this.node = node;
+        this.eventTarget = eventTarget;
     }
 
     private getColorIndexVariable(bmlPropName: string, propName: keyof typeof this.declaration): DOMString {
@@ -126,5 +131,15 @@ export class BMLCSS2Properties {
     }
     public set usedKeyList(value: DOMString) {
         this.declarationToSet.setProperty("--used-key-list", value);
+        if (this.node instanceof HTMLBodyElement) {
+            // bodyにfocus/activeは運用されない
+            this.eventTarget.dispatchEvent<"usedkeylistchanged">(new CustomEvent("usedkeylistchanged", {
+                detail: {
+                    usedKeyList: new Set(value.split(" ").filter((x): x is "basic" | "numeric-tuning" | "data-button" => {
+                        return x === "basic" || x === "numeric-tuning" || x === "data-button";
+                    }))
+                }
+            }));
+        }
     }
 }
