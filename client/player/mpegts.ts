@@ -1,7 +1,6 @@
 import Mpegts from "mpegts.js";
 import * as aribb24js from "aribb24.js";
 
-type RendererOption = ConstructorParameters<typeof aribb24js.CanvasRenderer>[0];
 // Based on EPGStation
 
 /**
@@ -40,13 +39,13 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
             player.play();
     
             // 字幕対応
-            const captionOption: RendererOption = {
+            const captionOption: aribb24js.CanvasRendererOption = {
                 normalFont: "丸ゴシック",
                 forceStrokeColor: "black",
             };
             captionOption.data_identifier = 0x80;
             const captionRenderer = new aribb24js.CanvasRenderer(captionOption);
-            const superimposeOption: RendererOption = {
+            const superimposeOption: aribb24js.CanvasRendererOption = {
                 normalFont: "丸ゴシック",
                 forceStrokeColor: "black",
             };

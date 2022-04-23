@@ -1,12 +1,11 @@
-import { SVGProvider, SVGRenderer } from "aribb24.js";
+import { SVGProvider, SVGProviderOption } from "aribb24.js";
 import { VideoPlayer } from "./video_player";
 
-type ProviderOption = Exclude<Parameters<SVGProvider["render"]>[0], undefined>;
 // 別途PESを受け取って字幕を描画する
 export class CaptionPlayer extends VideoPlayer {
     svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     superSVG = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    captionOption: ProviderOption;
+    captionOption: SVGProviderOption;
     public constructor(video: HTMLVideoElement, container: HTMLElement) {
         super(video, container);
         this.scale(1);

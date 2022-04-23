@@ -2,12 +2,10 @@ import Hls from "hls.js";
 import * as aribb24js from "aribb24.js";
 import { VideoPlayer } from "./video_player";
 
-type RendererOption = ConstructorParameters<typeof aribb24js.CanvasRenderer>[0];
-
 export class HLSVideoPlayer extends VideoPlayer {
     captionRenderer: aribb24js.CanvasRenderer | null = null;
     public setSource(source: string): void {
-        const captionOption: RendererOption = {
+        const captionOption: aribb24js.CanvasRendererOption = {
             normalFont: "丸ゴシック",
             enableAutoInBandMetadataTextTrackDetection: !Hls.isSupported(),
             forceStrokeColor: "black",
