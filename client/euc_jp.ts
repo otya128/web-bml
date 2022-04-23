@@ -1,7 +1,12 @@
 import { jisToUnicodeMap } from "./jis_to_unicode_map";
 // EUC-JPからstringに変換する
 export function decodeEUCJP(input: Uint8Array): string {
+    if (input.length === 0) {
+        return "";
+    }
     let buffer = new Uint16Array(input.length);
+    buffer[0] = 1;
+    const isBE = new Uint8Array(buffer.buffer)[0] === 0;
     let outOff = 0;
     const replacementCharacter = 0xfffd; // �
     for (let i = 0; i < input.length; i++) {
@@ -43,5 +48,5 @@ export function decodeEUCJP(input: Uint8Array): string {
             buffer[outOff++] = replacementCharacter;
         }
     }
-    return new TextDecoder("utf-16").decode(buffer.subarray(0, outOff));
+    return new TextDecoder(isBE ? "utf-16be" : "utf-16le").decode(buffer.subarray(0, outOff));
 }
