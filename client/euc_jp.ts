@@ -60,7 +60,7 @@ export function encodeEUCJP(input: string): Uint8Array {
         const c = input.charCodeAt(i);
         const a = unicodeToJISMap[c];
         if (a == null && c < 0x80) {
-            buf[off++] = a;
+            buf[off++] = c;
             continue;
         }
         const jis = (a ?? 0x222e) + (0xa0a0 - 0x2020); // 〓
