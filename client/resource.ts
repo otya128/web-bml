@@ -1,5 +1,5 @@
 import { ComponentPMT, MediaType, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
-import { Indicator } from "./bml_browser";
+import { Indicator, IP } from "./bml_browser";
 
 type Module = {
     moduleId: number,
@@ -94,9 +94,11 @@ export type ResourcesEventTarget = CustomEventTarget<ResourcesEventMap>;
 export class Resources {
     private readonly indicator?: Indicator;
     private readonly eventTarget: ResourcesEventTarget = new EventTarget();
+    private readonly ip: IP;
 
-    public constructor(indicator?: Indicator) {
+    public constructor(indicator: Indicator | undefined, ip: IP) {
         this.indicator = indicator;
+        this.ip = ip;
     }
 
     private _activeDocument: null | string = null;
@@ -487,7 +489,27 @@ export class Resources {
 
     private componentRequests = new Map<number, ComponentRequest>();
 
+    private async fetchRemoteResource(url: string): Promise<CachedFile | null> {
+        if (this.ip.get == null) {
+            return null;
+        }
+        const full = this.activeDocument?.startsWith("http") ? new URL(url, this.activeDocument).toString() : url;
+        const { response } = await this.ip.get(full);
+        if (response == null) {
+            return null;
+        }
+        return {
+            contentLocation: null,
+            contentType: { originalSubtype: "", originalType: "", parameters: [], subtype: "", type: "" },
+            data: response,
+            blobUrl: new Map<any, CachedFileMetadata>(),
+        };
+    }
+
     public fetchResourceAsync(url: string): Promise<CachedFile | null> {
+        if ((this.activeDocument?.startsWith("http") && !url.startsWith("arib://") && !url.startsWith("arib-dc://")) || url.startsWith("http")) {
+            return this.fetchRemoteResource(url);
+        }
         const res = this.fetchLockedResource(url);
         if (res) {
             return Promise.resolve(res);

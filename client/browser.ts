@@ -7,7 +7,8 @@ import { EventDispatcher, EventQueue } from "./event_queue";
 import { Content } from "./content";
 import { ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
-import { AudioNodeProvider } from "./bml_browser";
+import { AudioNodeProvider, IP } from "./bml_browser";
+import { decodeEUCJP, encodeEUCJP } from "./euc_jp";
 // browser疑似オブジェクト
 
 export type LockedModuleInfo = [moduleName: string, func: number, status: number];
@@ -296,15 +297,25 @@ const apiGroup: Map<string, number> = new Map([
 ]);
 
 export class BrowserAPI {
-    private resources: resource.Resources;
-    private eventQueue: EventQueue;
-    private eventDispatcher: EventDispatcher;
-    private content: Content;
-    private nvram: NVRAM;
-    private interpreter: Interpreter;
-    private audioNodeProvider: AudioNodeProvider;
+    private readonly resources: resource.Resources;
+    private readonly eventQueue: EventQueue;
+    private readonly eventDispatcher: EventDispatcher;
+    private readonly content: Content;
+    private readonly nvram: NVRAM;
+    private readonly interpreter: Interpreter;
+    private readonly audioNodeProvider: AudioNodeProvider;
+    private readonly ip: IP;
 
-    constructor(resources: resource.Resources, eventQueue: EventQueue, eventDispatcher: EventDispatcher, content: Content, nvram: NVRAM, interpreter: Interpreter, audioNodeProvider: AudioNodeProvider) {
+    constructor(
+        resources: resource.Resources,
+        eventQueue: EventQueue,
+        eventDispatcher: EventDispatcher,
+        content: Content,
+        nvram: NVRAM,
+        interpreter: Interpreter,
+        audioNodeProvider: AudioNodeProvider,
+        ip: IP,
+    ) {
         this.resources = resources;
         this.eventQueue = eventQueue;
         this.eventDispatcher = eventDispatcher;
@@ -312,6 +323,7 @@ export class BrowserAPI {
         this.nvram = nvram;
         this.interpreter = interpreter;
         this.audioNodeProvider = audioNodeProvider;
+        this.ip = ip;
     }
 
     asyncBrowser: AsyncBrowser = {
@@ -339,7 +351,28 @@ export class BrowserAPI {
         },
         transmitTextDataOverIP: async (uri: string, text: string, charset: string): Promise<[number, string, string]> => {
             console.error("transmitTextDataOverIP", uri, text, charset);
-            return [NaN, "", ""];
+            if (this.ip.transmitTextDataOverIP == null) {
+                return [NaN, "", ""];
+            }
+            function encodeBinary(data: Uint8Array): string {
+                const encoded: string[] = [];
+                for (const c of data) {
+                    const s = String.fromCharCode(c);
+                    if ((s >= "A" && s <= "Z") || (s >= "a" && s <= "z") || (s >= "0" && s <= "9") || "-_.!~*'()".indexOf(s) !== -1) {
+                        encoded.push(s);
+                    } else {
+                        encoded.push("%");
+                        encoded.push(c.toString(16).padStart(2, "0"));
+                    }
+                }
+                return encoded.join("");
+            }
+            if (charset === "EUC-JP") {
+                const { resultCode, statusCode, response } = await this.ip.transmitTextDataOverIP(uri, new TextEncoder().encode("Denbun=" + encodeBinary(encodeEUCJP(text))));
+                return [resultCode, statusCode, decodeEUCJP(response)];
+            } else {
+                return [NaN, "", ""];
+            }
         },
         sleep: async (interval: number): Promise<number | null> => {
             return new Promise<number | null>((resolve) => {
@@ -729,13 +762,13 @@ export class BrowserAPI {
             }
             return null;
         },
-        isIPConnected(): number {
+        isIPConnected: (): number => {
             console.log("isIPConnected");
-            return 0;
+            return this.ip.isIPConnected?.() ?? 0;
         },
-        getConnectionType(): number {
+        getConnectionType: (): number => {
             console.log("getConnectionType");
-            return 403; // Ethernet DHCP
+            return this.ip.getConnectionType?.() ?? 403; // Ethernet DHCP
         },
         setInterval: (evalCode: string, msec: number, iteration: number): number => {
             const handle = this.eventQueue.setInterval(() => {

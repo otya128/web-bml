@@ -785,12 +785,17 @@ export class Content {
         const { component, module, filename } = this.resources.parseURL(documentName);
         const componentId = Number.parseInt(component ?? "", 16);
         const moduleId = Number.parseInt(module ?? "", 16);
+        let normalizedDocument: string;
         if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
-            await this.quitDocument();
-            return NaN;
-        }
-        let normalizedDocument;
-        if (filename != null) {
+            if (this.resources.activeDocument?.startsWith("http")) {
+                normalizedDocument = new URL(documentName, this.resources.activeDocument).toString();
+            } else if (documentName.startsWith("http")) {
+                normalizedDocument = documentName;
+            } else {
+                await this.quitDocument();
+                return NaN;
+            }
+        } else if (filename != null) {
             normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}/${filename}`;
         } else {
             normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
@@ -1056,8 +1061,8 @@ export class Content {
         return ret;
     }
 
-    private getCLUT(clutUrl: string): css.Declaration[] {
-        const res = this.resources.fetchLockedResource(clutUrl);
+    private async getCLUT(clutUrl: string): Promise<css.Declaration[]> {
+        const res = await this.resources.fetchResourceAsync(clutUrl);
         let clut = defaultCLUT;
         if (res?.data) {
             clut = readCLUT(Buffer.from(res.data));
@@ -1066,7 +1071,7 @@ export class Content {
     }
 
     private async convertCSSUrl(url: string): Promise<string> {
-        const res = this.resources.fetchLockedResource(url);
+        const res = await this.resources.fetchResourceAsync(url);
         if (!res) {
             return url;
         }

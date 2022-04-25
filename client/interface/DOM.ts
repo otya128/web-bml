@@ -759,8 +759,13 @@ export namespace BML {
                 } else if (aribType?.toLowerCase() === "image/jpeg") {
                     imageUrl = fetched.blobUrl.get("BT.709");
                     if (imageUrl == null) {
-                        imageUrl = await convertJPEG(this.ownerDocument.resources.getCachedFileBlobUrl(fetched));
-                        if (this.__version !== version) {
+                        try {
+                            imageUrl = await convertJPEG(this.ownerDocument.resources.getCachedFileBlobUrl(fetched));
+                            if (this.__version !== version) {
+                                return;
+                            }
+                        } catch {
+                            this.delete();
                             return;
                         }
                         fetched.blobUrl.set("BT.709", imageUrl);

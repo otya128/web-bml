@@ -38,6 +38,13 @@ export interface EPG {
     tuneToComponent?(originalNetworkId: number, transportStreamId: number, serviceId: number, component: string): boolean | never;
 }
 
+export interface IP {
+    isIPConnected?(): number;
+    getConnectionType?(): number;
+    transmitTextDataOverIP?(uri: string, body: Uint8Array): Promise<{ resultCode: number, statusCode: string, response: Uint8Array }>;
+    get?(uri: string): Promise<{ response?: Uint8Array, statusCode?: number }>;
+}
+
 interface BMLBrowserEventMap {
     // 読み込まれたとき
     "load": CustomEvent<{ resolution: { width: number, height: number }, displayAspectRatio: { numerator: number, denominator: number } }>;
@@ -96,6 +103,7 @@ export type BMLBrowserOptions = {
      */
     videoPlaneModeEnabled?: boolean;
     audioNodeProvider?: AudioNodeProvider;
+    ip?: IP,
 };
 
 export class BMLBrowser {
@@ -129,7 +137,7 @@ export class BMLBrowser {
             this.documentElement.tabIndex = options.tabIndex;
         }
         this.shadowRoot.appendChild(this.documentElement);
-        this.resources = new Resources(this.indicator);
+        this.resources = new Resources(this.indicator, options.ip ?? {});
         this.broadcasterDatabase = new BroadcasterDatabase(this.resources);
         this.broadcasterDatabase.openDatabase();
         this.nvram = new NVRAM(this.resources, this.broadcasterDatabase, options.nvramPrefix);
@@ -140,7 +148,7 @@ export class BMLBrowser {
         this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioContextProvider);
         this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
         this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false);
-        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioContextProvider);
+        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioContextProvider, options.ip ?? {});
 
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);

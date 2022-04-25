@@ -5,7 +5,7 @@ import { MP4VideoPlayer } from "./player/mp4";
 import { MPEGTSVideoPlayer } from "./player/mpegts";
 import { HLSVideoPlayer } from "./player/hls";
 import { NullVideoPlayer } from "./player/null";
-import { BMLBrowser, BMLBrowserFontFace, EPG } from "./bml_browser";
+import { BMLBrowser, BMLBrowserFontFace, EPG, IP } from "./bml_browser";
 import { VideoPlayer } from "./player/video_player";
 import { RemoteControl } from "./remote_controller_client";
 import { keyCodeToAribKey } from "./content";
@@ -78,6 +78,36 @@ const epg: EPG = {
     }
 };
 
+const apiIP: IP = {
+    getConnectionType() {
+        return 403;
+    },
+    isIPConnected() {
+        return 1;
+    },
+    async transmitTextDataOverIP(uri, body) {
+        try {
+            const res = await window.fetch("/api/post/" + uri, {
+                method: "POST",
+                body,
+            });
+            return { resultCode: 1, statusCode: res.status.toString(), response: new Uint8Array(await res.arrayBuffer()) };
+        } catch {
+            return { resultCode: NaN, statusCode: "", response: new Uint8Array() };
+        }
+    },
+    async get(uri) {
+        try {
+            const res = await window.fetch("/api/get/" + uri, {
+                method: "GET",
+            });
+            return { statusCode: res.status, response: new Uint8Array(await res.arrayBuffer()) };
+        } catch {
+            return { };
+        }
+    },
+};
+
 const bmlBrowser = new BMLBrowser({
     containerElement: contentElement,
     mediaElement: videoContainer,
@@ -88,6 +118,7 @@ const bmlBrowser = new BMLBrowser({
         squareGothic
     },
     epg,
+    ip: apiIP,
 });
 
 remoteControl.content = bmlBrowser.content;

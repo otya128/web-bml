@@ -34,7 +34,7 @@ export function parseCSSValue(value: string): string | null {
 
 export type CSSTranspileOptions = {
     inline: boolean,
-    clutReader: (cssValue: string) => css.Declaration[],
+    clutReader: (cssValue: string) => Promise<css.Declaration[]>,
     convertUrl?: (url: string) => Promise<string>,
 };
 
@@ -93,7 +93,7 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
             if (clut) {
                 const l = parseCSSValue(clut);
                 if (l) {
-                    for (const i of opts.clutReader(l)) {
+                    for (const i of await opts.clutReader(l)) {
                         rule.declarations?.push(i);
                     }
                 }
