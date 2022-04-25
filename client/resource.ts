@@ -680,7 +680,7 @@ function uriToBaseURIDirectory(uri: string): string {
             console.log(i, hex, next)
             if (hex.length === 2) {
                 const d = parseInt(hex, 16);
-                if (d >= 0x20 && d < 0x7F) {
+                if (d !== 0x2F && d >= 0x20 && d < 0x7F) {
                     unescaped.push(String.fromCharCode(d));
                 } else {
                     unescaped.push("%");
