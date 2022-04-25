@@ -117,7 +117,7 @@ export interface Browser {
 
     lockScreen(): number;
     unlockScreen(): number;
-    getBrowserSupport(sProvider: string, functionname: string, additionalinfo?: string): number;
+    getBrowserSupport(sProvider: string, functionname: string, ...additionalinfo: string[]): number;
     launchDocument(documentName: string, transitionStyle?: string): number;
     // option
     // launchDocumentRestricted(documentName: string, transitionStyle: string): number;
@@ -200,6 +200,101 @@ export interface AsyncBrowser {
     X_CSP_setAccessInfoToProviderArea(filename: string, structure: string): Promise<number>;
 }
 
+const apiGroup: Map<string, number> = new Map([
+    ["Class.BinaryTable", 1],
+    ["Class.CSVTable", 0],
+    ["Class.XMLDoc", 0],
+    ["EPG.Basic", 1], // FIXME: 未実装あり
+    ["EPG.Basic2", 0], // FIXME: 未実装
+    ["EPG.Ext", 0], // epgTuneToDocument
+    ["EPG.Group", 0],
+    ["EPG.Series", 0],
+    ["CC.Stream", 0],
+    ["CC.Control", 0], // FIXME: 未実装
+    ["Persistent.Ext", 0],
+    ["Persistent.Basic", 1],
+    ["Persistent.MediaSupport", 1], // FIXME: setAccessInfoOfPersistentArray
+    ["Storage.Dir.Dest", 0],
+    ["Storage.Dir", 0],
+    ["Storage.Dir.Ext", 0],
+    ["Storage.File.Dest", 0],
+    ["Storage.File", 0],
+    ["Storage.File.Ext", 0],
+    ["Storage.IO", 0],
+    ["Storage.Basic", 0],
+    ["Storage.Carousel", 0],
+    ["Storage.Module", 0],
+    ["Storage.Carousel.Ext", 0],
+    ["Storage.Module.Ext", 0],
+    ["Storage.Resource.Ext", 0],
+    ["Storage.Resource", 0],
+    ["Com.BASIC.Basic", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
+    ["Com.BASIC.Ext", 0],
+    ["Com.BASIC.Delay", 0],
+    ["Com.BASIC.Delayed", 0],
+    ["Com.BASIC.Vote", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
+    ["Com.BASIC.CAS", 0],
+    ["Com.BASIC.Enc", 0],
+    ["Com.IP.Params", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
+    ["Com.IP.Connect", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
+    ["Com.IP.Connect.Ext", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
+    ["Com.IP.GetType", 1],
+    ["Com.IP", 1],
+    ["Com.IP.Http.Ext", 0],
+    ["Com.IP.Http", 0],
+    ["Com.IP.Ftp.Ext", 0],
+    ["Com.IP.Ftp", 0],
+    ["Com.IP.Sendmail", 0], // FIXME?
+    ["Com.IP.Transmit", 1],
+    ["Com.IP.Delayed", 0],
+    ["Com.IP.SetCache", 0], // FIXME?
+    ["Com.IP.confirmIP", 0], // FIXME
+    ["Com.Common.Delayed", 0],
+    ["Com.Line.Prefix", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
+    ["Com.Certificate", 0], // FIXME
+    ["Ctrl.Basic", 1],
+    ["Ctrl.NPT", 1], // FIXME
+    ["Ctrl.Time", 1],
+    ["Ctrl.Exec", 0],
+    ["Ctrl.Cache", 1], // FIXME: setCachePriority
+    ["Ctrl.Link", 0],
+    ["Ctrl.PgmHyperlink", 0],
+    ["Ctrl.Version", 1],
+    ["Ctrl.Screen", 1],
+    ["Ctrl.Com", 0], // オプション扱い
+    ["Ctrl.Quit", 0], // FIXME
+    ["Ctrl.ExtApp", 0], // オプション扱い
+    ["Ctrl.Cache.Ext", 0], // FIXME
+    ["Ctrl.Media", 0], // FIXME
+    ["Ctrl.Basic2", 1],
+    ["Ctrl.Cache2", 1],
+    ["Ctrl.MobileDisplay", 0],
+    ["Ctrl.AppVersion", 1],
+    ["Ctrl.startResidentApp", 0],
+    ["Ctrl.startExtraBrowser", 0],
+    ["Misc.SmartDevice.transmitData", 0],
+    ["RomSound.Basic", 1],
+    ["Timer.Basic", 1],
+    ["Timer.Ext", 0],
+    ["Timer.DateMode", 1],
+    ["Misc.DRCS", 1],
+    ["Misc.DRCS.unload", 0],
+    ["Misc.Peripheral", 0],
+    ["Misc.Peripheral.pass", 0],
+    ["Misc.Peripheral.Array", 0],
+    ["Bookmark.Basic", 0], // FIXME
+    ["Bookmark.Extended", 0], // FIXME
+    ["Bookmark.Resident", 0],
+    ["Misc.Basic", 1],
+    ["Misc.Ureg", 1],
+    ["Misc.Greg", 1],
+    ["Print.Basic", 0],
+    ["Print.MemoryCard", 0],
+    ["Iptv.Vod", 0],
+    ["Iptv.Download", 0],
+    ["AITControlledApp.Start", 0],
+]);
+
 export class BrowserAPI {
     private resources: resource.Resources;
     private eventQueue: EventQueue;
@@ -243,7 +338,7 @@ export class BrowserAPI {
             return 1;
         },
         transmitTextDataOverIP: async (uri: string, text: string, charset: string): Promise<[number, string, string]> => {
-            console.error("transmitTextDataOverIP");
+            console.error("transmitTextDataOverIP", uri, text, charset);
             return [NaN, "", ""];
         },
         sleep: async (interval: number): Promise<number | null> => {
@@ -471,8 +566,10 @@ export class BrowserAPI {
             console.log("unlockScreen");
             return 1;
         },
-        getBrowserSupport(sProvider: string, functionname: string, additionalinfo?: string): number {
-            console.log("getBrowserSupport", sProvider, functionname, additionalinfo);
+        getBrowserSupport(sProvider: string, functionname: string, ...additionalinfoList: string[]): number {
+            console.log("getBrowserSupport", sProvider, functionname, additionalinfoList);
+            const additionalinfo: string | undefined = additionalinfoList[0];
+            const additionalinfo2: string | undefined = additionalinfoList[1];
             if (sProvider === "ARIB") {
                 if (functionname === "BMLversion") {
                     if (additionalinfo == null) {
@@ -488,17 +585,21 @@ export class BrowserAPI {
                         return 0;
                     }
                 } else if (functionname === "APIGroup") {
-                    if (additionalinfo === "Ctrl.Basic") {
-                        return 1;
-                    } else if (additionalinfo === "Ctrl.Screen") {
-                        return 1;
-                    } else if (additionalinfo === "Ctrl.Cache2") {
-                        return 1;
-                    } else if (additionalinfo === "Ctrl.Version") {
-                        return 1;
-                    } else if (additionalinfo === "Ctrl.Basic2") {
-                        // detectComponent
-                        return 1;
+                    const status = apiGroup.get(additionalinfo);
+                    if (status != null) {
+                        return status;
+                    }
+                } else if (functionname === "AITControlledAppEngineFunction") {
+                    if (additionalinfo === "IPTV-F") {
+                        if (additionalinfo2 === "HTML5_ph0") {
+                            return 0;
+                        }
+                    }
+                } else if (functionname === "AITTransferMethod") {
+                    if (additionalinfo === "XML") {
+                        if (additionalinfo2 === "HTTP") {
+                            return 0;
+                        }
                     }
                 }
             } else if (sProvider === "nvram") {
@@ -516,6 +617,7 @@ export class BrowserAPI {
                     }
                 }
             }
+            console.error("unknown getBrowserSupport", sProvider, functionname, additionalinfoList);
             return 0;
         },
         getBrowserStatus(sProvider: string, functionname: string, additionalinfo: string): number {
@@ -633,7 +735,7 @@ export class BrowserAPI {
         },
         getConnectionType(): number {
             console.log("getConnectionType");
-            return NaN;
+            return 403; // Ethernet DHCP
         },
         setInterval: (evalCode: string, msec: number, iteration: number): number => {
             const handle = this.eventQueue.setInterval(() => {
