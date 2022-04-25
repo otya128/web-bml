@@ -787,10 +787,19 @@ export class Content {
         const moduleId = Number.parseInt(module ?? "", 16);
         let normalizedDocument: string;
         if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
-            if (this.resources.activeDocument?.startsWith("http")) {
-                normalizedDocument = new URL(documentName, this.resources.activeDocument).toString();
-            } else if (documentName.startsWith("http")) {
+            const isInternet = documentName.startsWith("http://") || documentName.startsWith("https://");
+            if (isInternet && !this.resources.isInternetContent) {
+                // 放送コンテンツ->通信コンテンツへの遷移
+                this.resources.setBaseURIDirectory(documentName);
                 normalizedDocument = documentName;
+            } else if (this.resources.activeDocument != null && this.resources.isInternetContent) {
+                // 通信コンテンツ->通信コンテンツへの遷移
+                if (!this.resources.checkBaseURIDirectory(documentName)) {
+                    console.error("base URI directory violation");
+                    await this.quitDocument();
+                    return NaN;
+                }
+                normalizedDocument = new URL(documentName, this.resources.activeDocument).toString();
             } else {
                 await this.quitDocument();
                 return NaN;

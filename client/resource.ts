@@ -110,6 +110,9 @@ export class Resources {
         this._activeDocument = doc;
         this._currentComponentId = componentId;
         this._currentModuleId = moduleId;
+        if (!doc?.startsWith("http://") && !doc?.startsWith("https://")) {
+            this.baseURIDirectory = null;
+        }
     }
 
     public get activeDocument(): string | null {
@@ -427,6 +430,12 @@ export class Resources {
         if (url == null) {
             return { component: null, module: null, filename: null };
         }
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return { component: null, module: null, filename: null };
+        }
+        if (!url.startsWith("arib-dc://") && !url.startsWith("arib://") && (this.activeDocument?.startsWith("http://") || this.activeDocument?.startsWith("https://"))) {
+            return { component: null, module: null, filename: null };
+        }
         url = this.removeDCReferencePrefix(url);
         if (url.startsWith("~/")) {
             url = ".." + url.substring(1);
@@ -490,10 +499,10 @@ export class Resources {
     private componentRequests = new Map<number, ComponentRequest>();
 
     private async fetchRemoteResource(url: string): Promise<CachedFile | null> {
-        if (this.ip.get == null) {
+        if (this.ip.get == null || this.activeDocument == null || this.baseURIDirectory == null) {
             return null;
         }
-        const full = this.activeDocument?.startsWith("http") ? new URL(url, this.activeDocument).toString() : url;
+        const full = this.activeDocument.startsWith("http://") || this.activeDocument.startsWith("https://") ? new URL(url, this.activeDocument).toString() : url;
         const { response } = await this.ip.get(full);
         if (response == null) {
             return null;
@@ -507,8 +516,13 @@ export class Resources {
     }
 
     public fetchResourceAsync(url: string): Promise<CachedFile | null> {
-        if ((this.activeDocument?.startsWith("http") && !url.startsWith("arib://") && !url.startsWith("arib-dc://")) || url.startsWith("http")) {
-            return this.fetchRemoteResource(url);
+        if (this.isInternetContent) {
+            if (
+                ((this.activeDocument?.startsWith("http://") || this.activeDocument?.startsWith("https://")) && !url.startsWith("arib://") && !url.startsWith("arib-dc://")) ||
+                url.startsWith("http://") || url.startsWith("https://")
+            ) {
+                return this.fetchRemoteResource(url);
+            }
         }
         const res = this.fetchLockedResource(url);
         if (res) {
@@ -625,4 +639,59 @@ export class Resources {
     public get startupModuleId(): number {
         return 0x0000;
     }
+
+    public get isInternetContent(): boolean {
+        return this.baseURIDirectory != null;
+    }
+
+    baseURIDirectory: string | null = null;
+
+    public setBaseURIDirectory(baseURIDirectory: string) {
+        this.baseURIDirectory = uriToBaseURIDirectory(baseURIDirectory);
+    }
+
+    public checkBaseURIDirectory(url: string) {
+        if (this.baseURIDirectory == null) {
+            return false;
+        }
+        const base = uriToBaseURIDirectory(this.activeDocument?.startsWith("http://") || this.activeDocument?.startsWith("https://") ? new URL(url, this.activeDocument).toString() : url);
+        return base.startsWith(this.baseURIDirectory);
+    }
+}
+
+function uriToBaseURIDirectory(uri: string): string {
+    const url = new URL(uri);
+    // host: ポート番号含む
+    // hostname: 含まない
+    const hostname = url.hostname.toLowerCase();
+    let pathname = url.pathname;
+    const lastSlash = pathname.lastIndexOf("/");
+    if (lastSlash !== -1 && lastSlash !== pathname.length - 1) {
+        pathname = pathname.substring(0, lastSlash);
+    }
+    // ASCIIの範囲のURLエンコードをデコード
+    const components = pathname.split("/").map(x => {
+        const unescaped: string[] = [];
+        let i = x.indexOf("%");
+        unescaped.push(x.substring(0, (i === -1 ? x.length : i)));
+        while (i !== -1) {
+            const hex = x.substring(i + 1, i + 3);
+            const next = x.indexOf("%", i + 1);
+            console.log(i, hex, next)
+            if (hex.length === 2) {
+                const d = parseInt(hex, 16);
+                if (d >= 0x20 && d < 0x7F) {
+                    unescaped.push(String.fromCharCode(d));
+                } else {
+                    unescaped.push("%");
+                    unescaped.push(hex.toUpperCase());
+                }
+                i += 3;
+            }
+            unescaped.push(x.substring(i, (next === -1 ? x.length : next)));
+            i = next;
+        }
+        return unescaped.join("");
+    });
+    return hostname + components.join("/");
 }
