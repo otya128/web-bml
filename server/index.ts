@@ -165,14 +165,88 @@ router.get("/KosugiMaru-Regular.ttf", async ctx => {
 router.get("/Kosugi-Regular.ttf", async ctx => {
     ctx.body = fs.createReadStream("dist/Kosugi-Regular.ttf");
 });
-router.get('/api/sleep', async ctx => {
-    let ms = Number(ctx.query.ms ?? "0");
-    await new Promise<void>((resolve, reject) => {
-        setTimeout(() => {
-            resolve()
-        }, ms);
+
+router.get(/^\/api\/get\/(?<url>https?:\/\/.+)$/, async ctx => {
+    const url = ctx.params.url;
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        ctx.status = 400;
+        return;
+    }
+    const opts: https.RequestOptions = {
+        headers: {
+            "Accept": "*/*", // text/X-arib-bml?
+            "Accept-Language": "ja",
+            "Pragma": "no-cache",
+        },
+        rejectUnauthorized: false,
+    };
+    const allowedRequestHeaders = new Set(["if-modified-since", "cache-control"]);
+    for (let i = 0; i < ctx.req.rawHeaders.length; i += 2) {
+        const key = ctx.req.rawHeaders[i];
+        const value = ctx.req.rawHeaders[i + 1];
+        if (allowedRequestHeaders.has(key.toLowerCase())) {
+            opts.headers![key] = value;
+        }
+    }
+    const res = await new Promise<http.IncomingMessage>((resolve, reject) => {
+        const client = provideHttpClient(url);
+        const req = client.get(url, opts, resolve);
+        req.on("error", reject);
     });
-    ctx.body = "OK";
+    if (res.statusCode != null) {
+        ctx.status = res.statusCode;
+    }
+    const allowedResponseHeaders = new Set(["accept-ranges", "authentication-info", "last-modified", "pragma", "date", "cache-control", "age", "expire", "content-language", "content-location", "content-type"]);
+    for (let i = 0; i < res.rawHeaders.length; i += 2) {
+        const key = res.rawHeaders[i];
+        const value = res.rawHeaders[i + 1];
+        if (allowedResponseHeaders.has(key.toLowerCase())) {
+            ctx.set(key, value);
+        }
+    }
+    await pipeAsync(res, ctx.res, { end: true });
+});
+
+router.post(/^\/api\/post\/(?<url>https?:\/\/.+)$/, async ctx => {
+    const url = /^\/api\/post\/(?<url>https?:\/\/.+)$/.exec(ctx.originalUrl)?.groups?.url;
+    if (url == null || (!url.startsWith("http://") && !url.startsWith("https://"))) {
+        ctx.status = 400;
+        return;
+    }
+    const body = await streamToBuffer(ctx.req);
+    if (body.byteLength > 4096 + "Denbun=".length) {
+        ctx.status = 413;
+        return;
+    }
+    const opts: https.RequestOptions = {
+        method: "POST",
+        headers: {
+            "Accept": "*/*",
+            "Pragma": "no-cache",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Length": `${body.byteLength}`,
+        },
+        rejectUnauthorized: false,
+    };
+    const res = await new Promise<http.IncomingMessage>((resolve, reject) => {
+        const client = provideHttpClient(url);
+        const req = client.request(url, opts, resolve);
+        req.on("error", reject);
+        req.write(body);
+        req.end();
+    });
+    if (res.statusCode != null) {
+        ctx.status = res.statusCode;
+    }
+    const allowedResponseHeaders = new Set(["accept-ranges", "authentication-info", "last-modified", "pragma", "date", "cache-control", "age", "expire", "content-language", "content-location", "content-type"]);
+    for (let i = 0; i < res.rawHeaders.length; i += 2) {
+        const key = res.rawHeaders[i];
+        const value = res.rawHeaders[i + 1];
+        if (allowedResponseHeaders.has(key.toLowerCase())) {
+            ctx.set(key, value);
+        }
+    }
+    await pipeAsync(res, ctx.res, { end: true });
 });
 
 router.get('/video_list.js', async ctx => {
@@ -423,12 +497,16 @@ router.get("/streams/:id.null", async (ctx) => {
     tsStream.resume();
 });
 
-async function streamToString(stream: stream.Readable) {
+async function streamToString(stream: stream.Readable): Promise<string> {
+    return (await streamToBuffer(stream)).toString("utf-8");
+}
+
+async function streamToBuffer(stream: stream.Readable): Promise<Buffer> {
     const chunks: Buffer[] = [];
     for await (const chunk of stream) {
         chunks.push(Buffer.from(chunk));
     }
-    return Buffer.concat(chunks).toString("utf-8");
+    return Buffer.concat(chunks);
 }
 
 function provideHttpClient(options: string | http.RequestOptions | URL) {
