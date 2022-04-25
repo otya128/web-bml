@@ -1,6 +1,5 @@
-import { decodeEUCJP } from "./euc_jp";
+import { decodeEUCJP, encodeEUCJP } from "./euc_jp";
 import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
-import { eucJPCharCodeAt } from "./string";
 
 export interface BinaryTableConstructor {
     new(table_ref: string, structure: string): IBinaryTable;// | null;
@@ -14,22 +13,6 @@ export interface IBinaryTable {
     toString(row: number, column: number): string | null;
     toArray(startRow: number, numRow: number): any[] | null;
     search(startRow: number, ...args: any[]): number;
-}
-
-// String.prototype.charCodeAtはeucJPCharCodeAtとなっているためそれを使って変換する
-function encodeEUCJP(input: string): Uint8Array {
-    const buf = new Uint8Array(input.length * 2);
-    let off = 0;
-    for (let i = 0; i < input.length; i++) {
-        const c = eucJPCharCodeAt.call(input, i);
-        if (c >= 0x100) {
-            buf[off++] = c >> 8;
-            buf[off++] = c & 0xff;
-        } else {
-            buf[off++] = c;
-        }
-    }
-    return buf.subarray(0, off);
 }
 
 enum BinaryTableUnit {
