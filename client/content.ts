@@ -718,7 +718,7 @@ export class Content {
                 }
             });
         }, 1000);
-        this.indicator?.setUrl(this.resources.activeDocument, false);
+        this.indicator?.setUrl(this.resources.activeDocument.replace(/(?<=^https?:\/\/)[^/]+/, "…"), false);
         return false;
     }
 
@@ -809,7 +809,7 @@ export class Content {
         } else {
             normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
         }
-        this.indicator?.setUrl(normalizedDocument, true);
+        this.indicator?.setUrl(normalizedDocument.replace(/(?<=^https?:\/\/)[^/]+/, "…"), true);
         const res = await this.resources.fetchResourceAsync(documentName);
         if (res == null) {
             console.error("NOT FOUND");
