@@ -42,7 +42,7 @@ export interface IP {
     isIPConnected?(): number;
     getConnectionType?(): number;
     transmitTextDataOverIP?(uri: string, body: Uint8Array): Promise<{ resultCode: number, statusCode: string, response: Uint8Array }>;
-    get?(uri: string): Promise<{ response?: Uint8Array, statusCode?: number }>;
+    get?(uri: string): Promise<{ response?: Uint8Array, headers?: Headers, statusCode?: number }>;
 }
 
 interface BMLBrowserEventMap {

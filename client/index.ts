@@ -101,7 +101,7 @@ const apiIP: IP = {
             const res = await window.fetch("/api/get/" + uri, {
                 method: "GET",
             });
-            return { statusCode: res.status, response: new Uint8Array(await res.arrayBuffer()) };
+            return { statusCode: res.status, headers: res.headers, response: new Uint8Array(await res.arrayBuffer()) };
         } catch {
             return { };
         }

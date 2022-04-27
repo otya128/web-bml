@@ -39,6 +39,10 @@ export type CachedFile = {
     blobUrl: Map<any, CachedFileMetadata>,
 };
 
+export type RemoteCachedFile = CachedFile & {
+    cacheControl?: string,
+};
+
 export type LockedComponent = {
     componentId: number,
     modules: Map<number, LockedModule>,
@@ -69,6 +73,11 @@ type ModuleRequest = {
     resolve: (resolveValue: CachedFile | null) => void,
 };
 
+type RemoteResourceRequest = {
+    url: string,
+    resolve: (resolveValue: RemoteCachedFile | null) => void,
+};
+
 function moduleAndComponentToString(componentId: number, moduleId: number) {
     return `${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
 }
@@ -91,10 +100,64 @@ interface CustomEventTarget<M> {
 
 export type ResourcesEventTarget = CustomEventTarget<ResourcesEventMap>;
 
+// ブラウザのキャッシュとは別
+class CacheMap {
+    private readonly cachedRemoteResources: Map<string, RemoteCachedFile | null> = new Map();
+    private readonly maxEntryCount: number;
+    private readonly maxSizeBytes: number;
+    private sizeBytes = 0;
+
+    public constructor(maxEntryCount: number, maxSizeBytes: number) {
+        this.maxEntryCount = maxEntryCount;
+        this.maxSizeBytes = maxSizeBytes;
+    }
+
+    public get(url: string): RemoteCachedFile | null | undefined {
+        return this.cachedRemoteResources.get(url);
+    }
+
+    public set(url: string, file: RemoteCachedFile | null): void {
+        this.delete(url);
+        if ((file?.data.length ?? 0) > this.maxSizeBytes) {
+            return;
+        }
+        this.cachedRemoteResources.set(url, file);
+        this.sizeBytes += file?.data.length ?? 0;
+        // 挿入順に列挙される
+        // 列挙中に削除しても安全らしい
+        if (this.sizeBytes > this.maxSizeBytes || this.cachedRemoteResources.size > this.maxEntryCount) {
+            for (const [key] of this.cachedRemoteResources.keys()) {
+                if (this.sizeBytes > this.maxSizeBytes || this.cachedRemoteResources.size > this.maxEntryCount) {
+                    this.delete(key);
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    public delete(url: string): boolean {
+        const entry = this.cachedRemoteResources.get(url);
+        if (entry != null) {
+            this.sizeBytes -= entry.data.length;
+            for (const [_, blob] of entry.blobUrl) {
+                URL.revokeObjectURL(blob.blobUrl);
+            }
+            return this.cachedRemoteResources.delete(url);
+        } else {
+            return false;
+        }
+    }
+}
+
 export class Resources {
     private readonly indicator?: Indicator;
     private readonly eventTarget: ResourcesEventTarget = new EventTarget();
     private readonly ip: IP;
+    // ブラウザのキャッシュとは別に用意 どのみちblob urlの寿命の管理の役目もある
+    // とりあえず10 MiB, 400ファイル
+    private readonly cachedRemoteResources: CacheMap = new CacheMap(400, 1024 * 1024 * 10);
+    private readonly remoteResourceRequests: Map<string, RemoteResourceRequest[]> = new Map();
 
     public constructor(indicator: Indicator | undefined, ip: IP) {
         this.indicator = indicator;
@@ -503,16 +566,51 @@ export class Resources {
             return null;
         }
         const full = this.activeDocument.startsWith("http://") || this.activeDocument.startsWith("https://") ? new URL(url, this.activeDocument).toString() : url;
-        const { response } = await this.ip.get(full);
-        if (response == null) {
+        const cachedFile = this.cachedRemoteResources.get(full);
+        if (typeof cachedFile !== "undefined") {
+            return cachedFile;
+        }
+        const requests = this.remoteResourceRequests.get(full);
+        if (requests != null) {
+            return new Promise((resolve, _) => {
+                requests.push({
+                    url: full,
+                    resolve: (file) => {
+                        if (file?.cacheControl !== "no-store") {
+                            resolve(file);
+                        } else {
+                            this.fetchRemoteResource(url).then(x => {
+                                resolve(x);
+                            });
+                        }
+                    },
+                });
+            });
+        }
+        const requests2: RemoteResourceRequest[] = [];
+        this.remoteResourceRequests.set(full, requests2);
+        const { response, headers } = await this.ip.get(full);
+        this.remoteResourceRequests.delete(full);
+        if (response == null || headers == null) {
+            for (const { resolve } of requests2) {
+                resolve(null);
+            }
             return null;
         }
-        return {
+        const file: RemoteCachedFile = {
             contentLocation: null,
             contentType: { originalSubtype: "", originalType: "", parameters: [], subtype: "", type: "" },
             data: response,
             blobUrl: new Map<any, CachedFileMetadata>(),
+            cacheControl: headers.get("Cache-Control")?.toLowerCase()
         };
+        if (file.cacheControl !== "no-store") {
+            this.cachedRemoteResources.set(full, file);
+            for (const { resolve } of requests2) {
+                resolve(file);
+            }
+        }
+        return file;
     }
 
     public fetchResourceAsync(url: string): Promise<CachedFile | null> {
