@@ -8,11 +8,13 @@ export class RemoteControl implements Indicator {
     public player?: VideoPlayer;
     element: HTMLElement;
     receivingStatusElement: HTMLElement;
-    constructor(element: HTMLElement, receivingStatusElement: HTMLElement, content?: Content, player?: VideoPlayer) {
+    networkingStatusElement?: HTMLElement;
+    constructor(element: HTMLElement, receivingStatusElement: HTMLElement, networkingStatusElement?: HTMLElement, content?: Content, player?: VideoPlayer) {
         this.content = content;
         this.player = player;
         this.element = element;
         this.receivingStatusElement = receivingStatusElement;
+        this.networkingStatusElement = networkingStatusElement;
 
         this.element.querySelectorAll("button").forEach(x => {
             x.addEventListener("click", () => {
@@ -67,6 +69,7 @@ export class RemoteControl implements Indicator {
     }
     url = "";
     receiving = false;
+    networkingPost = false;
     eventName: string | null = "";
     loading = false;
     private update() {
@@ -79,6 +82,13 @@ export class RemoteControl implements Indicator {
         } else {
             this.receivingStatusElement.style.display = "none";
         }
+        if (this.networkingStatusElement != null) {
+            if (this.networkingPost) {
+                this.networkingStatusElement.style.display = "";
+            } else {
+                this.networkingStatusElement.style.display = "none";
+            }
+        }
     }
     public setUrl(name: string, loading: boolean): void {
         this.url = name;
@@ -88,6 +98,12 @@ export class RemoteControl implements Indicator {
     public setReceivingStatus(receiving: boolean): void {
         this.receiving = receiving;
         this.update();
+    }
+    public setNetworkingPostStatus(post: boolean): void {
+        this.networkingPost = post;
+        this.update();
+    }
+    public setNetworkingGetStatus(get: boolean): void {
     }
     public setEventName(eventName: string | null): void {
         this.eventName = eventName;

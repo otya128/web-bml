@@ -26,6 +26,8 @@ export interface Indicator {
     setUrl(name: string, loading: boolean): void;
     // テレビの下の方に出てくるデータ受信中...の表示
     setReceivingStatus(receiving: boolean): void;
+    setNetworkingGetStatus(get: boolean): void;
+    setNetworkingPostStatus(post: boolean): void;
     // 番組名
     setEventName(eventName: string | null): void;
 }
@@ -148,7 +150,7 @@ export class BMLBrowser {
         this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioContextProvider);
         this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
         this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false);
-        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioContextProvider, options.ip ?? {});
+        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioContextProvider, options.ip ?? {}, this.indicator);
 
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);

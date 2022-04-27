@@ -22,29 +22,28 @@
             line-height: 1;
         }
 
-        .remote-control-receiving-status {
+        .remote-control-status-container {
             position: absolute;
             width: 140px;
-            height: 1.5em;
+            height: 4em;
             right: 20px;
             bottom: 20px;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        .remote-control-status {
+            width: 140px;
+            height: 1.5em;
             font-family: "丸ゴシック";
             background-color: rgba(32, 32, 32, 0.5);
             vertical-align: middle;
             line-height: 1.5em;
             text-align: center;
             color: white;
-            /* animation: blink 2s infinite alternate steps(2, start); */
+            margin: 4px;
         }
-        /*
-        @keyframes blink {
-            0% {
-                visibility: visible;
-            }
-            100% {
-                visibility: hidden;
-            }
-        }*/
+
         #data-broadcasting-browser {
             flex-shrink: 0;
             position: relative;
@@ -75,8 +74,13 @@
             <div class="arib-video-cc-container"
                 style="width: 960px; height: 540px; display: none; position: absolute; left: 0px; top: 0px;">
             </div>
-            <div class="remote-control-receiving-status" style="display: none;">
-                データ取得中...
+            <div class="remote-control-status-container">
+                <div class="remote-control-status remote-control-receiving-status" style="display: none;">
+                    データ取得中...
+                </div>
+                <div class="remote-control-status remote-control-networking-status" style="display: none;">
+                    通信中...
+                </div>
             </div>
         </div>
 

@@ -7,7 +7,7 @@ import { EventDispatcher, EventQueue } from "./event_queue";
 import { Content } from "./content";
 import { ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
-import { AudioNodeProvider, IP } from "./bml_browser";
+import { AudioNodeProvider, Indicator, IP } from "./bml_browser";
 import { decodeEUCJP, encodeEUCJP } from "./euc_jp";
 // browser疑似オブジェクト
 
@@ -305,6 +305,7 @@ export class BrowserAPI {
     private readonly interpreter: Interpreter;
     private readonly audioNodeProvider: AudioNodeProvider;
     private readonly ip: IP;
+    private readonly indicator?: Indicator;
 
     constructor(
         resources: resource.Resources,
@@ -315,6 +316,7 @@ export class BrowserAPI {
         interpreter: Interpreter,
         audioNodeProvider: AudioNodeProvider,
         ip: IP,
+        indicator: Indicator | undefined,
     ) {
         this.resources = resources;
         this.eventQueue = eventQueue;
@@ -324,6 +326,7 @@ export class BrowserAPI {
         this.interpreter = interpreter;
         this.audioNodeProvider = audioNodeProvider;
         this.ip = ip;
+        this.indicator = indicator;
     }
 
     asyncBrowser: AsyncBrowser = {
@@ -368,7 +371,9 @@ export class BrowserAPI {
                 return encoded.join("");
             }
             if (charset === "EUC-JP") {
+                this.indicator?.setNetworkingPostStatus(true);
                 const { resultCode, statusCode, response } = await this.ip.transmitTextDataOverIP(uri, new TextEncoder().encode("Denbun=" + encodeBinary(encodeEUCJP(text))));
+                this.indicator?.setNetworkingPostStatus(false);
                 return [resultCode, statusCode, decodeEUCJP(response)];
             } else {
                 return [NaN, "", ""];

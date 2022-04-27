@@ -589,8 +589,12 @@ export class Resources {
         }
         const requests2: RemoteResourceRequest[] = [];
         this.remoteResourceRequests.set(full, requests2);
+        this.indicator?.setNetworkingGetStatus(true);
         const { response, headers } = await this.ip.get(full);
         this.remoteResourceRequests.delete(full);
+        if (this.remoteResourceRequests.size === 0) {
+             this.indicator?.setNetworkingGetStatus(false);
+        }
         if (response == null || headers == null) {
             for (const { resolve } of requests2) {
                 resolve(null);

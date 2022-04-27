@@ -69,7 +69,7 @@ const boldRoundGothic: BMLBrowserFontFace = { source: "url('/KosugiMaru-Regular.
 const squareGothic: BMLBrowserFontFace = { source: "url('/Kosugi-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
 
 // リモコン
-const remoteControl = new RemoteControl(document.getElementById("remote-control")!, browserElement.querySelector(".remote-control-receiving-status")!);
+const remoteControl = new RemoteControl(document.getElementById("remote-control")!, browserElement.querySelector(".remote-control-receiving-status")!, browserElement.querySelector(".remote-control-networking-status") as HTMLElement);
 
 const epg: EPG = {
     tune(originalNetworkId, transportStreamId, serviceId) {
