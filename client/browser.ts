@@ -294,6 +294,113 @@ const apiGroup: Map<string, number> = new Map([
     ["Iptv.Vod", 0],
     ["Iptv.Download", 0],
     ["AITControlledApp.Start", 0],
+
+    // TR-B14 第二分冊 
+    ["Bookmark.Basic2", 0], // getBookmarkInfo2
+    ["Ctrl.Status", 1], // getBrowserStatus
+    ["Storage.Source", 0], // getContentSource
+]);
+
+const residentApp = new Map<string, number>([
+    ["JapaneseInput", 0],
+
+    ["netTVBrowser", 0],
+    ["IPTVBMLBrowser", 0],
+
+    ["VOD", 0],
+    ["Download", 0],
+    ["webBrowserMode1", 0],
+    ["webBrowserMode2", 0],
+]);
+
+const transmissionProtocol = new Map<string, number | Map<string, number>>([
+    ["datalink", new Map<string, number>([["PPP.modem", 0]])],
+]);
+
+const extraBrowserFunction = new Map<string, number>([
+    ["netTVVOD", 0],
+    ["netTVDownload", 0],
+    ["IPTVBMLVOD", 0],
+    ["IPTVBMLDownload", 0],
+]);
+
+const unsupported = new Map<string, number>([
+    ["Misc.Unlink", 1], // 非リンク状態未実装
+    ["Com.BASIC.Basic", 1],
+    ["Com.BASIC.Vote", 0],
+]);
+
+const caSystem = new Map<string, number>([
+    ["0x0005", 1], // [BA]-CAS番号
+    ["0x000D", 0],
+]);
+
+const iptvFunction = new Map<string, number | Map<string, number>>([
+    ["VOD", new Map<string, number>([
+        ["HTTP", 0],
+        ["RTSP", 0],
+    ])],
+]);
+
+const irdid = new Map<string, number>([
+    ["0xF001", 0],
+]);
+
+const smartDeviceProfile = new Map<string, number>([
+    ["SmartDeviceMode1", 0],
+    ["SmartDeviceMode2", 0],
+]);
+
+const aitControlledAppEngineFunction = new Map([
+    ["IPTV-F", new Map([
+        // フェーズ0運用のみ実装
+        ["HTML5_ph0", 0],
+        // フェーズ1運用を実装
+        ["HTML5_ph1", 0],
+    ])]
+]);
+
+const aitTransferMethod = new Map([
+    ["XML", new Map([
+        ["HTTP", 0],
+    ])]
+]);
+
+const aitTransportMethod = new Map([
+    ["XML", new Map([
+        ["HTTP", 0],
+    ])],
+    ["Section", new Map([
+        ["DataCarousel", 0],
+    ])],
+]);
+
+const nvram = new Map([
+    ["BSspecifiedExtension", new Map([["48", 1]])],
+    ["NumberOfBSBroadcasters", new Map([["23", 1]])],
+    ["NumberOfCSBroadcasters", new Map([["23", 1]])],
+]);
+
+const arib = new Map([
+    ["APIGroup", apiGroup],
+    ["ResidentApp", residentApp],
+    ["TransmissionProtocol", transmissionProtocol],
+    ["ExtraBrowserFunction", extraBrowserFunction],
+    ["Unsupported", unsupported],
+    ["CASystem", caSystem],
+    ["IPTVFunction", iptvFunction],
+    ["IRDID", irdid],
+    ["SmartDeviceProfile", smartDeviceProfile],
+    ["AITControlledAppEngineFunction", aitControlledAppEngineFunction],
+    ["AITTransferMethod", aitTransferMethod],
+    ["AITTransportMethod", aitTransportMethod],
+    ["nvram", nvram],
+]);
+
+const bpa = new Map([
+    ["APIGroup", new Map([
+        ["Persistent.Media.Support.Ext", 0], // X_BPA_setAccessInfoOfPersistentArrayForAnotherProvider
+    ])]
 ]);
 
 export class BrowserAPI {
@@ -614,7 +721,7 @@ export class BrowserAPI {
             return 1;
         },
         getBrowserSupport(sProvider: string, functionname: string, ...additionalinfoList: string[]): number {
-            console.log("getBrowserSupport", sProvider, functionname, additionalinfoList);
+            console.log("getBrowserSupport", sProvider, functionname, ...additionalinfoList);
             const additionalinfo: string | undefined = additionalinfoList[0];
             const additionalinfo2: string | undefined = additionalinfoList[1];
             if (sProvider === "ARIB") {
@@ -631,40 +738,40 @@ export class BrowserAPI {
                         }
                         return 0;
                     }
-                } else if (functionname === "APIGroup") {
-                    const status = apiGroup.get(additionalinfo);
-                    if (status != null) {
-                        return status;
-                    }
-                } else if (functionname === "AITControlledAppEngineFunction") {
-                    if (additionalinfo === "IPTV-F") {
-                        if (additionalinfo2 === "HTML5_ph0") {
-                            return 0;
-                        }
-                    }
-                } else if (functionname === "AITTransferMethod") {
-                    if (additionalinfo === "XML") {
-                        if (additionalinfo2 === "HTTP") {
-                            return 0;
-                        }
-                    }
                 }
-            } else if (sProvider === "nvram") {
-                if (functionname === "NumberOfBSBroadcasters") {
-                    if (additionalinfo === "23") {
-                        return 1;
-                    }
-                } else if (functionname === "BSspecifiedExtension") {
-                    if (additionalinfo === "48") {
-                        return 1;
-                    }
-                } else if (functionname === "NumberOfCSBroadcasters") {
-                    if (additionalinfo === "23") {
-                        return 1;
-                    }
+                const f = arib.get(functionname);
+                if (f == null) {
+                    console.error("unknown getBrowserSupport functionname", sProvider, functionname, ...additionalinfoList);
+                    return 0;
                 }
+                const a1 = f.get(additionalinfo);
+                if (a1 == null) {
+                    console.error("unknown getBrowserSupport additionalinfo", sProvider, functionname, ...additionalinfoList);
+                    return 0;
+                }
+                if (typeof a1 === "number") {
+                    return a1;
+                }
+                const a2 = a1.get(additionalinfo2);
+                if (a2 == null) {
+                    console.error("unknown getBrowserSupport additionalinfo2", sProvider, functionname, ...additionalinfoList);
+                    return 0;
+                }
+                return a2;
+            } else if (sProvider === "BPA") {
+                const f = bpa.get(functionname);
+                if (f == null) {
+                    console.error("unknown getBrowserSupport functionname", sProvider, functionname, ...additionalinfoList);
+                    return 0;
+                }
+                const a1 = f.get(additionalinfo);
+                if (a1 == null) {
+                    console.error("unknown getBrowserSupport additionalinfo", sProvider, functionname, ...additionalinfoList);
+                    return 0;
+                }
+                return a1;
             }
-            console.error("unknown getBrowserSupport", sProvider, functionname, additionalinfoList);
+            console.error("unknown getBrowserSupport", sProvider, functionname, ...additionalinfoList);
             return 0;
         },
         getBrowserStatus(sProvider: string, functionname: string, additionalinfo: string): number {
