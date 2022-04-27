@@ -446,19 +446,28 @@ export class BrowserAPI {
             }
         },
         subDate(target: Date, base: Date, unit: number) {
-            const sub = target.getTime() - base.getTime();
-            if (unit == 1) {
-                return (sub / 1000) | 0;
-            } else if (unit == 2) {
-                return (sub / (1000 * 60)) | 0;
-            } else if (unit == 3) {
-                return (sub / (1000 * 60 * 60)) | 0;
-            } else if (unit == 4) {
-                return (sub / (1000 * 60 * 60 * 24)) | 0;
-            } else if (unit == 5) {
-                return (sub / (1000 * 60 * 60 * 24 * 7)) | 0;
+            if (target == null || base == null) {
+                return NaN;
             }
-            return sub | 0;
+            const sub = target.getTime() - base.getTime();
+            let result
+            if (unit == 1) {
+                result = Math.trunc(sub / 1000);
+            } else if (unit == 2) {
+                result = Math.trunc(sub / (1000 * 60));
+            } else if (unit == 3) {
+                result = Math.trunc(sub / (1000 * 60 * 60));
+            } else if (unit == 4) {
+                result = Math.trunc(sub / (1000 * 60 * 60 * 24));
+            } else if (unit == 5) {
+                result = Math.trunc(sub / (1000 * 60 * 60 * 24 * 7));
+            } else {
+                result = sub;
+            }
+            if (result < -2147483648 || result > 2147483647) {
+                return NaN;
+            }
+            return result;
         },
         addDate(base: Date, time: number, unit: number): Date | number {
             if (Number.isNaN(time)) {
