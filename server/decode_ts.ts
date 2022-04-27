@@ -1,5 +1,5 @@
 import stream from "stream";
-import { TsUtil, TsChar, TsStream } from "@chinachu/aribts";
+import { TsUtil, TsChar, TsStream, TsDate } from "@chinachu/aribts";
 import zlib from "zlib";
 import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from './entity_parser';
 import * as wsApi from "./ws_api";
@@ -379,6 +379,57 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             }
         }
         sendStreamInfo();
+    });
+
+    tsStream.on("sit",  (pid: any, data: any) => {
+        const services = data.services[0].service;
+        const short_event_descriptor = services.filter((data:any) => data.descriptor_tag === 0x4D);
+        const event_name_char = new TsChar(short_event_descriptor[0].event_name_char).decode();
+        const serviceId = data.services[0].service_id;
+
+        let tot_descriptor;
+        const transmission_tot = data.transmission_info.filter((data:any) => data.descriptor_tag === 0xC3);
+        const service_tot = services.filter((data:any) => data.descriptor_tag === 0xC3);
+        let jst_time = 0;
+        let event_start_time = 0;
+
+        if(transmission_tot.length > 0){
+            tot_descriptor = transmission_tot;
+        }
+        else if (service_tot.length > 0){
+            tot_descriptor = service_tot;
+        }
+        if (tot_descriptor){
+            jst_time = new TsDate(tot_descriptor[0].jst_time).decode().getTime();
+            event_start_time = new TsDate(service_tot[0].event_start_time).decode().getTime();
+        }
+
+        const event_group_descriptor = services.filter((data:any) => data.descriptor_tag === 0xD6);
+        let event_Id = null;
+        if (event_group_descriptor.length > 0){
+            if (event_group_descriptor[0].events.filter((data:any) => data.service_id === serviceId).length > 0){
+                event_Id = event_group_descriptor[0].events.filter((data:any) => data.service_id === serviceId)[0].event_id;
+            }
+        }
+
+        currentProgramInfo = {
+            type: "programInfo",
+            eventId: event_Id,
+            transportStreamId: null,
+            originalNetworkId: data.transmission_info[1].network_id,
+            serviceId: serviceId,
+            eventName: event_name_char,
+            startTimeUnixMillis: event_start_time,
+        };
+        send(currentProgramInfo);
+        
+        if (currentTime !== jst_time) {
+            currentTime = jst_time;
+            send({
+                type: "currentTime",
+                timeUnixMillis: currentTime,
+            });
+        }
     });
 
     tsStream.on("dsmcc", (pid: any, data: any) => {
