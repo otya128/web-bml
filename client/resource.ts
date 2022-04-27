@@ -772,28 +772,13 @@ function uriToBaseURIDirectory(uri: string): string {
         pathname = pathname.substring(0, lastSlash);
     }
     // ASCIIの範囲のURLエンコードをデコード
-    const components = pathname.split("/").map(x => {
-        const unescaped: string[] = [];
-        let i = x.indexOf("%");
-        unescaped.push(x.substring(0, (i === -1 ? x.length : i)));
-        while (i !== -1) {
-            const hex = x.substring(i + 1, i + 3);
-            const next = x.indexOf("%", i + 1);
-            console.log(i, hex, next)
-            if (hex.length === 2) {
-                const d = parseInt(hex, 16);
-                if (d !== 0x2F && d >= 0x20 && d < 0x7F) {
-                    unescaped.push(String.fromCharCode(d));
-                } else {
-                    unescaped.push("%");
-                    unescaped.push(hex.toUpperCase());
-                }
-                i += 3;
-            }
-            unescaped.push(x.substring(i, (next === -1 ? x.length : next)));
-            i = next;
+    pathname = pathname.replace(/%([0-9A-Fa-f]{2})/g, (e, hex: string) => {
+        const d = Number.parseInt(hex, 16);
+        if (d !== 0x2F && d >= 0x20 && d < 0x7F) {
+            return String.fromCharCode(d);
+        } else {
+            return e;
         }
-        return unescaped.join("");
     });
-    return hostname + components.join("/");
+    return hostname + pathname;
 }
