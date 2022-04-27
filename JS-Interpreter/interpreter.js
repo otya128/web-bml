@@ -1934,7 +1934,8 @@ Interpreter.prototype.getValueFromScope = function(name) {
       prevNode['operator'] === 'typeof') {
     return undefined;
   }
-  this.throwException(this.REFERENCE_ERROR, name + ' is not defined');
+  return undefined;
+  // this.throwException(this.REFERENCE_ERROR, name + ' is not defined');
 };
 
 /**
