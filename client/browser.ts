@@ -812,7 +812,16 @@ export class BrowserAPI {
             return Math.floor(Math.random() * num) + 1;
         },
         getActiveDocument: (): string | null => {
-            return this.resources.activeDocument;
+            const activeDocument = this.resources.activeDocument;
+            if (activeDocument == null) {
+                return null;
+            }
+            // TR-B14 第二分冊 5.14.6.9
+            if (activeDocument.startsWith("http://") || activeDocument.startsWith("https://")) {
+                const url = new URL(activeDocument);
+                return url.pathname + url.search + url.hash;
+            }
+            return activeDocument;
         },
         getResidentAppVersion(appName: string): any[] | null {
             console.log("getResidentAppVersion", appName);
