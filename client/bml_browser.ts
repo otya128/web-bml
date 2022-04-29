@@ -47,6 +47,49 @@ export interface IP {
     get?(uri: string): Promise<{ response?: Uint8Array, headers?: Headers, statusCode?: number }>;
 }
 
+export type InputCharacterType = "all" | "number" | "alphabet" | "hankaku" | "zenkaku" | "katakana" | "hiragana";
+
+const hankakuNumber = "0123456789";
+const hankakuAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const hankakuSymbol = " !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+const zenkakuHiragana = "ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわをん";
+const zenkakuKatakana = "ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヲン";
+const zenkakuNumber = "０１２３４５６７８９";
+const zenkakuAlphabet = "ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ";
+const zenkakuSymbol = "　、。・ー―「」";
+
+export const inputCharacters: Map<InputCharacterType, string> = new Map([
+    ["number", hankakuNumber],
+    ["alphabet", hankakuAlphabet + hankakuSymbol],
+    ["hankaku", hankakuAlphabet + hankakuNumber + hankakuSymbol],
+    ["zenkaku", zenkakuHiragana + zenkakuKatakana + zenkakuAlphabet + zenkakuNumber + zenkakuSymbol],
+    ["katakana", zenkakuKatakana + zenkakuSymbol],
+    ["hiragana", zenkakuHiragana + zenkakuSymbol],
+]);
+
+export type InputCancelReason = "other" | "unload" | "readonly" | "blur" | "invisible";
+
+/**
+ * TR-B14 第二分冊 1.6 文字入力機能
+ */
+export interface InputApplication {
+    /**
+     * 文字入力アプリケーションを起動
+     * @param characterType 入力できる文字種
+     * @param allowedCharacters 入力できる文字 undefinedならば制限はない(ただしデータ放送で扱える範囲の文字のみで半角ｶﾀｶﾅなど扱えない文字もある)
+     * @param maxLength 最大文字数
+     * @param value 以前入力されていた文字
+     * @param inputMode inputMode
+     * @param callback 文字入力が完了した際に呼ぶコールバック
+     */
+    launch(characterType: InputCharacterType, allowedCharacters: string | undefined, maxLength: number, value: string, inputMode: "text" | "password", callback: (value: string) => void): void;
+    /**
+     * 文字入力アプリケーションを終了
+     * 起動中に文書の遷移、フォーカス移動、readonly属性の設定、invisible属性が有効になった場合など
+     */
+    cancel(reason: InputCancelReason): void;
+}
+
 interface BMLBrowserEventMap {
     // 読み込まれたとき
     "load": CustomEvent<{ resolution: { width: number, height: number }, displayAspectRatio: { numerator: number, denominator: number } }>;
@@ -106,6 +149,7 @@ export type BMLBrowserOptions = {
     videoPlaneModeEnabled?: boolean;
     audioNodeProvider?: AudioNodeProvider;
     ip?: IP,
+    inputApplication?: InputApplication;
 };
 
 export class BMLBrowser {
@@ -147,14 +191,15 @@ export class BMLBrowser {
         this.interpreter = new JSInterpreter();
         this.eventQueue = new EventQueue(this.interpreter);
         const audioContextProvider = options.audioNodeProvider ?? new DefaultAudioNodeProvider();
-        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioContextProvider);
+        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioContextProvider, options.inputApplication);
         this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
-        this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false);
+        this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false, options.inputApplication);
         this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioContextProvider, options.ip ?? {}, this.indicator);
 
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
+        this.eventQueue.dispatchChange = this.eventDispatcher.dispatchChange.bind(this.eventDispatcher);
         this.interpreter.setupEnvironment(this.browserAPI.browser, this.browserAPI.asyncBrowser, this.resources, this.content, this.epg, this.nvram);
         if (options.fonts?.roundGothic) {
             this.fonts.push(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));

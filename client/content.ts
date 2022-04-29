@@ -7,10 +7,10 @@ import { transpileCSS } from "./transpile_css";
 import { Buffer } from "buffer";
 import { BML } from "./interface/DOM";
 import { bmlToXHTMLFXP } from "./bml_to_xhtml";
-import { ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
+import { ResponseMessage } from "../server/ws_api";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { Interpreter } from "./interpreter/interpreter";
-import { BMLBrowserEventTarget, Indicator } from "./bml_browser";
+import { BMLBrowserEventTarget, Indicator, InputApplication } from "./bml_browser";
 import { convertJPEG } from "./arib_jpeg";
 
 export enum AribKeyCode {
@@ -174,6 +174,7 @@ export class Content {
     // trueであれば厳密なテキストのレンダリングを有効にする
     // letter-spacingなどの挙動の差異をどうにかする
     private strictTextRenderingEnabled = true;
+    private readonly inputApplication?: InputApplication;
     public constructor(
         bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
@@ -184,7 +185,8 @@ export class Content {
         videoContainer: HTMLElement,
         bmlEventTarget: BMLBrowserEventTarget,
         indicator: Indicator | undefined,
-        videoPlaneModeEnabled: boolean
+        videoPlaneModeEnabled: boolean,
+        inputApplication: InputApplication | undefined,
     ) {
         this.bmlDocument = bmlDocument;
         this.documentElement = documentElement;
@@ -196,6 +198,7 @@ export class Content {
         this.bmlEventTarget = bmlEventTarget;
         this.indicator = indicator;
         this.videoPlaneModeEnabled = videoPlaneModeEnabled;
+        this.inputApplication = inputApplication;
 
         this.documentElement.addEventListener("keydown", (event) => {
             if (event.altKey || event.ctrlKey || event.metaKey) {
@@ -536,6 +539,7 @@ export class Content {
             }
             this.eventDispatcher.resetCurrentEvent();
         }
+        this.inputApplication?.cancel("unload");
         this.interpreter.reset();
         this.currentDateMode = 0;
         this.keyProcessStatus = undefined;
@@ -849,14 +853,18 @@ export class Content {
             return;
         }
         if (focusElement instanceof HTMLInputElement) {
-            if (k >= AribKeyCode.Digit0 && k <= AribKeyCode.Digit9) {
-                const num = (k - AribKeyCode.Digit0).toString();
-                if (focusElement.maxLength > focusElement.value.length) {
-                    focusElement.value += num;
-                }
-            } else if (k === AribKeyCode.Back) {
-                if (focusElement.value.length >= 1) {
-                    focusElement.value = focusElement.value.substring(0, focusElement.value.length - 1);
+            const inputMode = focusElement.getAttribute("inputmode");
+            if (inputMode !== "direct" && inputMode !== "indirect") {
+                // FIXME: changeイベントをフォーカス移動の際に発生させる (STD-B24 第二分冊(2/2) 5.3.1.3)
+                if (k >= AribKeyCode.Digit0 && k <= AribKeyCode.Digit9) {
+                    const num = (k - AribKeyCode.Digit0).toString();
+                    if (focusElement.maxLength > focusElement.value.length) {
+                        focusElement.value += num;
+                    }
+                } else if (k === AribKeyCode.Back) {
+                    if (focusElement.value.length >= 1) {
+                        focusElement.value = focusElement.value.substring(0, focusElement.value.length - 1);
+                    }
                 }
             }
         }
@@ -988,6 +996,9 @@ export class Content {
             if (k == AribKeyCode.Enter && focusElement) {
                 focusElement.setAttribute("arib-active", "arib-active");
                 this.eventQueue.queueSyncEvent({ type: "click", target: focusElement });
+                if (this.bmlDocument.currentFocus instanceof BML.BMLInputElement) {
+                    this.bmlDocument.currentFocus.internalLaunchInputApplication();
+                }
             }
             // [11] accessKeyの場合focusElementに対し決定キーのkeyupを発生させる必要がある
             return false;

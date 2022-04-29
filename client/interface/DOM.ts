@@ -7,11 +7,12 @@ import { defaultCLUT } from "../default_clut";
 import { parseCSSValue } from "../transpile_css";
 import { Buffer } from "buffer";
 import { Interpreter } from "../interpreter/interpreter";
-import { AudioNodeProvider, BMLBrowserEventTarget } from "../bml_browser";
+import { AudioNodeProvider, BMLBrowserEventTarget, InputApplication, inputCharacters, InputCharacterType } from "../bml_browser";
 import { convertJPEG } from "../arib_jpeg";
 import { aribMNGToCSSAnimation } from "../arib_mng";
 import { playAIFF } from "../arib_aiff";
 import { unicodeToJISMap } from "../unicode_to_jis_map";
+import { decodeEUCJP, encodeEUCJP } from "../euc_jp";
 
 export namespace BML {
     type DOMString = string;
@@ -188,7 +189,7 @@ export namespace BML {
         return true;
     }
 
-    function focus(node: HTMLElement, ownerDocument: BMLDocument, eventQueue: EventQueue) {
+    function focus(node: HTMLElement, ownerDocument: BMLDocument) {
         const prevFocus = ownerDocument.currentFocus;
         if (prevFocus === node) {
             return;
@@ -199,17 +200,28 @@ export namespace BML {
         if (prevFocus != null) {
             prevFocus["node"].removeAttribute("arib-focus");
             prevFocus["node"].removeAttribute("arib-active");
+            if (prevFocus instanceof HTMLInputElement) {
+                // changeイベントはblurイベントに先立って実行される
+                ownerDocument.inputApplication?.cancel("blur");
+            }
         }
         ownerDocument._currentFocus = node;
         if (prevFocus != null) {
-            eventQueue.queueSyncEvent({ type: "blur", target: prevFocus["node"] });
+            ownerDocument.eventQueue.queueSyncEvent({ type: "blur", target: prevFocus["node"] });
+        }
+        if (node instanceof HTMLInputElement) {
+            if (node["node"].getAttribute("inputmode") === "direct") {
+                node.internalLaunchInputApplication();
+            }
         }
         node["node"].setAttribute("arib-focus", "arib-focus");
-        eventQueue.queueSyncEvent({ type: "focus", target: node["node"] });
+        ownerDocument.eventQueue.queueSyncEvent({ type: "focus", target: node["node"] });
     }
-    function blur(node: HTMLElement, ownerDocument: BMLDocument, eventQueue: EventQueue) {
+
+    function blur(node: HTMLElement, ownerDocument: BMLDocument) {
         console.error("blur: not implmeneted");
     }
+
     // impl
     export class Node {
         protected node: globalThis.Node;
@@ -434,7 +446,8 @@ export namespace BML {
         public readonly resources: Resources;
         public readonly browserEventTarget: BMLBrowserEventTarget;
         public readonly audioNodeProvider: AudioNodeProvider;
-        public constructor(node: globalThis.HTMLElement, interpreter: Interpreter, eventQueue: EventQueue, resources: Resources, browserEventTarget: BMLBrowserEventTarget, audioNodeProvider: AudioNodeProvider) {
+        public readonly inputApplication?: InputApplication;
+        public constructor(node: globalThis.HTMLElement, interpreter: Interpreter, eventQueue: EventQueue, resources: Resources, browserEventTarget: BMLBrowserEventTarget, audioNodeProvider: AudioNodeProvider, inputApplication: InputApplication | undefined) {
             super(node as any, null!); // !
             this.ownerDocument = this; // !!
             this.interpreter = interpreter;
@@ -442,6 +455,7 @@ export namespace BML {
             this.resources = resources;
             this.browserEventTarget = browserEventTarget;
             this.audioNodeProvider = audioNodeProvider;
+            this.inputApplication = inputApplication;
         }
 
         public get documentElement(): HTMLElement {
@@ -559,12 +573,15 @@ export namespace BML {
             this.node.disabled = value;
         }
         public get maxLength(): number {
-            return this.node.maxLength;
+            return this.node.maxLength === -1 ? 40 : this.node.maxLength;
         }
         public get readOnly(): boolean {
             return this.node.readOnly;
         }
         public set readOnly(value: boolean) {
+            if (this.ownerDocument.currentFocus === this && value && !this.node.readOnly) {
+                this.ownerDocument.inputApplication?.cancel("readonly");
+            }
             this.node.readOnly = value;
         }
         public get type(): string {
@@ -577,10 +594,39 @@ export namespace BML {
             this.node.value = value;
         }
         public blur(): void {
-            blur(this, this.ownerDocument, this.ownerDocument.eventQueue);
+            blur(this, this.ownerDocument);
         }
         public focus(): void {
-            focus(this, this.ownerDocument, this.ownerDocument.eventQueue);
+            focus(this, this.ownerDocument);
+        }
+
+        public internalLaunchInputApplication(): void {
+            const ctype = this.node.getAttribute("charactertype")?.toLowerCase() as InputCharacterType ?? "all";
+            const allowed = inputCharacters.get(ctype);
+            this.ownerDocument.inputApplication?.launch(
+                ctype,
+                allowed,
+                this.maxLength,
+                this.value,
+                this.type === "password" ? "password" : "text",
+                (value) => {
+                    value = decodeEUCJP(encodeEUCJP(value));
+                    value = value.substring(0, this.maxLength);
+                    if (allowed != null) {
+                        value = value.split("").filter(x => {
+                            return allowed.includes(x);
+                        }).join("");
+                    }
+                    if (this.value !== value) {
+                        this.value = value;
+                        this.ownerDocument.eventQueue.queueSyncEvent({
+                            type: "change",
+                            target: this.node,
+                        });
+                        this.ownerDocument.eventQueue.processEventQueue();
+                    }
+                }
+            );
         }
     }
 
@@ -972,10 +1018,10 @@ export namespace BML {
             throw new Error("BMLObjectElement.getMainAudioStream()");
         }
         public blur(): void {
-            blur(this, this.ownerDocument, this.ownerDocument.eventQueue);
+            blur(this, this.ownerDocument);
         }
         public focus(): void {
-            focus(this, this.ownerDocument, this.ownerDocument.eventQueue);
+            focus(this, this.ownerDocument);
         }
     }
 
@@ -994,10 +1040,10 @@ export namespace BML {
             return this.node.accessKey;
         }
         public blur(): void {
-            blur(this, this.ownerDocument, this.ownerDocument.eventQueue);
+            blur(this, this.ownerDocument);
         }
         public focus(): void {
-            focus(this, this.ownerDocument, this.ownerDocument.eventQueue);
+            focus(this, this.ownerDocument);
         }
     }
 
@@ -1013,6 +1059,9 @@ export namespace BML {
         }
         public set invisible(v: boolean) {
             v = Boolean(v);
+            if (this.ownerDocument.currentFocus instanceof HTMLInputElement && !v) {
+                this.ownerDocument.inputApplication?.cancel("invisible");
+            }
             if (v) {
                 this.node.setAttribute("invisible", "invisible");
             } else {
@@ -1045,10 +1094,10 @@ export namespace BML {
             return this.node.accessKey;
         }
         public blur(): void {
-            blur(this, this.ownerDocument, this.ownerDocument.eventQueue);
+            blur(this, this.ownerDocument);
         }
         public focus(): void {
-            focus(this, this.ownerDocument, this.ownerDocument.eventQueue);
+            focus(this, this.ownerDocument);
         }
     }
 
@@ -1072,10 +1121,10 @@ export namespace BML {
             return this.node.accessKey;
         }
         public blur(): void {
-            blur(this, this.ownerDocument, this.ownerDocument.eventQueue);
+            blur(this, this.ownerDocument);
         }
         public focus(): void {
-            focus(this, this.ownerDocument, this.ownerDocument.eventQueue);
+            focus(this, this.ownerDocument);
         }
     }
 

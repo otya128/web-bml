@@ -47,7 +47,12 @@ export type SyncClickEvent = {
     target: HTMLElement;
 };
 
-export type SyncEvent = SyncFocusEvent | SyncBlurEvent | SyncClickEvent;
+export type SyncChangeEvent = {
+    type: "change";
+    target: HTMLElement;
+};
+
+export type SyncEvent = SyncFocusEvent | SyncBlurEvent | SyncClickEvent | SyncChangeEvent;
 
 export class EventDispatcher {
     private readonly eventQueue: EventQueue;
@@ -250,6 +255,21 @@ export class EventDispatcher {
         return false;
     }
 
+    async dispatchChange(event: SyncChangeEvent): Promise<boolean> {
+        this.setCurrentEvent({
+            type: "change",
+            target: event.target,
+        } as BMLEvent);
+        const handler = event.target.getAttribute("onchange");
+        if (handler) {
+            if (await this.eventQueue.executeEventHandler(handler)) {
+                return true;
+            }
+        }
+        this.resetCurrentEvent();
+        return false;
+    }
+
 }
 
 type Timer = {
@@ -265,6 +285,7 @@ export class EventQueue {
     public dispatchFocus = (_event: SyncFocusEvent): Promise<boolean> => Promise.resolve(false);
     public dispatchBlur = (_event: SyncBlurEvent): Promise<boolean> => Promise.resolve(false);
     public dispatchClick = (_event: SyncClickEvent): Promise<boolean> => Promise.resolve(false);
+    public dispatchChange = (_event: SyncChangeEvent): Promise<boolean> => Promise.resolve(false);
 
     public constructor(interpreter: Interpreter) {
         this.interpreter = interpreter;
@@ -359,7 +380,13 @@ export class EventQueue {
                     } else if (event?.type === "click") {
                         if (exit = await this.dispatchClick(event)) {
                             return true;
-                        }
+                       }
+                    } else if (event?.type === "change") {
+                        if (exit = await this.dispatchChange(event)) {
+                            return true;
+                       }
+                    } else {
+                        const _: never| undefined = event;
                     }
                 } finally {
                     if (!exit) {
