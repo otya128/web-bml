@@ -209,11 +209,6 @@ export namespace BML {
         if (prevFocus != null) {
             ownerDocument.eventQueue.queueSyncEvent({ type: "blur", target: prevFocus["node"] });
         }
-        if (node instanceof HTMLInputElement) {
-            if (node["node"].getAttribute("inputmode") === "direct") {
-                node.internalLaunchInputApplication();
-            }
-        }
         node["node"].setAttribute("arib-focus", "arib-focus");
         ownerDocument.eventQueue.queueSyncEvent({ type: "focus", target: node["node"] });
     }

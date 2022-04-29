@@ -222,6 +222,12 @@ export class EventDispatcher {
             }
         }
         this.resetCurrentEvent();
+        if (event.target instanceof HTMLInputElement) {
+            // TR-B14 第二分冊 1.6.1 focus割り込み事象の発生の後、直ちに文字入力アプリを起動
+            if (event.target.getAttribute("inputmode") === "direct") {
+                BML.nodeToBMLNode(event.target, this.bmlDocument).internalLaunchInputApplication();
+            }
+        }
         return false;
     }
 
