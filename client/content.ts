@@ -997,7 +997,10 @@ export class Content {
                 focusElement.setAttribute("arib-active", "arib-active");
                 this.eventQueue.queueSyncEvent({ type: "click", target: focusElement });
                 if (this.bmlDocument.currentFocus instanceof BML.BMLInputElement) {
-                    this.bmlDocument.currentFocus.internalLaunchInputApplication();
+                    const inputMode = focusElement.getAttribute("inputmode");
+                    if (inputMode === "indirect") {
+                        this.bmlDocument.currentFocus.internalLaunchInputApplication();
+                    }
                 }
             }
             // [11] accessKeyの場合focusElementに対し決定キーのkeyupを発生させる必要がある
