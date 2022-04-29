@@ -935,11 +935,11 @@ export class BrowserAPI {
                 // TR-B14 第二分冊 5.12.6.1
                 if (this.serviceId != null) {
                     console.log("serviceId changed", msg.serviceId, this.serviceId)
+                    for (let i = 1; i < 64; i++) { // FIXME
+                        this.browser.Ureg![i] = "";
+                    }
                 }
                 this.browser.Ureg![0] = "0x" + msg.serviceId.toString(16).padStart(4);
-                for (let i = 1; i < 64; i++) { // FIXME
-                    this.browser.Ureg![i] = "";
-                }
             }
         }
     }
