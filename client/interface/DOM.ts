@@ -603,13 +603,13 @@ export namespace BML {
         public internalLaunchInputApplication(): void {
             const ctype = this.node.getAttribute("charactertype")?.toLowerCase() as InputCharacterType ?? "all";
             const allowed = inputCharacters.get(ctype);
-            this.ownerDocument.inputApplication?.launch(
-                ctype,
-                allowed,
-                this.maxLength,
-                this.value,
-                this.type === "password" ? "password" : "text",
-                (value) => {
+            this.ownerDocument.inputApplication?.launch({
+                characterType: ctype,
+                allowedCharacters: allowed,
+                maxLength: this.maxLength,
+                value: this.value,
+                inputMode: this.type === "password" ? "password" : "text",
+                callback: (value) => {
                     value = decodeEUCJP(encodeEUCJP(value));
                     value = value.substring(0, this.maxLength);
                     if (allowed != null) {
@@ -626,7 +626,7 @@ export namespace BML {
                         this.ownerDocument.eventQueue.processEventQueue();
                     }
                 }
-            );
+            });
         }
     }
 

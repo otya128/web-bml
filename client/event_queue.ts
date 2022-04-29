@@ -380,13 +380,13 @@ export class EventQueue {
                     } else if (event?.type === "click") {
                         if (exit = await this.dispatchClick(event)) {
                             return true;
-                       }
+                        }
                     } else if (event?.type === "change") {
                         if (exit = await this.dispatchChange(event)) {
                             return true;
-                       }
+                        }
                     } else {
-                        const _: never| undefined = event;
+                        const _: never | undefined = event;
                     }
                 } finally {
                     if (!exit) {

@@ -69,20 +69,28 @@ export const inputCharacters: Map<InputCharacterType, string> = new Map([
 
 export type InputCancelReason = "other" | "unload" | "readonly" | "blur" | "invisible";
 
+export type InputApplicationLaunchOptions = {
+    // 入力できる文字種
+    characterType: InputCharacterType,
+    // 入力できる文字 undefinedならば制限はない(ただしデータ放送で扱える範囲の文字のみで半角ｶﾀｶﾅなど扱えない文字もある)
+    allowedCharacters?: string,
+    // 最大文字数
+    maxLength: number,
+    // 以前入力されていた文字
+    value: string,
+    inputMode: "text" | "password",
+    // 文字入力が完了した際に呼ぶコールバック
+    callback: (value: string) => void,
+};
+
 /**
  * TR-B14 第二分冊 1.6 文字入力機能
  */
 export interface InputApplication {
     /**
      * 文字入力アプリケーションを起動
-     * @param characterType 入力できる文字種
-     * @param allowedCharacters 入力できる文字 undefinedならば制限はない(ただしデータ放送で扱える範囲の文字のみで半角ｶﾀｶﾅなど扱えない文字もある)
-     * @param maxLength 最大文字数
-     * @param value 以前入力されていた文字
-     * @param inputMode inputMode
-     * @param callback 文字入力が完了した際に呼ぶコールバック
      */
-    launch(characterType: InputCharacterType, allowedCharacters: string | undefined, maxLength: number, value: string, inputMode: "text" | "password", callback: (value: string) => void): void;
+    launch(options: InputApplicationLaunchOptions): void;
     /**
      * 文字入力アプリケーションを終了
      * 起動中に文書の遷移、フォーカス移動、readonly属性の設定、invisible属性が有効になった場合など
