@@ -533,6 +533,10 @@ export class BrowserAPI {
             return null;
         },
         epgGetEventDuration: (event_ref: string): number => {
+            if (event_ref == this.resources.eventURI) {
+                console.log("epgGetEventDuration", event_ref);
+                return this.resources.durationSeconds ?? NaN;
+            }
             console.error("epgGetEventDuration", event_ref);
             return NaN;
         },

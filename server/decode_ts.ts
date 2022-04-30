@@ -316,6 +316,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                     serviceId: ids.sid,
                     eventName: null,
                     startTimeUnixMillis: null,
+                    durationSeconds: null,
                 };
                 send(currentProgramInfo);
             }
@@ -349,13 +350,15 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             serviceId: ids.sid,
             eventName: p.short_event?.event_name,
             startTimeUnixMillis: p.start_time?.getTime(),
+            durationSeconds: p.durationSeconds,
         };
         if (prevProgramInfo?.eventId !== currentProgramInfo.eventId ||
             prevProgramInfo?.transportStreamId !== currentProgramInfo.transportStreamId ||
             prevProgramInfo?.originalNetworkId !== currentProgramInfo.originalNetworkId ||
             prevProgramInfo?.serviceId !== currentProgramInfo.serviceId ||
             prevProgramInfo?.startTimeUnixMillis !== currentProgramInfo.startTimeUnixMillis ||
-            prevProgramInfo?.eventName !== currentProgramInfo.eventName) {
+            prevProgramInfo?.eventName !== currentProgramInfo.eventName ||
+            prevProgramInfo?.durationSeconds !== currentProgramInfo.durationSeconds) {
             send(currentProgramInfo);
         }
     });
@@ -420,6 +423,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             serviceId: serviceId,
             eventName: event_name_char,
             startTimeUnixMillis: event_start_time,
+            durationSeconds: null,
         };
         send(currentProgramInfo);
         

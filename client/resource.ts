@@ -337,6 +337,10 @@ export class Resources {
         return this.currentProgramInfo?.startTimeUnixMillis ?? null;
     }
 
+    public get durationSeconds(): number | null {
+        return this.currentProgramInfo?.durationSeconds ?? null;
+    }
+
     public get serviceId(): number | null {
         return this.currentProgramInfo?.serviceId ?? null;
     }
