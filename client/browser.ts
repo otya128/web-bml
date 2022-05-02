@@ -132,7 +132,7 @@ export interface Browser {
     unlockModuleOnMemoryEx(module: string | null | undefined): number;
     unlockAllModulesOnMemory(): number;
     getLockedModuleInfo(): LockedModuleInfo[] | null;
-    getBrowserStatus(sProvider: string, functionname: string, additionalinfo: string): number;
+    getBrowserStatus(sProvider: string, statusname: string, additionalinfo: string): number;
     getResidentAppVersion(appName: string): any[] | null;
     isRootCertificateExisting(root_certificate_type: number, root_certificate_id: number, root_certificate_version?: number): number;
     getRootCertificateInfo(): any[] | null;
@@ -778,9 +778,23 @@ export class BrowserAPI {
             console.error("unknown getBrowserSupport", sProvider, functionname, ...additionalinfoList);
             return 0;
         },
-        getBrowserStatus(sProvider: string, functionname: string, additionalinfo: string): number {
-            console.log("getBrowserStatus", sProvider, functionname, additionalinfo);
-            return 0;
+        getBrowserStatus: (sProvider: string, statusname: string, additionalinfo: string): number => {
+            console.log("getBrowserStatus", sProvider, statusname, additionalinfo);
+            if (sProvider === "TerrP") {
+                if (statusname === "IRDState") {
+                    if (additionalinfo === "Link") {
+                        // リンク状態のみ実装
+                        return 1;
+                    } else if (additionalinfo === "UnLink") {
+                        // リンク状態のみ実装
+                        return 0;
+                    } else if (additionalinfo === "Broadcast") {
+                        return this.resources.isInternetContent ? 0 : 1;
+                    }
+                }
+            }
+            console.error("unknown getBrowserStatus", sProvider, statusname, additionalinfo);
+            return NaN;
         },
         launchDocument: (documentName: string, transitionStyle?: string): number => {
             console.log("%claunchDocument", "font-size: 4em", documentName, transitionStyle);
@@ -845,8 +859,10 @@ export class BrowserAPI {
                 return NaN;
             }
             if (this.resources.getPMTComponent(componentId)) {
+                console.log("detectComponent", componentId, true);
                 return 1;
             } else {
+                console.log("detectComponent", componentId, false);
                 return 0;
             }
         },
