@@ -1350,7 +1350,7 @@ export namespace BML {
             }
         }
 
-        public internalPMTUpdated(components: Set<number>): void {
+        public internalPMTUpdated(components: ReadonlySet<number>): void {
             const { componentId, moduleId } = this.ownerDocument.resources.parseURLEx(this.moduleRef);
             if (!this.subscribe || componentId == null || moduleId == null) {
                 return;
@@ -1366,7 +1366,7 @@ export namespace BML {
             }
         }
 
-        public internalDIIUpdated(updatedComponentId: number, modules: Map<number, ModuleListEntry>, dataEventId: number): void {
+        public internalDIIUpdated(updatedComponentId: number, modules: ReadonlyMap<number, ModuleListEntry>, dataEventId: number): void {
             const { componentId, moduleId } = this.ownerDocument.resources.parseURLEx(this.moduleRef);
             if (!this.subscribe || updatedComponentId !== componentId || moduleId == null) {
                 return;

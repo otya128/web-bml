@@ -3,7 +3,7 @@ import { Indicator, IP } from "./bml_browser";
 
 type Module = {
     moduleId: number,
-    files: Map<string | null, CachedFile>,
+    files: ReadonlyMap<string | null, CachedFile>,
     version: number,
     dataEventId: number,
 };
@@ -21,7 +21,7 @@ export type CachedComponent = {
 
 export type CachedModule = {
     moduleId: number,
-    files: Map<string | null, CachedFile>,
+    files: ReadonlyMap<string | null, CachedFile>,
     version: number,
     dataEventId: number,
 };
@@ -50,7 +50,7 @@ export type LockedComponent = {
 
 export type LockedModule = {
     moduleId: number,
-    files: Map<string | null, CachedFile>,
+    files: ReadonlyMap<string | null, CachedFile>,
     lockedBy: "lockModuleOnMemory" | "lockModuleOnMemoryEx",
     version: number,
     dataEventId: number,
@@ -58,7 +58,7 @@ export type LockedModule = {
 
 export type DownloadComponentInfo = {
     componentId: number,
-    modules: Map<number, ModuleListEntry>,
+    modules: ReadonlyMap<number, ModuleListEntry>,
     dataEventId: number,
     returnToEntryFlag?: boolean,
 };
