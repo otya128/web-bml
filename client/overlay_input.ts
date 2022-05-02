@@ -45,7 +45,7 @@ export class OverlayInputApplication implements InputApplication {
         if (allowedCharacters != null) {
             this.input.pattern = "[" + allowedCharacters.replace(/([\\\[\]])/g, "\\$1") + "]*";
         } else {
-            this.input.pattern = "*";
+            this.input.pattern = ".*";
         }
         switch (characterType) {
             case "number":
