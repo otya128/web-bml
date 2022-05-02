@@ -13,6 +13,7 @@ import { aribMNGToCSSAnimation } from "../arib_mng";
 import { playAIFF } from "../arib_aiff";
 import { unicodeToJISMap } from "../unicode_to_jis_map";
 import { decodeEUCJP, encodeEUCJP } from "../euc_jp";
+import { ModuleListEntry } from "../../server/ws_api";
 
 export namespace BML {
     type DOMString = string;
@@ -1183,9 +1184,9 @@ export namespace BML {
         // subscribe=false => subscribe=trueでリセットされるのはほぼ確実
         public internalTimerFired: boolean = false;
 
-        public internalModuleUpdateStatus?: number;
         public internalModuleUpdateDataEventId?: number;
         public internalModuleUpdateVersion?: number;
+        public internalModuleExistsInDII?: boolean;
 
         // key: message_id, value: 前回受信したmessage_version
         public internalMessageVersion?: Map<number, number>;
@@ -1226,9 +1227,9 @@ export namespace BML {
         public set moduleRef(value: DOMString) {
             if (this.moduleRef !== value) {
                 this.node.setAttribute("module_ref", value);
-                this.internalModuleUpdateStatus = undefined;
                 this.internalModuleUpdateDataEventId = undefined;
                 this.internalModuleUpdateVersion = undefined;
+                this.internalModuleExistsInDII = undefined;
             }
         }
         public get languageTag(): number {
@@ -1292,16 +1293,145 @@ export namespace BML {
         public get subscribe(): boolean {
             return this.node.getAttribute("subscribe") === "subscribe";
         }
+
+        private dispatchModuleUpdatedEvent(module: string, status: number): void {
+            if (!this.subscribe) {
+                return;
+            }
+            console.log("ModuleUpdated", module, status);
+            const onoccur = this.node.getAttribute("onoccur");
+            if (!onoccur) {
+                return;
+            }
+            this.ownerDocument.eventQueue.queueAsyncEvent(async () => {
+                this.ownerDocument._currentEvent = new BMLBeventEvent({
+                    type: "ModuleUpdated",
+                    target: this,
+                    status,
+                    moduleRef: module,
+                });
+                if (await this.ownerDocument.eventQueue.executeEventHandler(onoccur)) {
+                    return true;
+                }
+                this.ownerDocument._currentEvent = null;
+                return false;
+            });
+            this.ownerDocument.eventQueue.processEventQueue();
+        }
+
+        private subscribeModuleUpdated(): void {
+            const { componentId, moduleId } = this.ownerDocument.resources.parseURLEx(this.moduleRef);
+            if (!this.subscribe || componentId == null || moduleId == null) {
+                return;
+            }
+            if (!this.ownerDocument.resources.getPMTComponent(componentId)) {
+                this.dispatchModuleUpdatedEvent(this.moduleRef, 1);
+                this.internalModuleExistsInDII = false;
+                this.internalModuleUpdateVersion = undefined;
+                this.internalModuleUpdateDataEventId = undefined;
+                return;
+            }
+            const dii = this.ownerDocument.resources.getDownloadComponentInfo(componentId);
+            if (dii == null) {
+                // DII未受信
+                return;
+            }
+            const existsInDII = this.ownerDocument.resources.moduleExistsInDownloadInfo(componentId, moduleId);
+            if (existsInDII) {
+                this.dispatchModuleUpdatedEvent(this.moduleRef, 2);
+                this.internalModuleExistsInDII = true;
+                const cachedModule = this.ownerDocument.resources.getCachedModule(componentId, moduleId);
+                this.internalModuleUpdateVersion = cachedModule?.version;
+                this.internalModuleUpdateDataEventId = cachedModule?.dataEventId;
+            } else {
+                this.dispatchModuleUpdatedEvent(this.moduleRef, 1);
+                this.internalModuleExistsInDII = false;
+                this.internalModuleUpdateVersion = undefined;
+                this.internalModuleUpdateDataEventId = dii.dataEventId;
+            }
+        }
+
+        public internalPMTUpdated(components: Set<number>): void {
+            const { componentId, moduleId } = this.ownerDocument.resources.parseURLEx(this.moduleRef);
+            if (!this.subscribe || componentId == null || moduleId == null) {
+                return;
+            }
+            if (!components.has(componentId)) {
+                if (this.internalModuleExistsInDII) {
+                    // コンポーネント送出->非送出
+                    this.dispatchModuleUpdatedEvent(this.moduleRef, 1);
+                }
+                this.internalModuleExistsInDII = false;
+                this.internalModuleUpdateVersion = undefined;
+                this.internalModuleUpdateDataEventId = undefined;
+            }
+        }
+
+        public internalDIIUpdated(updatedComponentId: number, modules: Map<number, ModuleListEntry>, dataEventId: number): void {
+            const { componentId, moduleId } = this.ownerDocument.resources.parseURLEx(this.moduleRef);
+            if (!this.subscribe || updatedComponentId !== componentId || moduleId == null) {
+                return;
+            }
+            const module = modules.get(moduleId);
+            if (module == null) {
+                if (this.internalModuleExistsInDII) {
+                    // モジュール送出->非送出
+                    this.dispatchModuleUpdatedEvent(this.moduleRef, 1);
+                }
+                // データイベント更新
+                if (this.internalModuleUpdateDataEventId != null && this.internalModuleUpdateDataEventId !== dataEventId) {
+                    if (this.internalModuleExistsInDII) {
+                        // モジュール送出->モジュール非送出
+                        this.dispatchModuleUpdatedEvent(this.moduleRef, 5);
+                    }
+                }
+                this.internalModuleExistsInDII = false;
+                this.internalModuleUpdateVersion = undefined;
+                this.internalModuleUpdateDataEventId = dataEventId;
+            } else {
+                if (!this.internalModuleExistsInDII) {
+                    // モジュール非送出->モジュール送出
+                    this.dispatchModuleUpdatedEvent(this.moduleRef, 2);
+                } else {
+                    // 初回DII受信時はイベント発生しないはず
+                    if (this.internalModuleUpdateVersion != null) {
+                        if (this.internalModuleUpdateVersion !== module.version) {
+                            // 更新検出の段階でイベント発生
+                            this.dispatchModuleUpdatedEvent(this.moduleRef, 0);
+                        }
+                    }
+                    this.internalModuleUpdateVersion = module.version;
+                }
+                // データイベント更新
+                if (this.internalModuleUpdateDataEventId != null && this.internalModuleUpdateDataEventId !== dataEventId) {
+                    if (this.internalModuleExistsInDII) {
+                        // モジュール送出->モジュール送出
+                        this.dispatchModuleUpdatedEvent(this.moduleRef, 6);
+                    } else {
+                        // モジュール非送出->モジュール送出
+                        this.dispatchModuleUpdatedEvent(this.moduleRef, 4);
+                    }
+                }
+                this.internalModuleExistsInDII = true;
+                const cachedModule = this.ownerDocument.resources.getCachedModule(componentId, moduleId);
+                this.internalModuleUpdateVersion = cachedModule?.version;
+                this.internalModuleUpdateDataEventId = cachedModule?.dataEventId;
+            }
+        }
+
         public set subscribe(value: boolean) {
-            if (value) {
+            if (Boolean(value)) {
                 if (!this.subscribe) {
                     this.internalTimerFired = false;
-                    this.internalModuleUpdateStatus = undefined;
                     this.internalModuleUpdateDataEventId = undefined;
                     this.internalModuleUpdateVersion = undefined;
+                    this.internalModuleExistsInDII = undefined;
                     this.internalMessageVersion = undefined;
                 }
                 this.node.setAttribute("subscribe", "subscribe");
+                if (this.type === "ModuleUpdated" && this.internalModuleUpdateVersion == null) {
+                    this.subscribeModuleUpdated();
+                }
             } else {
                 this.node.removeAttribute("subscribe");
             }
@@ -1358,7 +1488,27 @@ export namespace BML {
     // impl
     export class BMLBeventEvent extends BMLEvent {
         protected _data: BMLBeventEventData;
-        constructor(data: BMLBeventEventData) {
+        constructor(partialData: Partial<BMLBeventEventData> & BMLEventData) {
+            const data = {
+                ...{
+                    target: null,
+                    status: 0,
+                    privateData: "",
+                    esRef: "",
+                    messageId: 0,
+                    messageVersion: 0,
+                    messageGroupId: 0,
+                    moduleRef: "",
+                    languageTag: 0,
+                    registerId: 0,
+                    serviceId: 0,
+                    eventId: 0,
+                    peripheralRef: "",
+                    object: null,
+                    segmentId: null,
+                },
+                ...partialData,
+            };
             super(data);
             this._data = data;
         }

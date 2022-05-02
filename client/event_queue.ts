@@ -137,30 +137,6 @@ export class EventDispatcher {
         }
     }
 
-    public dispatchModuleUpdatedEvent(module: string, status: number, beitem: Element) {
-        console.log("ModuleUpdated", module, status);
-        if (beitem.getAttribute("subscribe") !== "subscribe") {
-            return;
-        }
-        const onoccur = beitem.getAttribute("onoccur");
-        if (onoccur) {
-            this.eventQueue.queueAsyncEvent(async () => {
-                this.setCurrentBeventEvent({
-                    type: "ModuleUpdated",
-                    target: beitem as HTMLElement,
-                    status,
-                    moduleRef: module,
-                });
-                if (await this.eventQueue.executeEventHandler(onoccur)) {
-                    return true;
-                }
-                this.resetCurrentEvent();
-                return false;
-            });
-            this.eventQueue.processEventQueue();
-        }
-    }
-
     public dispatchTimerFiredEvent(status: number, beitem: Element) {
         console.log("TimerFired", status);
         if (beitem.getAttribute("subscribe") !== "subscribe") {

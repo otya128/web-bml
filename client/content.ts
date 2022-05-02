@@ -288,10 +288,22 @@ export class Content {
             }
         });
 
+        this.resources.addEventListener("componentupdated", (event) => {
+            const { component } = event.detail;
+            for (const beitem of this.documentElement.querySelectorAll("beitem[type=\"ModuleUpdated\"][subscribe=\"subscribe\"]")) {
+                const bmlBeitem = BML.nodeToBMLNode(beitem, this.bmlDocument) as BML.BMLBeitemElement;
+                bmlBeitem.internalDIIUpdated(component.componentId, component.modules, component.dataEventId);
+            }
+        });
+
         // TR-B14 第二分冊 2.1.10.3 PMT更新時の受信機動作
         this.resources.addEventListener("pmtupdated", (event) => {
             const { components, prevComponents } = event.detail;
             const { componentId: currentComponentId } = this.resources.parseURLEx(this.resources.activeDocument);
+            for (const beitem of this.documentElement.querySelectorAll("beitem[type=\"ModuleUpdated\"][subscribe=\"subscribe\"]")) {
+                const bmlBeitem = BML.nodeToBMLNode(beitem, this.bmlDocument) as BML.BMLBeitemElement;
+                bmlBeitem.internalPMTUpdated(new Set(components.keys()));
+            }
             if (currentComponentId == null) {
                 return;
             }
@@ -644,6 +656,10 @@ export class Content {
                 this.eventDispatcher.resetCurrentEvent();
                 console.debug("END ONLOAD");
             }
+            for (const beitem of this.documentElement.querySelectorAll("beitem[subscribe=\"subscribe\"]")) {
+                const bmlBeitem = BML.nodeToBMLNode(beitem, this.bmlDocument) as BML.BMLBeitemElement;
+                bmlBeitem.subscribe = bmlBeitem.subscribe;
+            }
         }
         finally {
             if (!exit) {
@@ -658,69 +674,6 @@ export class Content {
         // 雑だけど動きはする
         this.eventQueue.setInterval(() => {
             this.processTimerEvent();
-            const moduleUpdated = this.documentElement.querySelectorAll("beitem[type=\"ModuleUpdated\"]");
-            moduleUpdated.forEach(elem => {
-                const beitem = BML.nodeToBMLNode(elem, this.bmlDocument) as BML.BMLBeitemElement;
-                if (!beitem.subscribe) {
-                    return;
-                }
-                const moduleRef = beitem.moduleRef;
-                if (moduleRef === "") {
-                    return;
-                }
-                const { moduleId, componentId } = this.resources.parseURLEx(moduleRef);
-                if (moduleId == null || componentId == null) {
-                    return;
-                }
-                if (!this.resources.getPMTComponent(componentId)) {
-                    if (beitem.internalModuleUpdateStatus !== 1) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 1, elem);
-                        beitem.internalModuleUpdateStatus = 1;
-                    }
-                    return;
-                }
-                // DII未受信
-                const dii = this.resources.getDownloadComponentInfo(componentId);
-                if (dii == null) {
-                    return;
-                }
-                const existsInDII = this.resources.moduleExistsInDownloadInfo(componentId, moduleId);
-                const prevDataEventDIINotExists = beitem.internalModuleUpdateStatus === 1;
-                const prevDataEventDIIExists = beitem.internalModuleUpdateStatus === 2;
-                if (existsInDII) {
-                    if (beitem.internalModuleUpdateStatus !== 2) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 2, elem);
-                        beitem.internalModuleUpdateStatus = 2;
-                    } else {
-                        const cachedModule = this.resources.getCachedModule(componentId, moduleId);
-                        if (cachedModule != null) {
-                            const version = cachedModule.version;
-                            if (beitem.internalModuleUpdateVersion != null && beitem.internalModuleUpdateVersion !== version) {
-                                this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 0, elem);
-                            }
-                            beitem.internalModuleUpdateVersion = version;
-                        }
-                    }
-                } else {
-                    if (beitem.internalModuleUpdateStatus !== 1) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 1, elem);
-                        beitem.internalModuleUpdateStatus = 1;
-                    }
-                }
-                if (beitem.internalModuleUpdateDataEventId == null) {
-                    beitem.internalModuleUpdateDataEventId = dii.dataEventId;
-                    // データイベントが更新された
-                } else if (beitem.internalModuleUpdateDataEventId !== dii.dataEventId) {
-                    beitem.internalModuleUpdateDataEventId = dii.dataEventId;
-                    if (prevDataEventDIINotExists && existsInDII) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 4, elem);
-                    } else if (prevDataEventDIIExists && !existsInDII) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 5, elem);
-                    } else if (prevDataEventDIIExists && existsInDII) {
-                        this.eventDispatcher.dispatchModuleUpdatedEvent(moduleRef, 6, elem);
-                    }
-                }
-            });
         }, 1000);
         this.indicator?.setUrl(this.resources.activeDocument.replace(/(?<=^https?:\/\/)[^/]+/, "…"), false);
         return false;

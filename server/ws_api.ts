@@ -78,10 +78,16 @@ export type ModuleDownloadedMessage = {
     dataEventId: number,
 };
 
+export type ModuleListEntry = {
+    id: number,
+    version: number,
+    size: number,
+};
+
 export type ModuleListUpdatedMessage = {
     type: "moduleListUpdated",
     componentId: number,
-    modules: number[],
+    modules: ModuleListEntry[],
     dataEventId: number,
     returnToEntryFlag?: boolean,
 };

@@ -1,4 +1,4 @@
-import { ComponentPMT, MediaType, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
+import { ComponentPMT, MediaType, ModuleListEntry, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
 import { Indicator, IP } from "./bml_browser";
 
 type Module = {
@@ -58,7 +58,7 @@ export type LockedModule = {
 
 export type DownloadComponentInfo = {
     componentId: number,
-    modules: Set<number>,
+    modules: Map<number, ModuleListEntry>,
     dataEventId: number,
     returnToEntryFlag?: boolean,
 };
@@ -373,10 +373,14 @@ export class Resources {
         if (msg.type === "moduleDownloaded") {
             const cachedComponent = this.cachedComponents.get(msg.componentId) ?? {
                 componentId: msg.componentId,
-                modules: new Map(),
+                modules: new Map<number, CachedModule>(),
                 dataEventId: msg.dataEventId,
             };
             if (cachedComponent.dataEventId !== msg.dataEventId) {
+                return;
+            }
+            const prevModule = cachedComponent.modules.get(msg.moduleId);
+            if (prevModule != null && prevModule.version === msg.version && prevModule.dataEventId === msg.dataEventId) {
                 return;
             }
             const cachedModule: CachedModule = {
@@ -414,13 +418,22 @@ export class Resources {
         } else if (msg.type === "moduleListUpdated") {
             const component: DownloadComponentInfo = {
                 componentId: msg.componentId,
-                modules: new Set(msg.modules),
+                modules: new Map(msg.modules.map(x => [x.id, x])),
                 dataEventId: msg.dataEventId,
                 returnToEntryFlag: msg.returnToEntryFlag,
             };
             const prevComponent = this.getDownloadComponentInfo(msg.componentId);
             this.downloadComponents.set(msg.componentId, component);
             const creqs = this.componentRequests.get(msg.componentId);
+            const cachedComponent = this.cachedComponents.get(msg.componentId);
+            if (cachedComponent != null) {
+                for (const cachedModule of cachedComponent.modules.values()) {
+                    const newEntry = component.modules.get(cachedModule.moduleId);
+                    if (newEntry == null || newEntry.version !== cachedModule.version) {
+                        cachedComponent.modules.delete(cachedModule.moduleId);
+                    }
+                }
+            }
             if (creqs) {
                 for (const [moduleId, mreqs] of creqs.moduleRequests) {
                     if (!component.modules.has(moduleId)) {
@@ -597,7 +610,7 @@ export class Resources {
         const { response, headers } = await this.ip.get(full);
         this.remoteResourceRequests.delete(full);
         if (this.remoteResourceRequests.size === 0) {
-             this.indicator?.setNetworkingGetStatus(false);
+            this.indicator?.setNetworkingGetStatus(false);
         }
         if (response == null || headers == null) {
             for (const { resolve } of requests2) {
