@@ -1336,13 +1336,12 @@ export namespace BML {
                 // DII未受信
                 return;
             }
-            const existsInDII = this.ownerDocument.resources.moduleExistsInDownloadInfo(componentId, moduleId);
-            if (existsInDII) {
+            const module = dii.modules.get(moduleId);
+            if (module != null) {
                 this.dispatchModuleUpdatedEvent(this.moduleRef, 2);
                 this.internalModuleExistsInDII = true;
-                const cachedModule = this.ownerDocument.resources.getCachedModule(componentId, moduleId);
-                this.internalModuleUpdateVersion = cachedModule?.version;
-                this.internalModuleUpdateDataEventId = cachedModule?.dataEventId;
+                this.internalModuleUpdateVersion = module.version;
+                this.internalModuleUpdateDataEventId = dii.dataEventId;
             } else {
                 this.dispatchModuleUpdatedEvent(this.moduleRef, 1);
                 this.internalModuleExistsInDII = false;
