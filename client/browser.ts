@@ -311,10 +311,31 @@ const residentApp = new Map<string, number>([
     ["Download", 0],
     ["webBrowserMode1", 0],
     ["webBrowserMode2", 0],
+
+    ["HTMLBrowser", 0],
+    ["ReservedTransmission", 0],
+    ["MailClient", 0],
+    ["Bookmark", 0],
 ]);
 
-const transmissionProtocol = new Map<string, number | Map<string, number>>([
+const transmissionProtocol = new Map<string, number | Map<string, number | Map<string | undefined, number>>>([
     ["datalink", new Map<string, number>([["PPP.modem", 0]])],
+    ["application", new Map<string, number | Map<string | undefined, number>>([
+        ["HTTP", new Map<string | undefined, number>([
+            [undefined, 1],
+            ["1.0", 1],
+            ["1.1", 1],
+        ])],
+        ["FTP", 0],
+        ["TLS", new Map<string | undefined, number>([
+            [undefined, 1],
+            ["1.0", 1],
+            ["1.1", 1],
+            ["1.2", 1],
+            ["1.3", 1],
+        ])],
+        ["physical", new Map<string, number>([["basic", 0]])],
+    ])],
 ]);
 
 const extraBrowserFunction = new Map<string, number>([
@@ -381,7 +402,22 @@ const nvram = new Map([
     ["NumberOfCSBroadcasters", new Map([["23", 1]])],
 ]);
 
-const arib = new Map([
+const characterEncoding = new Map([
+    ["Shift-JIS", 0],
+    ["UTF-8", 0],
+    ["UTF-16", 0],
+    ["EUC-JP", 1],
+    ["JIS8TEXT", 0],
+]);
+
+const osdResolution = new Map([
+    ["1920x1080", 1],
+    ["1280x720", 1],
+    ["960x540", 1],
+    ["720x480", 1],
+]);
+
+const arib = new Map<string, any>([
     ["APIGroup", apiGroup],
     ["ResidentApp", residentApp],
     ["TransmissionProtocol", transmissionProtocol],
@@ -395,6 +431,11 @@ const arib = new Map([
     ["AITTransferMethod", aitTransferMethod],
     ["AITTransportMethod", aitTransportMethod],
     ["nvram", nvram],
+    ["ResidentBookmark", 0],
+    ["BookmarkButton", 0],
+    ["KanaInput", 1],
+    ["CharacterEncoding", characterEncoding],
+    ["OSDResolution", osdResolution],
 ]);
 
 const bpa = new Map([
@@ -726,8 +767,8 @@ export class BrowserAPI {
         },
         getBrowserSupport(sProvider: string, functionname: string, ...additionalinfoList: string[]): number {
             console.log("getBrowserSupport", sProvider, functionname, ...additionalinfoList);
-            const additionalinfo: string | undefined = additionalinfoList[0];
-            const additionalinfo2: string | undefined = additionalinfoList[1];
+            const additionalinfo: string | undefined = additionalinfoList[0] ?? undefined;
+            const additionalinfo2: string | undefined = additionalinfoList[1] ?? undefined;
             if (sProvider === "ARIB") {
                 if (functionname === "BMLversion") {
                     if (additionalinfo == null) {
@@ -742,6 +783,21 @@ export class BrowserAPI {
                         }
                         return 0;
                     }
+                } else if (functionname === "BXMLversion") {
+                    // B-XML
+                    return 0;
+                } else if (functionname === "MediaDecoder") {
+                    // TODO
+                } else if (functionname === "Storage" && additionalinfo === "cachesize") {
+                    // filesizeのキャッシュを備えているかどうか
+                    const filesize = Number(additionalinfo2);
+                    // ひとまず10 MiB
+                    return filesize <= 1024 * 1024 * 10 ? 1 : 0;
+                } else if (functionname === "AudioFile") {
+                    // filesizeの音声ファイルを再生可能かどうか
+                    const filesize = Number(additionalinfo);
+                    // ひとまず10 MiB
+                    return filesize <= 1024 * 1024 * 10 ? 1 : 0;
                 }
                 const f = arib.get(functionname);
                 if (f == null) {
