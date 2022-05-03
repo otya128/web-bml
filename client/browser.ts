@@ -71,7 +71,7 @@ export interface Browser {
 
     getConnectionType(): number;
     isIPConnected(): number;
-    confirmIPNetwork(destination: string, confirmType: number, timeout?: number): [boolean, string | null, number | null] | null;
+    // async confirmIPNetwork(destination: string, confirmType: number, timeout?: number): [boolean, string | null, number | null] | null;
     // async transmitTextDataOverIP(uri: string, text: string, charset: string): [number, string, string];
     // 非運用
     // saveHttpServerFileAs
@@ -196,6 +196,7 @@ export interface Browser {
 export interface AsyncBrowser {
     loadDRCS(DRCS_ref: string): Promise<number>;
     transmitTextDataOverIP(uri: string, text: string, charset: string): Promise<[number, string, string]>;
+    confirmIPNetwork(destination: string, confirmType: number, timeout?: number): Promise<[boolean, string | null, number | null] | null>;
     sleep(interval: number): Promise<number | null>;
     unlockScreen(): Promise<number>;
     X_CSP_setAccessInfoToProviderArea(filename: string, structure: string): Promise<number>;
@@ -249,7 +250,7 @@ const apiGroup: Map<string, number> = new Map([
     ["Com.IP.Transmit", 1],
     ["Com.IP.Delayed", 0],
     ["Com.IP.SetCache", 0], // FIXME?
-    ["Com.IP.confirmIP", 0], // FIXME
+    ["Com.IP.confirmIP", 1],
     ["Com.Common.Delayed", 0],
     ["Com.Line.Prefix", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
     ["Com.Certificate", 0], // FIXME
@@ -501,7 +502,7 @@ export class BrowserAPI {
             return 1;
         },
         transmitTextDataOverIP: async (uri: string, text: string, charset: string): Promise<[number, string, string]> => {
-            console.error("transmitTextDataOverIP", uri, text, charset);
+            console.info("transmitTextDataOverIP");
             if (this.ip.transmitTextDataOverIP == null) {
                 return [NaN, "", ""];
             }
@@ -526,6 +527,17 @@ export class BrowserAPI {
             } else {
                 return [NaN, "", ""];
             }
+        },
+        confirmIPNetwork: async (destination: string, confirmType: number, timeout?: number): Promise<[boolean, string | null, number | null] | null> => {
+            console.info("confirmIPNetwork");
+            if (this.ip.confirmIPNetwork == null) {
+                return null;
+            }
+            const result = await this.ip.confirmIPNetwork(destination, Number(confirmType) === 1, Number(timeout ?? 4000));
+            if (result == null) {
+                return null;
+            }
+            return [result.success, result.ipAddress, result.responseTimeMillis];
         },
         sleep: async (interval: number): Promise<number | null> => {
             return new Promise<number | null>((resolve) => {

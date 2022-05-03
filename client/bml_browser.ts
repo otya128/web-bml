@@ -45,6 +45,7 @@ export interface IP {
     getConnectionType?(): number;
     transmitTextDataOverIP?(uri: string, body: Uint8Array): Promise<{ resultCode: number, statusCode: string, response: Uint8Array }>;
     get?(uri: string): Promise<{ response?: Uint8Array, headers?: Headers, statusCode?: number }>;
+    confirmIPNetwork?(destination: string, isICMP: boolean, timeoutMillis: number): Promise<{ success: boolean, ipAddress: string | null, responseTimeMillis: number | null } | null>;
 }
 
 export type InputCharacterType = "all" | "number" | "alphabet" | "hankaku" | "zenkaku" | "katakana" | "hiragana";

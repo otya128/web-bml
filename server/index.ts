@@ -9,6 +9,7 @@ import * as wsApi from "./ws_api";
 import { WebSocket } from "ws";
 import http from "http";
 import https from "https";
+import dns from "dns/promises";
 import { randomUUID } from 'crypto';
 import { DataBroadcastingStream, LiveStream } from './stream/live_stream';
 import { HLSLiveStream } from './stream/hls_stream';
@@ -247,6 +248,26 @@ router.post(/^\/api\/post\/(?<url>https?:\/\/.+)$/, async ctx => {
         }
     }
     await pipeAsync(res, ctx.res, { end: true });
+});
+
+router.get("/api/confirm", async ctx => {
+    if (typeof ctx.query.destination !== "string" || typeof ctx.query.isICMP !== "string" || typeof ctx.query.timeoutMillis !== "string") {
+        ctx.status = 400;
+        return;
+    }
+    const destination = ctx.query.destination;
+    const isICMP = ctx.query.isICMP === "true";
+    const timeoutMillis = Number(ctx.query.timeoutMillis);
+    const resolver = new dns.Resolver({ timeout: timeoutMillis });
+    const begin = performance.now();
+    const result = await (resolver.resolve4(destination).catch(_ => null));
+    const end = performance.now();
+    const response: { success: boolean, ipAddress: string | null, responseTimeMillis: number | null } | null = {
+        success: result != null,
+        ipAddress: result != null ? (result[0] ?? null) : null,
+        responseTimeMillis: result != null ? Math.floor(end - begin) : null,
+    };
+    ctx.body = response;
 });
 
 router.get('/video_list.js', async ctx => {

@@ -105,6 +105,21 @@ const apiIP: IP = {
             return {};
         }
     },
+    async confirmIPNetwork(destination, isICMP, timeoutMillis) {
+        try {
+            const res = await window.fetch("/api/confirm?" + new URLSearchParams({
+                destination,
+                isICMP: isICMP ? "true" : "false",
+                timeoutMillis: timeoutMillis.toString()
+            }), {
+                method: "GET",
+            });
+            const result = await res.json();
+            return result;
+        } catch {
+            return null;
+        }
+    }
 };
 
 const inputApplication = new OverlayInputApplication(browserElement.querySelector(".overlay-input-container") as HTMLElement);
