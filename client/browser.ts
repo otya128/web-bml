@@ -777,7 +777,7 @@ export class BrowserAPI {
             console.log("unlockScreen");
             return 1;
         },
-        getBrowserSupport(sProvider: string, functionname: string, ...additionalinfoList: string[]): number {
+        getBrowserSupport: (sProvider: string, functionname: string, ...additionalinfoList: string[]): number => {
             console.log("getBrowserSupport", sProvider, functionname, ...additionalinfoList);
             const additionalinfo: string | undefined = additionalinfoList[0] ?? undefined;
             const additionalinfo2: string | undefined = additionalinfoList[1] ?? undefined;
@@ -811,6 +811,8 @@ export class BrowserAPI {
                     const filesize = Number(additionalinfo);
                     // ひとまず10 MiB
                     return filesize <= 1024 * 1024 * 10 ? 1 : 0;
+                } else if (functionname === "APIGroup" && additionalinfo === "Com.IP.confirmIP") {
+                    return this.ip.confirmIPNetwork != null ? 1 : 0;
                 }
                 const f = arib.get(functionname);
                 if (f == null) {
