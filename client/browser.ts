@@ -769,6 +769,7 @@ export class BrowserAPI {
             console.log("getBrowserSupport", sProvider, functionname, ...additionalinfoList);
             const additionalinfo: string | undefined = additionalinfoList[0] ?? undefined;
             const additionalinfo2: string | undefined = additionalinfoList[1] ?? undefined;
+            const additionalinfo3: string | undefined = additionalinfoList[2] ?? undefined;
             if (sProvider === "ARIB") {
                 if (functionname === "BMLversion") {
                     if (additionalinfo == null) {
@@ -817,7 +818,15 @@ export class BrowserAPI {
                     console.error("unknown getBrowserSupport additionalinfo2", sProvider, functionname, ...additionalinfoList);
                     return 0;
                 }
-                return a2;
+                if (typeof a2 === "number") {
+                    return a2;
+                }
+                const a3 = a2.get(additionalinfo3);
+                if (a3 == null) {
+                    console.error("unknown getBrowserSupport additionalinfo2", sProvider, functionname, ...additionalinfoList);
+                    return 0;
+                }
+                return a3;
             } else if (sProvider === "BPA") {
                 const f = bpa.get(functionname);
                 if (f == null) {
