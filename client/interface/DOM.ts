@@ -1428,7 +1428,7 @@ export namespace BML {
                     this.internalMessageVersion = undefined;
                 }
                 this.node.setAttribute("subscribe", "subscribe");
-                if (this.type === "ModuleUpdated" && this.internalModuleUpdateVersion == null) {
+                if (this.type === "ModuleUpdated" && this.internalModuleExistsInDII == null) {
                     this.subscribeModuleUpdated();
                 }
             } else {
