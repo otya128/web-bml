@@ -30,12 +30,11 @@ const LAUNCH_DOCUMENT_CALLED = {};
 
 import { BML } from "../interface/DOM";
 import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
-import { AsyncBrowser, Browser } from "../browser";
+import { BrowserAPI } from "../browser";
 import * as bmlDate from "../date";
 import * as bmlNumber from "../number";
 import * as bmlString from "../string";
 import { EPG } from "../bml_browser";
-import { NVRAM } from "../nvram";
 
 function initNumber(interpreter: any, globalObject: any) {
     var thisInterpreter = interpreter;
@@ -272,8 +271,9 @@ export class JSInterpreter implements Interpreter {
                 callback(r, LAUNCH_DOCUMENT_CALLED);
             }
         }
-        const browser = this.browser;
-        const asyncBrowser = this.asyncBrowser;
+        const browserAPI = this.browserAPI;
+        const browser = browserAPI.browser;
+        const asyncBrowser = browserAPI.asyncBrowser;
         this.interpreter = new Interpreter("", (interpreter: any, globalObject: any) => {
             interpreter.setProperty(globalObject, "___log", interpreter.createNativeFunction(function log(log: string) {
                 eventTrace(log);
@@ -283,10 +283,10 @@ export class JSInterpreter implements Interpreter {
                 function defineRW2(pseudo: any, propName: string) {
                     interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
                         get: interpreter.createNativeFunction(function getGreg(this: { data: any }) {
-                            return (browser.Greg as any)[propName];
+                            return browserAPI.getGreg(i);
                         }),
                         set: interpreter.createNativeFunction(function setGreg(this: { data: any }, value: any) {
-                            (browser.Greg as any)[propName] = String(value);
+                            browserAPI.setGreg(i, String(value));
                         }),
                     });
                 }
@@ -294,10 +294,10 @@ export class JSInterpreter implements Interpreter {
                 function defineRW3(pseudo: any, propName: string) {
                     interpreter.setProperty(pseudo, propName, Interpreter.VALUE_IN_DESCRIPTOR, {
                         get: interpreter.createNativeFunction(function getUreg(this: { data: any }) {
-                            return (browser.Ureg as any)[propName];
+                            return browserAPI.getUreg(i);
                         }),
                         set: interpreter.createNativeFunction(function setUreg(this: { data: any }, value: any) {
-                            (browser.Ureg as any)[propName] = String(value);
+                            browserAPI.setUreg(i, String(value));
                         }),
                     });
                 }
@@ -476,24 +476,20 @@ export class JSInterpreter implements Interpreter {
 
     _isExecuting: boolean;
     // lazyinit
-    browser: Browser = null!;
-    asyncBrowser: AsyncBrowser = null!;
+    browserAPI: BrowserAPI = null!;
     resources: Resources = null!;
     content: Content = null!;
     epg: EPG = null!;
-    nvram: NVRAM = null!;
     public constructor() {
         this._isExecuting = false;
     }
 
-    public setupEnvironment(browser: Browser, asyncBrowser: AsyncBrowser, resources: Resources, content: Content, epg: EPG, nvram: NVRAM): void {
-        this.browser = browser;
-        this.asyncBrowser = asyncBrowser;
+    public setupEnvironment(browserAPI: BrowserAPI, resources: Resources, content: Content, epg: EPG): void {
+        this.browserAPI = browserAPI;
         this._isExecuting = false;
         this.resources = resources;
         this.content = content;
         this.epg = epg;
-        this.nvram = nvram;
         this.reset();
     }
 
@@ -557,7 +553,7 @@ export class JSInterpreter implements Interpreter {
     }
 
     public async runEventHandler(funcName: string): Promise<boolean> {
-        this.interpreter.appendCode(`___log(${funcName});${funcName}();`);
+        this.interpreter.appendCode(`___log(\"${funcName}\");${funcName}();`);
         return await this.runScript();
     }
 

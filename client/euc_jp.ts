@@ -73,3 +73,20 @@ export function encodeEUCJP(input: string): Uint8Array {
     }
     return buf.subarray(0, off);
 }
+
+export function stripStringEUCJP(input: string, maxBytes: number): string {
+    // 1, 2バイト文字しか存在しない
+    if (input.length * 2 < maxBytes) {
+        return input;
+    }
+    let bytes = 0;
+    for (let i = 0; i < input.length; i++) {
+        const c = input.charCodeAt(i);
+        const size = c < 0x80 ? 1 : 2;
+        if (bytes + size > maxBytes) {
+            return input.substring(0, i);
+        }
+        bytes += size;
+    }
+    return input;
+}

@@ -99,6 +99,11 @@ export interface InputApplication {
     cancel(reason: InputCancelReason): void;
 }
 
+export interface Reg {
+    getReg(index: number): string | undefined;
+    setReg(index: number, value: string): void;
+}
+
 interface BMLBrowserEventMap {
     // 読み込まれたとき
     "load": CustomEvent<{ resolution: { width: number, height: number }, displayAspectRatio: { numerator: number, denominator: number } }>;
@@ -159,6 +164,8 @@ export type BMLBrowserOptions = {
     audioNodeProvider?: AudioNodeProvider;
     ip?: IP,
     inputApplication?: InputApplication;
+    ureg?: Reg;
+    greg?: Reg;
 };
 
 export class BMLBrowser {
@@ -203,13 +210,13 @@ export class BMLBrowser {
         this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioContextProvider, options.inputApplication);
         this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
         this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false, options.inputApplication);
-        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioContextProvider, options.ip ?? {}, this.indicator);
+        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioContextProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg);
 
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
         this.eventQueue.dispatchChange = this.eventDispatcher.dispatchChange.bind(this.eventDispatcher);
-        this.interpreter.setupEnvironment(this.browserAPI.browser, this.browserAPI.asyncBrowser, this.resources, this.content, this.epg, this.nvram);
+        this.interpreter.setupEnvironment(this.browserAPI, this.resources, this.content, this.epg);
         if (options.fonts?.roundGothic) {
             this.fonts.push(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));
         }

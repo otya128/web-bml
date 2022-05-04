@@ -7,8 +7,8 @@ import { EventDispatcher, EventQueue } from "./event_queue";
 import { Content } from "./content";
 import { ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
-import { AudioNodeProvider, Indicator, IP } from "./bml_browser";
-import { decodeEUCJP, encodeEUCJP } from "./euc_jp";
+import { AudioNodeProvider, Indicator, IP, Reg } from "./bml_browser";
+import { decodeEUCJP, encodeEUCJP, stripStringEUCJP } from "./euc_jp";
 // browser疑似オブジェクト
 
 export type LockedModuleInfo = [moduleName: string, func: number, status: number];
@@ -455,6 +455,8 @@ export class BrowserAPI {
     private readonly audioNodeProvider: AudioNodeProvider;
     private readonly ip: IP;
     private readonly indicator?: Indicator;
+    private readonly ureg: Reg;
+    private readonly greg: Reg;
 
     constructor(
         resources: resource.Resources,
@@ -466,6 +468,8 @@ export class BrowserAPI {
         audioNodeProvider: AudioNodeProvider,
         ip: IP,
         indicator: Indicator | undefined,
+        ureg: Reg | undefined,
+        greg: Reg | undefined,
     ) {
         this.resources = resources;
         this.eventQueue = eventQueue;
@@ -476,6 +480,14 @@ export class BrowserAPI {
         this.audioNodeProvider = audioNodeProvider;
         this.ip = ip;
         this.indicator = indicator;
+        this.ureg = ureg ?? {
+            getReg: (index) => this.browser.Ureg[index],
+            setReg: (index, value) => this.browser.Ureg[index] = value,
+        };
+        this.greg = greg ?? {
+            getReg: (index) => this.browser.Greg[index],
+            setReg: (index, value) => this.browser.Greg[index] = value,
+        };
     }
 
     asyncBrowser: AsyncBrowser = {
@@ -569,6 +581,34 @@ export class BrowserAPI {
             }
         }
     };
+
+    public getGreg(index: number): string | undefined {
+        if (index >= 0 && index < this.browser.Greg.length) {
+            return this.greg.getReg(index);
+        } else {
+            return undefined;
+        }
+    }
+
+    public setGreg(index: number, value: string) {
+        if (index > 0 && index < this.browser.Greg.length) {
+            this.greg.setReg(index, stripStringEUCJP(value, 256));
+        }
+    }
+
+    public getUreg(index: number): string | undefined {
+        if (index >= 0 && index < this.browser.Ureg.length) {
+            return this.ureg.getReg(index);
+        } else {
+            return undefined;
+        }
+    }
+
+    public setUreg(index: number, value: string) {
+        if (index > 0 && index < this.browser.Ureg.length) {
+            this.ureg.setReg(index, stripStringEUCJP(value, 256));
+        }
+    }
 
     browser: Browser = {
         Ureg: [...new Array(64)].map(_ => ""),
@@ -1035,10 +1075,10 @@ export class BrowserAPI {
                 if (this.serviceId != null) {
                     console.log("serviceId changed", msg.serviceId, this.serviceId)
                     for (let i = 1; i < 64; i++) { // FIXME
-                        this.browser.Ureg![i] = "";
+                        this.setUreg(i, "");
                     }
                 }
-                this.browser.Ureg![0] = "0x" + msg.serviceId.toString(16).padStart(4);
+                this.setUreg(0, "0x" + msg.serviceId.toString(16).padStart(4));
             }
         }
     }
