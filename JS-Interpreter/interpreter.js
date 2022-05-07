@@ -2396,7 +2396,7 @@ Interpreter.Object.prototype.valueOf = function() {
     return this;  // An Object, RegExp, or primitive.
   }
   if (this.data instanceof Date) {
-    return this.data.valueOf();  // Milliseconds.
+    return this.toString();
   }
   return /** @type {(boolean|number|string)} */ (this.data);  // Boxed primitive.
 };
