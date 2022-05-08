@@ -683,7 +683,7 @@ export class Content {
         // 雑だけど動きはする
         this.eventQueue.setInterval(() => {
             this.processTimerEvent();
-        }, 1000);
+        }, 100);
         this.indicator?.setUrl(this.resources.activeDocument.replace(/(?<=^https?:\/\/)[^/]+/, "…"), false);
         return false;
     }
@@ -716,10 +716,18 @@ export class Content {
                     this.eventDispatcher.dispatchTimerFiredEvent(0, elem);
                 }
             } else if (beitem.timeMode === "NPT") {
-                // FIXME: 未実装
+                // NPTが不定の時にsubscribeされたときは微妙
                 const npt = Number.parseInt(timeValue);
-                if (Number.isNaN(npt)) {
+                if (Number.isNaN(npt) || this.npt == null) {
                     return;
+                }
+                const currentNPT = this.getNPT90kHz();
+                if (currentNPT == null) {
+                    return;
+                }
+                if (npt <= currentNPT / 90) {
+                    beitem.internalTimerFired = true;
+                    this.eventDispatcher.dispatchTimerFiredEvent(0, elem);
                 }
             }
         });
