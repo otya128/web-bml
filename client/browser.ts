@@ -1065,6 +1065,11 @@ export class BrowserAPI {
             console.log("resumeTimer", timerID);
             return this.eventQueue.resumeTimer(timerID) ? 1 : NaN;
         },
+        getNPT: (): number => {
+            const npt = Math.floor((this.content.getNPT90kHz() ?? NaN) / 90);
+            console.log("getNPT", npt);
+            return npt;
+        },
     } as Browser;
 
     serviceId?: number;

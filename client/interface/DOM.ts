@@ -1191,6 +1191,8 @@ export namespace BML {
         // key: message_id, value: 前回受信したmessage_version
         public internalMessageVersion?: Map<number, number>;
 
+        public internalNPTReferred: boolean = false;
+
         public get type(): DOMString {
             return this.node.getAttribute("type") ?? "";
         }
@@ -1201,6 +1203,7 @@ export namespace BML {
             if (value !== this.esRef) {
                 this.node.setAttribute("es_ref", value);
                 this.internalMessageVersion = undefined;
+                this.internalNPTReferred = false;
             }
         }
         public get messageId(): number {
@@ -1426,6 +1429,7 @@ export namespace BML {
                     this.internalModuleUpdateVersion = undefined;
                     this.internalModuleExistsInDII = undefined;
                     this.internalMessageVersion = undefined;
+                    this.internalNPTReferred = false;
                 }
                 this.node.setAttribute("subscribe", "subscribe");
                 if (this.type === "ModuleUpdated" && this.internalModuleExistsInDII == null) {

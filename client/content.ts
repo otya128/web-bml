@@ -7,7 +7,7 @@ import { transpileCSS } from "./transpile_css";
 import { Buffer } from "buffer";
 import { BML } from "./interface/DOM";
 import { bmlToXHTMLFXP } from "./bml_to_xhtml";
-import { ResponseMessage } from "../server/ws_api";
+import { NPTReference, ResponseMessage } from "../server/ws_api";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { Interpreter } from "./interpreter/interpreter";
 import { BMLBrowserEventTarget, Indicator, InputApplication } from "./bml_browser";
@@ -158,6 +158,13 @@ function requestAnimationFrameAsync(): Promise<void> {
     });
 }
 
+type NPT = {
+    nptReference: number,
+    stcReference: number,
+    scaleDenominator: number,
+    scaleNumerator: number,
+};
+
 export class Content {
     private documentElement: HTMLElement;
     private resources: Resources;
@@ -175,6 +182,7 @@ export class Content {
     // letter-spacingなどの挙動の差異をどうにかする
     private strictTextRenderingEnabled = true;
     private readonly inputApplication?: InputApplication;
+    private npt?: NPT;
     public constructor(
         bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
@@ -555,6 +563,7 @@ export class Content {
         this.interpreter.reset();
         this.currentDateMode = 0;
         this.keyProcessStatus = undefined;
+        this.npt = undefined;
     }
 
     public async quitDocument() {
@@ -1069,11 +1078,105 @@ export class Content {
         });
     }
 
+    pcrBase?: number;
+
+    public getNPT90kHz(): number | null {
+        if (this.npt == null || this.pcrBase == null) {
+            return null;
+        }
+        // TR-B14 第二分冊 NPT値算出アルゴリズムを参照
+        const STCr = this.npt.stcReference;
+        const NPTr = this.npt.nptReference;
+        const STCc = this.pcrBase;
+        const Wpre = 3888000000;
+        const Wpost = 3888000000;
+        const STCmax = 0x1FFFFFFFF;
+        if ((STCc > STCr && STCc - STCr <= Wpost) || (STCc < STCr && STCc + STCmax - STCr <= Wpost)) {
+            if (this.npt.scaleDenominator === 1 && this.npt.scaleNumerator === 1) {
+                return (STCc + ((STCmax + NPTr - STCr) % STCmax)) % STCmax;
+            } else if (this.npt.scaleDenominator === 1 && this.npt.scaleNumerator === 0) {
+                return NPTr;
+            } else {
+                return null;
+            }
+        } else if ((STCc > STCr && STCr + STCmax - STCc <= Wpre) || (STCc < STCr && STCr - STCc <= Wpre)) {
+            if (this.npt.scaleDenominator === 1 && this.npt.scaleNumerator === 1) {
+                return NPTr;
+            } else if (this.npt.scaleDenominator === 1 && this.npt.scaleNumerator === 0) {
+                return (STCc + ((STCmax + NPTr - STCr) % STCmax)) % STCmax;
+            } else {
+                return null;
+            }
+        }
+        return null;
+    }
+
     public onMessage(msg: ResponseMessage) {
-        if (msg.type === "esEventUpdated") {
+        if (msg.type === "pcr") {
+            this.pcrBase = msg.pcrBase;
+        } else if (msg.type === "esEventUpdated") {
             const activeComponentId = this.resources.currentComponentId;
             if (activeComponentId == null) {
                 return;
+            }
+            let queued = false;
+            const nptReference = msg.events.find((x): x is NPTReference => x.type === "nptReference");
+            if (this.pcrBase != null && nptReference != null) {
+                if (this.npt != null || nptReference.STCReference <= this.pcrBase) {
+                    const nptChanged = this.npt == null ||
+                        this.npt.nptReference !== nptReference.NPTReference || this.npt.stcReference !== nptReference.STCReference ||
+                        this.npt.scaleDenominator !== nptReference.scaleDenominator || this.npt.scaleNumerator !== nptReference.scaleNumerator;
+                    if (nptChanged) {
+                        this.npt = {
+                            nptReference: nptReference.NPTReference,
+                            stcReference: nptReference.STCReference,
+                            scaleDenominator: nptReference.scaleDenominator,
+                            scaleNumerator: nptReference.scaleNumerator,
+                        };
+                        console.log("NPTReferred", this.npt);
+                    }
+                    const nptReferred = this.documentElement.querySelectorAll("beitem[type=\"NPTReferred\"][subscribe=\"subscribe\"]");
+                    for (const beitemNative of Array.from(nptReferred)) {
+                        const beitem = BML.nodeToBMLNode(beitemNative, this.bmlDocument) as BML.BMLBeitemElement;
+                        if (!beitem.subscribe) {
+                            continue;
+                        }
+                        if (!nptChanged && beitem.internalNPTReferred) {
+                            continue;
+                        }
+                        const es_ref = beitem.esRef;
+                        // STD-B24的には未指定の時現在のコンポーネントだけど運用規定的には独立したコンポーネントで伝送される
+                        let componentId = activeComponentId;
+                        if (es_ref != null) {
+                            const esRefComponentId = this.resources.parseURLEx(es_ref).componentId;
+                            if (esRefComponentId != null) {
+                                componentId = esRefComponentId;
+                            }
+                        }
+                        if (componentId !== msg.componentId) {
+                            continue;
+                        }
+                        beitem.internalNPTReferred = true;
+                        const onoccur = beitemNative.getAttribute("onoccur");
+                        if (!onoccur) {
+                            continue;
+                        }
+                        this.eventQueue.queueAsyncEvent(async () => {
+                            this.eventDispatcher.setCurrentBeventEvent({
+                                type: "NPTReferred",
+                                target: beitemNative as HTMLElement,
+                                status: 0,
+                                esRef: es_ref ?? ("/" + componentId.toString(16).padStart(2, "0")),
+                            });
+                            if (await this.eventQueue.executeEventHandler(onoccur)) {
+                                return true;
+                            }
+                            this.eventDispatcher.resetCurrentEvent();
+                            return false;
+                        });
+                        queued = true;
+                    }
+                }
             }
             const eventMessageFired = this.documentElement.querySelectorAll("beitem[type=\"EventMessageFired\"][subscribe=\"subscribe\"]");
             eventMessageFired.forEach((beitemNative) => {
@@ -1134,7 +1237,7 @@ export class Content {
                             target: beitemNative as HTMLElement,
                             status: 0,
                             privateData,
-                            esRef: "/" + componentId.toString(16).padStart(2, "0"),
+                            esRef: es_ref ?? ("/" + componentId.toString(16).padStart(2, "0")),
                             messageId: eventMessageId,
                             messageVersion: eventMessageVersion,
                             messageGroupId: event.eventMessageGroupId,
@@ -1145,9 +1248,12 @@ export class Content {
                         this.eventDispatcher.resetCurrentEvent();
                         return false;
                     });
+                    queued = true;
                 }
-                this.eventQueue.processEventQueue();
             });
+            if (queued) {
+                this.eventQueue.processEventQueue();
+            }
         }
     }
 
