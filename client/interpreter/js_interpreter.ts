@@ -249,7 +249,7 @@ export class JSInterpreter implements Interpreter {
         const content = this.content;
         function launchDocument(callback: (result: any, promiseValue: any) => void, documentName: string, transitionStyle: string | undefined): void {
             browserLog("launchDocument", documentName, transitionStyle);
-            const r = content.launchDocument(documentName);
+            const r = content.launchDocument(String(documentName));
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }
 
