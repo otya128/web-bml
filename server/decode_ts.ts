@@ -733,7 +733,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                     } else if (time_mode === 0x02) {
                         // 7bit reserved_future_use
                         // event_msg_NPT
-                        const NPT = descriptor.readUInt32BE(4) | ((descriptor[3] & 1) * 0x100000000);
+                        const NPT = descriptor.readUInt32BE(4) + ((descriptor[3] & 1) * 0x100000000);
                         events.push({
                             type: "nptEvent",
                             eventMessageType: event_msg_type,

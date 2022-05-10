@@ -1211,7 +1211,12 @@ export class Content {
                 }
                 for (const event of msg.events) {
                     // 即時イベントのみ実装
-                    if (event.type !== "immediateEvent") {
+                    if (event.type === "nptEvent") {
+                        const currentNPT = this.getNPT90kHz();
+                        if (currentNPT == null || event.eventMessageNPT > currentNPT) {
+                            continue;
+                        }
+                    } else if (event.type !== "immediateEvent") {
                         continue;
                     }
                     if (event.eventMessageGroupId !== message_group_id) {
