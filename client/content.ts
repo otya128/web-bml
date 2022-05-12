@@ -680,10 +680,6 @@ export class Content {
             return true;
         }
         console.debug("END PROC EVQ");
-        // 雑だけど動きはする
-        this.eventQueue.setInterval(() => {
-            this.processTimerEvent();
-        }, 100);
         this.indicator?.setUrl(this.resources.activeDocument.replace(/(?<=^https?:\/\/)[^/]+/, "…"), false);
         return false;
     }
@@ -1122,6 +1118,7 @@ export class Content {
     public onMessage(msg: ResponseMessage) {
         if (msg.type === "pcr") {
             this.pcrBase = msg.pcrBase;
+            this.processTimerEvent();
         } else if (msg.type === "esEventUpdated") {
             const activeComponentId = this.resources.currentComponentId;
             if (activeComponentId == null) {
