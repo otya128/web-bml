@@ -25,6 +25,7 @@ export type ComponentPMT = {
     pid: number,
     componentId: number,
     bxmlInfo?: AdditionalAribBXMLInfo,
+    streamType: number,
 };
 
 export type AdditionalAribBXMLInfo = {

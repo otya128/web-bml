@@ -456,7 +456,8 @@ export class Resources {
         } else if (msg.type === "pmt") {
             this.pmtRetrieved = true;
             const prevComponents = this.pmtComponents;
-            this.pmtComponents = new Map(msg.components.map(x => [x.componentId, x]));
+            // 0x0d: データカルーセル
+            this.pmtComponents = new Map(msg.components.filter(x => x.streamType === 0x0d).map(x => [x.componentId, x]));
             for (const [componentId, creqs] of this.componentRequests) {
                 if (this.pmtComponents.has(componentId)) {
                     continue;

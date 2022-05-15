@@ -156,10 +156,6 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             if (parsePES && stream.stream_type === 0x06) {
                 privatePes.add(stream.elementary_PID);
             }
-            // 0x0d: データカルーセル
-            if (stream.stream_type != 0x0d) {
-                continue;
-            }
             const pid = stream.elementary_PID;
             let bxmlInfo: AdditionalAribBXMLInfo | undefined;
             let componentId: number | undefined;
@@ -195,7 +191,8 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                 componentId,
                 pid,
                 bxmlInfo,
-            }
+                streamType: stream.stream_type,
+            };
             ptc.set(pid, componentPMT);
             ctp.set(componentPMT.componentId, componentPMT);
         }
