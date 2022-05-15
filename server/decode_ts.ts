@@ -98,8 +98,8 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
 
     tsStream.on("tdt", (pid: any, data: any) => {
         tsUtil.addTdt(pid, data);
-        const time = tsUtil.getTime().getTime();
-        if (currentTime !== time) {
+        const time = tsUtil.getTime()?.getTime();
+        if (time != null && currentTime !== time) {
             currentTime = time;
             send({
                 type: "currentTime",
@@ -110,8 +110,8 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
 
     tsStream.on("tot", (pid: any, data: any) => {
         tsUtil.addTot(pid, data);
-        const time = tsUtil.getTime().getTime();
-        if (currentTime !== time) {
+        const time = tsUtil.getTime()?.getTime();
+        if (time != null && currentTime !== time) {
             currentTime = time;
             send({
                 type: "currentTime",
