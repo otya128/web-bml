@@ -18,6 +18,8 @@
  * 15:
 **/
 
+import { romsoundData } from "./romsound_data";
+
 const sampleRate = 12000 * 2;
 
 function playBuffer(destination: AudioNode, buf: Float32Array, sampleRate: number) {
@@ -34,30 +36,39 @@ function sine(sampleRate: number, i: number, freq: number) {
     return Math.sin(i / (sampleFreq / (Math.PI * 2)));
 }
 
-const romSoundCache = new Map<number, Float32Array>();
+const romSoundCache = new Map<number, { buffer: Float32Array, sampleRate: number }>();
 
 export function playRomSound(soundId: number, destination: AudioNode) {
     let cache = romSoundCache.get(soundId);
     if (cache == null) {
         switch (soundId) {
             case 5:
-                cache = generateSound5(sampleRate);
+                cache = { buffer: generateSound5(sampleRate), sampleRate };
                 break;
             case 7:
-                cache = generateSound7(sampleRate);
+                cache = { buffer: generateSound7(sampleRate), sampleRate };
                 break;
             case 9:
-                cache = generateSound9(sampleRate);
+                cache = { buffer: generateSound9(sampleRate), sampleRate };
                 break;
             default:
-                break;
+                const data = romsoundData[soundId];
+                if (data != null) {
+                    const buffer = Buffer.from(data, "base64").buffer;
+                    destination.context.decodeAudioData(buffer).then((audioBuffer) => {
+                        const cache = { buffer: audioBuffer.getChannelData(0), sampleRate: audioBuffer.sampleRate };
+                        romSoundCache.set(soundId, cache);
+                        playBuffer(destination, cache.buffer, cache.sampleRate);
+                    });
+                }
+                return;
         }
         if (cache != null) {
             romSoundCache.set(soundId, cache);
         }
     }
     if (cache != null) {
-        playBuffer(destination, cache, sampleRate);
+        playBuffer(destination, cache.buffer, cache.sampleRate);
         return;
     }
 }
