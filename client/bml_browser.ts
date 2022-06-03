@@ -254,11 +254,16 @@ export class BMLBrowser {
         return this.documentElement.querySelector("object[arib-type=\"video/X-arib-mpeg2\"]");
     }
 
-    public destroy() {
+    public destroy(): void {
         for (const font of this.fonts) {
             document.fonts.delete(font);
         }
         this.fonts.length = 0;
         this.content.unloadAllDRCS();
+    }
+
+    public setMainAudioStream(componentId: number, channelId?: number): void {
+        this.resources.mainAudioComponentId = componentId;
+        this.resources.mainAudioChannelId = channelId;
     }
 }

@@ -1026,9 +1026,19 @@ export namespace BML {
         public setMainAudioStream(audio_ref: DOMString): boolean {
             throw new Error("BMLObjectElement.setMainAudioStream()");
         }
-        public getMainAudioStream(): DOMString {
-            throw new Error("BMLObjectElement.getMainAudioStream()");
+
+        public getMainAudioStream(): DOMString | null {
+            const componentId = this.ownerDocument.resources.mainAudioComponentId ?? this.ownerDocument.resources.defaultAudioComponentId;
+            const channelId = this.ownerDocument.resources.mainAudioChannelId;
+            const prefix = (this.ownerDocument.resources.isInternetContent ? "arib://-1.-1.-1/" /* ? */ : "/");
+            const component = componentId.toString(16).padStart(2, "0");
+            if (channelId != null) {
+                return prefix + component + ";" + channelId;
+            } else {
+                return prefix + component;
+            }
         }
+
         public blur(): void {
             blur(this, this.ownerDocument);
         }
