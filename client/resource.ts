@@ -569,6 +569,9 @@ export class Resources {
         return { componentId, channelId };
     }
 
+    public mainAudioComponentId?: number;
+    public mainAudioChannelId?: number;
+
     public get defaultAudioComponentId(): number {
         // TR-B14 第五分冊 5.1.3 TR-B15 第二分冊, 第四分冊 表14-1
         return 0x10; // 部分受信階層では0x83又は0x85

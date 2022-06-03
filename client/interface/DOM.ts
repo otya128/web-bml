@@ -443,7 +443,8 @@ export namespace BML {
         public readonly browserEventTarget: BMLBrowserEventTarget;
         public readonly audioNodeProvider: AudioNodeProvider;
         public readonly inputApplication?: InputApplication;
-        public constructor(node: globalThis.HTMLElement, interpreter: Interpreter, eventQueue: EventQueue, resources: Resources, browserEventTarget: BMLBrowserEventTarget, audioNodeProvider: AudioNodeProvider, inputApplication: InputApplication | undefined) {
+        public readonly setMainAudioStreamCallback?: (componentId: number, channelId?: number) => boolean;
+        public constructor(node: globalThis.HTMLElement, interpreter: Interpreter, eventQueue: EventQueue, resources: Resources, browserEventTarget: BMLBrowserEventTarget, audioNodeProvider: AudioNodeProvider, inputApplication: InputApplication | undefined, setMainAudioStreamCallback: ((componentId: number, channelId?: number) => boolean) | undefined) {
             super(node as any, null!); // !
             this.ownerDocument = this; // !!
             this.interpreter = interpreter;
@@ -452,6 +453,7 @@ export namespace BML {
             this.browserEventTarget = browserEventTarget;
             this.audioNodeProvider = audioNodeProvider;
             this.inputApplication = inputApplication;
+            this.setMainAudioStreamCallback = setMainAudioStreamCallback;
         }
 
         public get documentElement(): HTMLElement {
