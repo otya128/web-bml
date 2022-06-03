@@ -104,8 +104,8 @@ export function parseBinaryStructure(structure: string): BinaryTableField[] | nu
     return fields;
 }
 
-export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[]): [result: any[], readBits: number] {
-    let posBits = 0;
+export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[], posBits?: number): [result: any[], posBits: number] {
+    posBits = posBits ?? 0;
     const columns: any[] = [];
     for (const field of fields) {
         let fieldData: any = null;
@@ -413,8 +413,8 @@ export class BinaryTable implements IBinaryTable {
             if (lengthByte) {
                 [length, posBits] = readBits(posBits, 8 * lengthByte, buffer);
             }
-            let [columns, read] = readBinaryFields(buffer.slice(posBits >> 3), fields);
-            posBits += lengthByte ? length * 8 : read;
+            let [columns, read] = readBinaryFields(buffer, fields, posBits);
+            posBits = lengthByte ? posBits + length * 8 : read;
             rows.push(columns);
         }
         return { rows, fields };
