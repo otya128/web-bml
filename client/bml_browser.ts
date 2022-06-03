@@ -115,6 +115,7 @@ interface BMLBrowserEventMap {
      */
     "videochanged": CustomEvent<{ clientRect: { left: number, top: number, right: number, bottom: number }, boundingRect: DOMRect }>;
     "usedkeylistchanged": CustomEvent<{ usedKeyList: Set<"basic" | "data-button" | "numeric-tuning"> }>;
+    "audiostreamchanged": CustomEvent<{ componentId: number, channelId?: number }>;
 }
 
 interface CustomEventTarget<M> {

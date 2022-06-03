@@ -731,6 +731,22 @@ export namespace BML {
                     this.delete();
                     return;
                 }
+                if (aribType?.toLowerCase() === "audio/x-arib-mpeg2-aac") {
+                    // (arib-dc://-1\.-1\.-1)?/((?<component_tag>\d+(;?<channel_id>\d+))|-1)
+                    const { componentId, channelId } = this.ownerDocument.resources.parseAudioReference(value);
+                    if (componentId == null) {
+                        return;
+                    }
+                    this.ownerDocument.browserEventTarget.dispatchEvent<"audiostreamchanged">(
+                        new CustomEvent("audiostreamchanged", {
+                            detail: {
+                                componentId,
+                                channelId: channelId ?? undefined,
+                            }
+                        })
+                    );
+                    return;
+                }
                 // 順序が逆転するのを防止
                 this.__version = this.__version + 1;
                 const version: number = (this as any).__version;

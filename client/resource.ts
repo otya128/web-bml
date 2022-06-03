@@ -546,6 +546,34 @@ export class Resources {
         return { componentId, moduleId, filename: filename == null ? null : filename };
     }
 
+    public parseAudioReference(url: string): { componentId: number | null, channelId: number | null } {
+        const { component, module, filename } = this.parseURL(url);
+        if (component == null || module != null || filename != null) {
+            return { componentId: null, channelId: null };
+        }
+        const [componentIdPart, channelIdPart, ...remain] = component.split(";");
+        if (remain.length !== 0) {
+            return { componentId: null, channelId: null };
+        }
+        const componentId = Number.parseInt(componentIdPart ?? "", 16);
+        if (!Number.isInteger(componentId)) {
+            return { componentId: null, channelId: null };
+        }
+        if (channelIdPart == null) {
+            return { componentId, channelId: null };
+        }
+        const channelId = Number.parseInt(channelIdPart ?? "");
+        if (!Number.isInteger(channelId) || channelId > 3 || channelId < 1) {
+            return { componentId: null, channelId: null };
+        }
+        return { componentId, channelId };
+    }
+
+    public get defaultAudioComponentId(): number {
+        // TR-B14 第五分冊 5.1.3 TR-B15 第二分冊, 第四分冊 表14-1
+        return 0x10; // 部分受信階層では0x83又は0x85
+    }
+
     public fetchLockedResource(url: string): CachedFile | null {
         const { component, module, filename } = this.parseURL(url);
         const componentId = Number.parseInt(component ?? "", 16);
@@ -751,7 +779,7 @@ export class Resources {
         // this.cachedComponents.clear();
     }
 
-    // Cプロファイルだと0x50
+    // Cプロファイルだと0x80
     public get startupComponentId(): number {
         return 0x40;
     }
