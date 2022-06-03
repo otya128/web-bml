@@ -24,7 +24,7 @@ type DownloadModuleInfo = {
     moduleVersion: number,
     moduleSize: number,
     contentType?: string,
-    blocks: (Buffer | undefined)[],
+    blocks?: (Buffer | undefined)[],
     downloadedBlockCount: number,
     dataEventId: number,
 };
@@ -563,7 +563,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             if (moduleInfo.dataEventId !== data_event_id) {
                 return;
             }
-            if (moduleInfo.blocks.length <= blockNumber) {
+            if (moduleInfo.blocks == null || moduleInfo.blocks.length <= blockNumber) {
                 return;
             }
             if (moduleInfo.blocks[blockNumber] != null) {
@@ -581,6 +581,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                     dataEventId: data_event_id,
                 };
                 let moduleData = Buffer.concat(moduleInfo.blocks as Buffer[]);
+                moduleInfo.blocks = undefined;
                 const previousCachedModule = cachedComponent.modules.get(moduleInfo.moduleId);
                 if (previousCachedModule != null && previousCachedModule.downloadModuleInfo.moduleVersion === moduleInfo.moduleVersion && previousCachedModule.dataEventId === moduleInfo.dataEventId) {
                     // 更新されていない
