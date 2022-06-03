@@ -167,6 +167,7 @@ export type BMLBrowserOptions = {
     inputApplication?: InputApplication;
     ureg?: Reg;
     greg?: Reg;
+    setMainAudioStreamCallback?: (componentId: number, channelId?: number) => boolean;
 };
 
 export class BMLBrowser {
@@ -208,7 +209,7 @@ export class BMLBrowser {
         this.interpreter = new JSInterpreter();
         this.eventQueue = new EventQueue(this.interpreter);
         const audioContextProvider = options.audioNodeProvider ?? new DefaultAudioNodeProvider();
-        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioContextProvider, options.inputApplication);
+        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioContextProvider, options.inputApplication, options.setMainAudioStreamCallback);
         this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
         this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false, options.inputApplication);
         this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioContextProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg);

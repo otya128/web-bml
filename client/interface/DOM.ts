@@ -1024,7 +1024,11 @@ export namespace BML {
         }
 
         public setMainAudioStream(audio_ref: DOMString): boolean {
-            throw new Error("BMLObjectElement.setMainAudioStream()");
+            const { componentId, channelId } = this.ownerDocument.resources.parseAudioReference(audio_ref);
+            if (componentId == null) {
+                return false;
+            }
+            return this.ownerDocument.setMainAudioStreamCallback?.(componentId, channelId ?? undefined) ?? false;
         }
 
         public getMainAudioStream(): DOMString | null {
