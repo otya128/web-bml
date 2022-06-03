@@ -6,51 +6,48 @@ export function decodeEUCJP(input: Uint8Array): string {
     if (input.length === 0) {
         return "";
     }
-    let buffer = new Uint16Array(input.length);
-    buffer[0] = 1;
-    const isBE = new Uint8Array(buffer.buffer)[0] === 0;
-    let outOff = 0;
-    const replacementCharacter = 0xfffd; // �
+    const replacementCharacter = "\ufffd"; // �
+    let buffer = "";
     for (let i = 0; i < input.length; i++) {
         if (input[i] >= 0xa1 && input[i] <= 0xfe) {
             const ku = input[i] - 0xa0;
             i++;
             if (i >= input.length) {
-                buffer[outOff++] = replacementCharacter;
+                buffer += replacementCharacter;
                 break;
             }
             if (input[i] < 0xa1 || input[i] > 0xfe) {
-                buffer[outOff++] = replacementCharacter;
+                buffer += replacementCharacter;
                 continue;
             }
             const ten = input[i] - 0xa0;
             const uni = jisToUnicodeMap[(ku - 1) * 94 + (ten - 1)];
             if (typeof uni === "number") {
                 if (uni >= 0) {
-                    buffer[outOff++] = uni;
+                    buffer += String.fromCharCode(uni);
                 } else {
-                    buffer[outOff++] = replacementCharacter;
+                    buffer += replacementCharacter;
                 }
             } else {
                 for (const u of uni) {
-                    buffer[outOff++] = u;
+                    buffer += String.fromCharCode(u);
                 }
             }
         } else if (input[i] < 0x80) {
-            buffer[outOff++] = input[i];
+            buffer += String.fromCharCode(input[i]);
         } else if (input[i] === 0x8e) {
             // 半角カナカナは運用しない (STD-B24 第二分冊(2/2) 第二編 付属1 13.2.1 表13-1, TR-B14 第二分冊 3.4.1.2 表3-12)
-            buffer[outOff++] = replacementCharacter;
+            buffer += replacementCharacter;
             i++;
         } else if (input[i] === 0x8f) {
             // 3バイト文字(JIS X 0212-1990)は運用しない (STD-B24 第二分冊(2/2) 第二編 付属1 13.2.1 表13-1, TR-B14 第二分冊 3.4.1.2 表3-12)
-            buffer[outOff++] = replacementCharacter;
+            buffer += replacementCharacter;
             i += 2;
         } else {
-            buffer[outOff++] = replacementCharacter;
+            buffer += replacementCharacter;
         }
     }
-    return new TextDecoder(isBE ? "utf-16be" : "utf-16le").decode(buffer.subarray(0, outOff));
+    return buffer;
 }
 
 export function encodeEUCJP(input: string): Uint8Array {
