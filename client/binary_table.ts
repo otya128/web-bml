@@ -166,7 +166,7 @@ export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[],
                 } else {
                     throw new Error("string must be byte or variable");
                 }
-                const decoded = decodeEUCJP(buffer.slice(posBits >> 3, (posBits >> 3) + lengthByte));
+                const decoded = decodeEUCJP(buffer.subarray(posBits >> 3, (posBits >> 3) + lengthByte));
                 // なにも設定されていなければ空文字列(TR-B14, TR-B15) => null文字以降切り捨てとする
                 const nullIndex = decoded.indexOf("\u0000");
                 if (nullIndex !== -1) {
@@ -195,7 +195,7 @@ export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[],
                     }
                     let lengthByte: number;
                     [lengthByte, posBits] = readBits(posBits, field.length * 8, buffer);
-                    const zip = buffer.slice((posBits >> 3), (posBits >> 3) + lengthByte);
+                    const zip = buffer.subarray((posBits >> 3), (posBits >> 3) + lengthByte);
                     fieldData = decodeZipCode(zip);
                     posBits += lengthByte * 8;
                 }
