@@ -107,8 +107,9 @@ export interface Browser {
     lockModuleOnMemory(module: string | null | undefined): number
     unlockModuleOnMemory(module: string | null | undefined): number
     setCachePriority(module: string, priority: number): number;
-    // getTuningLinkageSource(): string;
-    // getTuningLinkageType(): number;
+    // ＢＳ/広帯域ＣＳデジタル放送では運用する
+    getTuningLinkageSource(): string;
+    getTuningLinkageType(): number;
     // getLinkSourceServiceStr(): string;
     // getLinkSourceEventStr(): string;
     getIRDID(type: number): string | null;
@@ -123,8 +124,8 @@ export interface Browser {
     // option
     // launchDocumentRestricted(documentName: string, transitionStyle: string): number;
     quitDocument(): number;
-    // option
-    // launchExApp(uriname: string, MIME_type?: string, ...Ex_info: string[]): number;
+    // ＢＳ/広帯域ＣＳデジタル放送では運用する
+    launchExApp(uriname: string, MIME_type?: string, ...Ex_info: string[]): number;
     getFreeContentsMemory(number_of_resource?: number): number;
     isSupportedMedia(mediaName: string): number;
     detectComponent(component_ref: string): number;
@@ -255,7 +256,7 @@ const apiGroup: Map<string, number> = new Map([
     ["Com.Line.Prefix", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
     ["Com.Certificate", 0], // FIXME
     ["Ctrl.Basic", 1],
-    ["Ctrl.NPT", 1], // FIXME
+    ["Ctrl.NPT", 1],
     ["Ctrl.Time", 1],
     ["Ctrl.Exec", 0],
     ["Ctrl.Cache", 1], // FIXME: setCachePriority
