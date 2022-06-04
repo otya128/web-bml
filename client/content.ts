@@ -335,7 +335,7 @@ export class Content {
                 (prevEntryPID != null && prevEntryPID !== currentEntryPID)) {
                 // エントリコンポーネントが消滅
                 if (currentEntryPID == null) {
-                    this.quitDocument();
+                    this.exitDocument();
                     return;
                 }
                 console.error("PID changed", prevPID, currentPID, prevEntryPID, currentEntryPID);
@@ -566,7 +566,8 @@ export class Content {
         this.npt = undefined;
     }
 
-    public async quitDocument() {
+    // データ放送番組でなくなったときなど
+    public async exitDocument() {
         await this.unloadDocument();
         this.eventQueue.reset();
         this.unloadAllDRCS();
@@ -579,6 +580,11 @@ export class Content {
             n.remove();
         }
         this.loaded = false;
+    }
+
+    public async quitDocument() {
+        this.resources.unlockModules();
+        await this.launchStartup();
     }
 
     private async loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
@@ -744,7 +750,7 @@ export class Content {
             await this.launchDocumentAsync(module);
             return true;
         } else {
-            this.quitDocument();
+            this.exitDocument();
         }
         return false;
     }
@@ -766,12 +772,12 @@ export class Content {
                 // 通信コンテンツ->通信コンテンツへの遷移
                 if (!this.resources.checkBaseURIDirectory(documentName)) {
                     console.error("base URI directory violation");
-                    await this.quitDocument();
+                    await this.exitDocument();
                     return NaN;
                 }
                 normalizedDocument = new URL(documentName, this.resources.activeDocument).toString();
             } else {
-                await this.quitDocument();
+                await this.exitDocument();
                 return NaN;
             }
         } else if (filename != null) {
@@ -783,7 +789,7 @@ export class Content {
         const res = await this.resources.fetchResourceAsync(documentName);
         if (res == null) {
             console.error("NOT FOUND");
-            await this.quitDocument();
+            await this.exitDocument();
             return NaN;
         }
         const ad = this.resources.activeDocument;
