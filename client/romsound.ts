@@ -45,11 +45,20 @@ export function playRomSound(soundId: number, destination: AudioNode) {
             case 5:
                 cache = { buffer: generateSound5(sampleRate), sampleRate };
                 break;
+            case 6:
+                cache = { buffer: repeatSound(generateSound5(sampleRate), 3, -2000), sampleRate };
+                break;
             case 7:
                 cache = { buffer: generateSound7(sampleRate), sampleRate };
                 break;
+            case 8:
+                cache = { buffer: repeatSound(generateSound7(sampleRate), 3, -2000), sampleRate };
+                break;
             case 9:
                 cache = { buffer: generateSound9(sampleRate), sampleRate };
+                break;
+            case 10:
+                cache = { buffer: repeatSound(generateSound9(sampleRate), 3, 0), sampleRate };
                 break;
             default:
                 const data = romsoundData[soundId];
@@ -61,7 +70,7 @@ export function playRomSound(soundId: number, destination: AudioNode) {
                         playBuffer(destination, cache.buffer, cache.sampleRate);
                     });
                 }
-                return;
+                break;
         }
         if (cache != null) {
             romSoundCache.set(soundId, cache);
@@ -93,6 +102,14 @@ function generateSound5(sampleRate: number): Float32Array {
 }
 
 // 6は5の連続
+
+function repeatSound(buf: Float32Array, repeatCount: number, intervalSample: number): Float32Array {
+    const repeated = new Float32Array(buf.length * repeatCount + intervalSample * (repeatCount - 1));
+    for (let i = 0; i < repeatCount; i++) {
+        repeated.set(buf, (buf.length + intervalSample) * i);
+    }
+    return repeated;
+}
 
 // 決定音
 function generateSound7(sampleRate: number): Float32Array {
