@@ -7,7 +7,7 @@ export class HLSVideoPlayer extends VideoPlayer {
     captionRenderer: aribb24js.CanvasRenderer | null = null;
 
     private PRACallback = (index: number): void => {
-        if (this.audioNode == null) {
+        if (this.audioNode == null || this.container.style.display === "none") {
             return;
         }
         playRomSound(index, this.audioNode);

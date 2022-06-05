@@ -25,7 +25,7 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
     resizeObserver?: ResizeObserver;
 
     private PRACallback = (index: number): void => {
-        if (this.audioNode == null) {
+        if (this.audioNode == null || this.container.style.display === "none") {
             return;
         }
         playRomSound(index, this.audioNode);

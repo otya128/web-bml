@@ -95,7 +95,7 @@ export class CaptionPlayer extends VideoPlayer {
                 data_identifier: 0x81,
                 svg: this.superSVG,
             });
-            if (result?.PRA != null && this.audioNode != null) {
+            if (result?.PRA != null && this.audioNode != null && this.container.style.display !== "none") {
                 playRomSound(result.PRA, this.audioNode);
             }
             this.superSVG.style.transform = `scaleY(${this.container.clientHeight / this.superSVG.clientHeight})`;
@@ -116,7 +116,7 @@ export class CaptionPlayer extends VideoPlayer {
             });
             this.svg.style.transform = `scaleY(${this.container.clientHeight / this.svg.clientHeight})`;
             this.svg.style.transformOrigin = `0px 0px`;
-            if (result?.PRA != null && this.audioNode != null) {
+            if (result?.PRA != null && this.audioNode != null && this.container.style.display !== "none") {
                 playRomSound(result.PRA, this.audioNode);
             }
         }
