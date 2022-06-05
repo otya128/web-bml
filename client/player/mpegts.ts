@@ -41,13 +41,13 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
             // 字幕対応
             const captionOption: aribb24js.CanvasRendererOption = {
                 normalFont: "丸ゴシック",
-                forceStrokeColor: "black",
+                forceStrokeColor: true,
             };
             captionOption.data_identifier = 0x80;
             const captionRenderer = new aribb24js.CanvasRenderer(captionOption);
             const superimposeOption: aribb24js.CanvasRendererOption = {
                 normalFont: "丸ゴシック",
-                forceStrokeColor: "black",
+                forceStrokeColor: true,
             };
             superimposeOption.data_identifier = 0x81;
             const superimposeRenderer = new aribb24js.CanvasRenderer(superimposeOption);

@@ -8,7 +8,7 @@ export class HLSVideoPlayer extends VideoPlayer {
         const captionOption: aribb24js.CanvasRendererOption = {
             normalFont: "丸ゴシック",
             enableAutoInBandMetadataTextTrackDetection: !Hls.isSupported(),
-            forceStrokeColor: "black",
+            forceStrokeColor: true,
         };
         const renderer = new aribb24js.CanvasRenderer(captionOption);
         this.captionRenderer = renderer;

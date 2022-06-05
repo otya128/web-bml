@@ -13,7 +13,7 @@ export class CaptionPlayer extends VideoPlayer {
         this.container.append(this.superSVG);
         this.captionOption = {
             normalFont: "丸ゴシック",
-            forceStrokeColor: "black",
+            forceStrokeColor: true,
         };
     }
 
