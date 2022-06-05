@@ -96,7 +96,7 @@ let pcr: number | undefined;
 let baseTime: number | undefined;
 let basePCR: number | undefined;
 remoteControl.player = player;
-player.setAudioContext(new AudioContext());
+player.setPRAAudioNode(new AudioContext().destination);
 
 function onMessage(msg: ResponseMessage) {
     if (msg.type === "pes") {

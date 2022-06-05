@@ -7,10 +7,10 @@ export class HLSVideoPlayer extends VideoPlayer {
     captionRenderer: aribb24js.CanvasRenderer | null = null;
 
     private PRACallback = (index: number): void => {
-        if (this.audioContext == null) {
+        if (this.audioNode == null) {
             return;
         }
-        playRomSound(index, this.audioContext.destination);
+        playRomSound(index, this.audioNode);
     }
 
     public setSource(source: string): void {
@@ -45,9 +45,9 @@ export class HLSVideoPlayer extends VideoPlayer {
         this.captionRenderer?.hide();
     }
 
-    private audioContext?: AudioContext;
+    private audioNode?: AudioNode;
 
-    public setAudioContext(audioContext: AudioContext): void {
-        this.audioContext = audioContext;
+    public override setPRAAudioNode(audioNode?: AudioNode): void {
+        this.audioNode = audioNode;
     }
 }

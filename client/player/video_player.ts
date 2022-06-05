@@ -25,6 +25,6 @@ export abstract class VideoPlayer {
     public scale(_factor: number) {
     }
 
-    public setAudioContext(_audioContext: AudioContext): void {
+    public setPRAAudioNode(_audioNode?: AudioNode): void {
     }
 }

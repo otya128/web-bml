@@ -25,10 +25,10 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
     resizeObserver?: ResizeObserver;
 
     private PRACallback = (index: number): void => {
-        if (this.audioContext == null) {
+        if (this.audioNode == null) {
             return;
         }
-        playRomSound(index, this.audioContext.destination);
+        playRomSound(index, this.audioNode);
     }
 
     public setSource(source: string): void {
@@ -129,9 +129,9 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
         this.resizeCanvas();
     }
 
-    private audioContext?: AudioContext;
+    private audioNode?: AudioNode;
 
-    public setAudioContext(audioContext: AudioContext): void {
-        this.audioContext = audioContext;
+    public override setPRAAudioNode(audioNode?: AudioNode): void {
+        this.audioNode = audioNode;
     }
 }

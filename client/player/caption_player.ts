@@ -95,8 +95,8 @@ export class CaptionPlayer extends VideoPlayer {
                 data_identifier: 0x81,
                 svg: this.superSVG,
             });
-            if (result?.PRA != null && this.audioContext != null) {
-                playRomSound(result.PRA, this.audioContext.destination);
+            if (result?.PRA != null && this.audioNode != null) {
+                playRomSound(result.PRA, this.audioNode);
             }
             this.superSVG.style.transform = `scaleY(${this.container.clientHeight / this.superSVG.clientHeight})`;
             this.superSVG.style.transformOrigin = `0px 0px`;
@@ -116,8 +116,8 @@ export class CaptionPlayer extends VideoPlayer {
             });
             this.svg.style.transform = `scaleY(${this.container.clientHeight / this.svg.clientHeight})`;
             this.svg.style.transformOrigin = `0px 0px`;
-            if (result?.PRA != null && this.audioContext != null) {
-                playRomSound(result.PRA, this.audioContext.destination);
+            if (result?.PRA != null && this.audioNode != null) {
+                playRomSound(result.PRA, this.audioNode);
             }
         }
     }
@@ -130,9 +130,9 @@ export class CaptionPlayer extends VideoPlayer {
         this.container.style.display = "none";
     }
 
-    private audioContext?: AudioContext;
+    private audioNode?: AudioNode;
 
-    public setAudioContext(audioContext: AudioContext): void {
-        this.audioContext = audioContext;
+    public override setPRAAudioNode(audioNode?: AudioNode): void {
+        this.audioNode = audioNode;
     }
 }
