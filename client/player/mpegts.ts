@@ -1,5 +1,7 @@
 import Mpegts from "mpegts.js";
 import * as aribb24js from "aribb24.js";
+import { VideoPlayer } from "./video_player";
+import { playRomSound } from "../romsound";
 
 // Based on EPGStation
 
@@ -16,12 +18,19 @@ function parseMalformedPES(data: any): any {
     let payload = data.subarray(payload_start_index, payload_start_index + payload_length);
     return payload;
 }
-import { VideoPlayer } from "./video_player";
 
 export class MPEGTSVideoPlayer extends VideoPlayer {
     captionRenderer: aribb24js.CanvasRenderer | null = null;
     superimposeRenderer: aribb24js.CanvasRenderer | null = null;
-    resizeObserver?: ResizeObserver;;
+    resizeObserver?: ResizeObserver;
+
+    private PRACallback = (index: number): void => {
+        if (this.audioContext == null) {
+            return;
+        }
+        playRomSound(index, this.audioContext.destination);
+    }
+
     public setSource(source: string): void {
         if (Mpegts.getFeatureList().mseLivePlayback) {
             var player = Mpegts.createPlayer({
@@ -37,17 +46,19 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
             player.attachMediaElement(this.video);
             player.load();
             player.play();
-    
+
             // 字幕対応
             const captionOption: aribb24js.CanvasRendererOption = {
                 normalFont: "丸ゴシック",
                 forceStrokeColor: true,
+                PRACallback: this.PRACallback,
             };
             captionOption.data_identifier = 0x80;
             const captionRenderer = new aribb24js.CanvasRenderer(captionOption);
             const superimposeOption: aribb24js.CanvasRendererOption = {
                 normalFont: "丸ゴシック",
                 forceStrokeColor: true,
+                PRACallback: this.PRACallback,
             };
             superimposeOption.data_identifier = 0x81;
             const superimposeRenderer = new aribb24js.CanvasRenderer(superimposeOption);
@@ -116,5 +127,11 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
     public scale(factor: number) {
         this.scaleFactor = factor;
         this.resizeCanvas();
+    }
+
+    private audioContext?: AudioContext;
+
+    public setAudioContext(audioContext: AudioContext): void {
+        this.audioContext = audioContext;
     }
 }

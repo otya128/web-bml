@@ -1,4 +1,5 @@
 import { SVGProvider, SVGProviderOption } from "aribb24.js";
+import { playRomSound } from "../romsound";
 import { VideoPlayer } from "./video_player";
 
 // 別途PESを受け取って字幕を描画する
@@ -77,7 +78,7 @@ export class CaptionPlayer extends VideoPlayer {
             // 3分以上未受信ならば初期化する(TR-B14 第一分冊7.2.5.1)
             this.peses.push({ pes, pts, endTime: Math.min(Number.isFinite(estimate.endTime) ? estimate.endTime * 1000 : Number.MAX_SAFE_INTEGER, 3 * 60 * 1000) });
             this.peses.sort((a, b) => a.pts - b.pts);
-        } else if (streamId ===0xbf) {
+        } else if (streamId === 0xbf) {
             if (this.pcr == null) {
                 return;
             }
@@ -89,11 +90,14 @@ export class CaptionPlayer extends VideoPlayer {
                 return;
             }
             const svgProvider = new SVGProvider(pes, 0);
-            svgProvider.render({
+            const result = svgProvider.render({
                 ...this.captionOption,
                 data_identifier: 0x81,
                 svg: this.superSVG,
             });
+            if (result?.PRA != null && this.audioContext != null) {
+                playRomSound(result.PRA, this.audioContext.destination);
+            }
             this.superSVG.style.transform = `scaleY(${this.container.clientHeight / this.superSVG.clientHeight})`;
             this.superSVG.style.transformOrigin = `0px 0px`;
             this.superSVG.style.position = "absolute";
@@ -106,12 +110,15 @@ export class CaptionPlayer extends VideoPlayer {
     private render() {
         if (this.pes != null && this.pts != null && this.endTime != null && this.pcr != null) {
             const svgProvider = new SVGProvider(this.pes, this.pts);
-            svgProvider.render({
+            const result = svgProvider.render({
                 ...this.captionOption,
                 svg: this.svg,
             });
             this.svg.style.transform = `scaleY(${this.container.clientHeight / this.svg.clientHeight})`;
             this.svg.style.transformOrigin = `0px 0px`;
+            if (result?.PRA != null && this.audioContext != null) {
+                playRomSound(result.PRA, this.audioContext.destination);
+            }
         }
     }
 
@@ -121,5 +128,11 @@ export class CaptionPlayer extends VideoPlayer {
 
     public hideCC(): void {
         this.container.style.display = "none";
+    }
+
+    private audioContext?: AudioContext;
+
+    public setAudioContext(audioContext: AudioContext): void {
+        this.audioContext = audioContext;
     }
 }

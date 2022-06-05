@@ -212,6 +212,7 @@ function onMessage(msg: ResponseMessage) {
                 break;
         }
         player.setSource(msg.videoStreamUrl);
+        player.setAudioContext(new AudioContext());
         player.play();
         videoElement.style.display = "";
         remoteControl.player = player;
