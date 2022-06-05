@@ -16,8 +16,12 @@ export interface AudioNodeProvider {
 }
 
 class DefaultAudioNodeProvider implements AudioNodeProvider {
-    getAudioDestinationNode(): AudioNode {
-        return new AudioContext().destination;
+    private audioContext: AudioContext = new AudioContext();
+    public getAudioDestinationNode(): AudioNode {
+        return this.audioContext.destination;
+    }
+    public destroy(): void {
+        this.audioContext.close();
     }
 }
 
@@ -188,6 +192,7 @@ export class BMLBrowser {
     private eventTarget = new EventTarget() as BMLBrowserEventTarget;
     private fonts: FontFace[] = [];
     private readonly epg: EPG;
+    private readonly defaultAudioNodeProvider?: DefaultAudioNodeProvider;
     public constructor(options: BMLBrowserOptions) {
         this.containerElement = options.containerElement;
         this.mediaElement = options.mediaElement;
@@ -208,11 +213,15 @@ export class BMLBrowser {
         this.epg = options.epg ?? {};
         this.interpreter = new JSInterpreter();
         this.eventQueue = new EventQueue(this.interpreter);
-        const audioContextProvider = options.audioNodeProvider ?? new DefaultAudioNodeProvider();
-        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioContextProvider, options.inputApplication, options.setMainAudioStreamCallback);
+        let audioNodeProvider = options.audioNodeProvider;
+        if (audioNodeProvider == null) {
+            this.defaultAudioNodeProvider = new DefaultAudioNodeProvider();
+            audioNodeProvider = this.defaultAudioNodeProvider;
+        }
+        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioNodeProvider, options.inputApplication, options.setMainAudioStreamCallback);
         this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
         this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false, options.inputApplication);
-        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioContextProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg);
+        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioNodeProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg);
 
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);
@@ -261,6 +270,9 @@ export class BMLBrowser {
         }
         this.fonts.length = 0;
         this.content.unloadAllDRCS();
+        if (this.defaultAudioNodeProvider != null) {
+            this.defaultAudioNodeProvider.destroy();
+        }
     }
 
     public setMainAudioStream(componentId: number, channelId?: number): void {
