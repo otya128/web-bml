@@ -199,23 +199,26 @@ export namespace BML {
             return;
         }
         if (prevFocus != null) {
-            prevFocus["node"].removeAttribute("arib-focus");
-            prevFocus["node"].removeAttribute("arib-active");
-            if (prevFocus instanceof HTMLInputElement) {
-                // changeイベントはblurイベントに先立って実行される
-                ownerDocument.inputApplication?.cancel("blur");
-            }
-        }
-        ownerDocument._currentFocus = node;
-        if (prevFocus != null) {
-            ownerDocument.eventQueue.queueSyncEvent({ type: "blur", target: prevFocus["node"] });
+            blur(prevFocus, ownerDocument, node);
+        } else {
+            ownerDocument._currentFocus = node;
         }
         node["node"].setAttribute("arib-focus", "arib-focus");
         ownerDocument.eventQueue.queueSyncEvent({ type: "focus", target: node["node"] });
     }
 
-    function blur(node: HTMLElement, ownerDocument: BMLDocument) {
-        console.error("blur: not implmeneted");
+    function blur(node: HTMLElement, ownerDocument: BMLDocument, newFocus?: HTMLElement) {
+        if (ownerDocument.currentFocus !== node) {
+            return;
+        }
+        node["node"].removeAttribute("arib-focus");
+        node["node"].removeAttribute("arib-active");
+        if (node instanceof HTMLInputElement) {
+            // changeイベントはblurイベントに先立って実行される
+            ownerDocument.inputApplication?.cancel("blur");
+        }
+        ownerDocument._currentFocus = newFocus ?? null;
+        ownerDocument.eventQueue.queueSyncEvent({ type: "blur", target: node["node"] });
     }
 
     // impl
