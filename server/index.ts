@@ -168,8 +168,8 @@ router.get("/Kosugi-Regular.ttf", async ctx => {
 });
 
 router.get(/^\/api\/get\/(?<url>https?:\/\/.+)$/, async ctx => {
-    const url = ctx.params.url;
-    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    const url = /^\/api\/get\/(?<url>https?:\/\/.+)$/.exec(ctx.originalUrl)?.groups?.url;
+    if (url == null || (!url.startsWith("http://") && !url.startsWith("https://"))) {
         ctx.status = 400;
         return;
     }
