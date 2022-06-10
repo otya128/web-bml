@@ -393,8 +393,11 @@ export class JSInterpreter implements Interpreter {
                     if (!thisInterpreter.calledWithNew()) {
                         // Called as `Date()`.
                         // Calling Date() as a function returns a string, no arguments are heeded.
-                        console.error("Date()");
-                        return Interpreter.nativeGlobal.Date();
+                        if (resources.currentTimeUnixMillis != null) {
+                            return bmlDate.toString.call(new Interpreter.nativeGlobal.Date(resources.currentTimeUnixMillis));
+                        } else {
+                            return bmlDate.toString.call(new Interpreter.nativeGlobal.Date());
+                        }
                     }
                     // Called as `new Date(...)`.
                     var args = [null].concat(Array.from(arguments));
