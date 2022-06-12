@@ -522,6 +522,12 @@ export class Resources {
             return { component: null, module: null, filename: null };
         }
         url = this.removeDCReferencePrefix(url);
+        // 9.2.11.1 コンポーネントESに対する名前の短縮形
+        if (url === "~") {
+            const p = this.parseURL(this.activeDocument);
+            return { component: p.component, module: null, filename: null };
+        }
+        // STD-B24 第二分冊 (1/2) 9.2.1.3 名前の短縮形
         if (url.startsWith("~/")) {
             url = ".." + url.substring(1);
         }
