@@ -297,7 +297,8 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
         return {
             onid: (tsUtil.getTransportStreams(tsUtil.getOriginalNetworkId()) as { [key: number]: any })[tsUtil.getTransportStreamId()].original_network_id,
             tsid: tsUtil.getTransportStreamId(),
-            sid: serviceId ?? tsUtil.getServiceIds()[0]
+            sid: serviceId ?? tsUtil.getServiceIds()[0],
+            nid: tsUtil.getOriginalNetworkId(),
         };
     }
 
@@ -314,6 +315,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                     eventName: null,
                     startTimeUnixMillis: null,
                     durationSeconds: null,
+                    networkId: ids.nid,
                 };
                 send(currentProgramInfo);
             }
@@ -348,6 +350,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             eventName: p.short_event?.event_name,
             startTimeUnixMillis: p.start_time?.getTime(),
             durationSeconds: p.durationSeconds,
+            networkId: ids.nid,
         };
         if (prevProgramInfo?.eventId !== currentProgramInfo.eventId ||
             prevProgramInfo?.transportStreamId !== currentProgramInfo.transportStreamId ||
@@ -355,7 +358,8 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             prevProgramInfo?.serviceId !== currentProgramInfo.serviceId ||
             prevProgramInfo?.startTimeUnixMillis !== currentProgramInfo.startTimeUnixMillis ||
             prevProgramInfo?.eventName !== currentProgramInfo.eventName ||
-            prevProgramInfo?.durationSeconds !== currentProgramInfo.durationSeconds) {
+            prevProgramInfo?.durationSeconds !== currentProgramInfo.durationSeconds ||
+            prevProgramInfo?.networkId !== currentProgramInfo.networkId) {
             send(currentProgramInfo);
         }
     });
@@ -421,6 +425,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             eventName: event_name_char,
             startTimeUnixMillis: event_start_time,
             durationSeconds: null,
+            networkId: null,
         };
         send(currentProgramInfo);
 

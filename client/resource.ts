@@ -349,6 +349,10 @@ export class Resources {
         return this.currentProgramInfo?.originalNetworkId ?? null;
     }
 
+    public get networkId(): number | null {
+        return this.currentProgramInfo?.networkId ?? this.currentProgramInfo?.originalNetworkId ?? null;
+    }
+
     public get transportStreamId(): number | null {
         return this.currentProgramInfo?.transportStreamId ?? null;
     }

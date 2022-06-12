@@ -140,6 +140,7 @@ export type ProgramInfoMessage = {
     eventName: string | null,
     startTimeUnixMillis: number | null,
     durationSeconds: number | null,
+    networkId: number | null,
 };
 
 export type CurrentTime = {

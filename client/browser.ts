@@ -1007,6 +1007,8 @@ export class BrowserAPI {
             } else if (type == 7) {
                 // STD-B24 第二分冊 (1/2) 9.2.5
                 return this.resources.serviceURI;
+            } else if (type == 9) {
+                return toHex(this.resources.networkId, 4);
             }
             console.error("getProgramID", type);
             return null;
