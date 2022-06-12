@@ -1437,7 +1437,6 @@ export namespace BML {
                             this.dispatchModuleUpdatedEvent(this.moduleRef, 0);
                         }
                     }
-                    this.internalModuleUpdateVersion = module.version;
                 }
                 // データイベント更新
                 if (this.internalModuleUpdateDataEventId != null && this.internalModuleUpdateDataEventId !== dataEventId) {
@@ -1450,9 +1449,8 @@ export namespace BML {
                     }
                 }
                 this.internalModuleExistsInDII = true;
-                const cachedModule = this.ownerDocument.resources.getCachedModule(componentId, moduleId);
-                this.internalModuleUpdateVersion = cachedModule?.version;
-                this.internalModuleUpdateDataEventId = cachedModule?.dataEventId;
+                this.internalModuleUpdateVersion = module.version;
+                this.internalModuleUpdateDataEventId = dataEventId;
             }
         }
 
