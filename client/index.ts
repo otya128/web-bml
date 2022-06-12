@@ -180,14 +180,13 @@ window.addEventListener("keyup", (event) => {
     if (inputApplication.isLaunching) {
         return;
     }
-    if (event.altKey || event.ctrlKey || event.metaKey || event.key === "Tab") {
-        return;
-    }
     const k = keyCodeToAribKey(event.key);
     if (k == -1) {
         return;
     }
-    event.preventDefault();
+    if (!event.altKey && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+    }
     bmlBrowser.content.processKeyUp(k);
 });
 

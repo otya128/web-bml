@@ -221,14 +221,13 @@ export class Content {
         });
 
         this.documentElement.addEventListener("keyup", (event) => {
-            if (event.altKey || event.ctrlKey || event.metaKey) {
-                return;
-            }
             const k = keyCodeToAribKey(event.key);
             if (k == -1) {
                 return;
             }
-            event.preventDefault();
+            if (!event.altKey && !event.ctrlKey && !event.metaKey) {
+                event.preventDefault();
+            }
             this.processKeyUp(k);
         });
 
