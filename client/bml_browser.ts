@@ -276,7 +276,15 @@ export class BMLBrowser {
     }
 
     public setMainAudioStream(componentId: number, channelId?: number): void {
+        const { mainAudioComponentId: prevComponentId, mainAudioChannelId: prevChannelId } = this.resources;
+        if (componentId === prevComponentId && channelId === prevChannelId) {
+            return;
+        }
         this.resources.mainAudioComponentId = componentId;
         this.resources.mainAudioChannelId = channelId;
+        if (prevComponentId == null) {
+            return;
+        }
+        this.eventDispatcher.dispatchMainAudioStreamChangedEvent(prevComponentId, prevChannelId, componentId, channelId);
     }
 }

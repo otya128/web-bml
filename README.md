@@ -149,4 +149,4 @@ Firefoxであれば一番大きいサイズが縮小されて表示されます�
 
 STD-B24, TR-B14, TR-B15の仕様を部分的に実装しています。
 
-一部のイベント(CCStatusChanged、MainAudioStreamChanged、MediaStopped)やAPIなどは現状未実装です。
+一部のイベント(CCStatusChanged、MediaStopped)やAPIなどは現状未実装です。

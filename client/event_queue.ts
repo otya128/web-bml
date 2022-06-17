@@ -186,6 +186,62 @@ export class EventDispatcher {
         }
     }
 
+    public dispatchMainAudioStreamChangedEvent(prevComponentId: number, prevChannelId: number | undefined, componentId: number, channelId: number | undefined): void {
+        console.log("MainAudioStreamChanged");
+        const moduleLocked = (BML.bmlNodeToNode(this.bmlDocument.documentElement) as HTMLElement).querySelectorAll("beitem[type=\"MainAudioStreamChanged\"]");
+        for (const beitem of Array.from(moduleLocked)) {
+            if (beitem.getAttribute("subscribe") !== "subscribe") {
+                continue;
+            }
+            const onoccur = beitem.getAttribute("onoccur");
+            if (!onoccur) {
+                continue;
+            }
+            const es_ref = beitem.getAttribute("es_ref");
+            let selected: boolean;
+            if (es_ref) {
+                const { componentId: refComponentId, channelId: refChannelId } = this.resources.parseAudioReference(es_ref);
+                if (refComponentId == null) {
+                    continue;
+                }
+                // チャンネルID未指定で主/副切り替えの場合イベントは発生しない
+                if (refChannelId == null && prevComponentId === componentId) {
+                    continue;
+                }
+                const unselected = refComponentId === prevComponentId && (prevChannelId ?? refChannelId) === (prevChannelId ?? null);
+                selected = refComponentId === componentId && (channelId ?? refChannelId) === (channelId ?? null);
+                if (!selected && !unselected) {
+                    continue;
+                }
+            } else {   
+                // 省略した場合商品企画 (TR-14)
+                selected = true;
+            }
+            const prefix = (this.resources.isInternetContent ? "arib://-1.-1.-1/" /* ? */ : "/");
+            const component = componentId.toString(16).padStart(2, "0");
+            let esRef: string;
+            if (channelId != null) {
+                esRef = prefix + component + ";" + channelId;
+            } else {
+                esRef = prefix + component;
+            }
+            this.eventQueue.queueAsyncEvent(async () => {
+                this.setCurrentBeventEvent({
+                    type: "MainAudioStreamChanged",
+                    target: beitem as HTMLElement,
+                    esRef,
+                    status: selected ? 1 : 0, // 0: 選択解除 1: 選択
+                });
+                if (await this.eventQueue.executeEventHandler(onoccur)) {
+                    return true;
+                }
+                this.resetCurrentEvent();
+                return false;
+            });
+            this.eventQueue.processEventQueue();
+        }
+    }
+
     async dispatchFocus(event: SyncFocusEvent): Promise<boolean> {
         this.setCurrentEvent({
             type: "focus",
