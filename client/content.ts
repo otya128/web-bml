@@ -1074,7 +1074,7 @@ export class Content {
         if (bt709 != null) {
             return bt709.blobUrl;
         }
-        const bt601 = this.resources.getCachedFileBlobUrl(res);
+        const bt601 = await globalThis.createImageBitmap(new Blob([res.data]));
         bt709 = await convertJPEG(bt601);
         res.blobUrl.set("BT.709", bt709);
         return bt709.blobUrl;

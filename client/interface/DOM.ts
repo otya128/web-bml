@@ -823,7 +823,8 @@ export namespace BML {
                     imageUrl = fetched.blobUrl.get("BT.709");
                     if (imageUrl == null) {
                         try {
-                            imageUrl = await convertJPEG(this.ownerDocument.resources.getCachedFileBlobUrl(fetched));
+                            const bt601 = await globalThis.createImageBitmap(new Blob([fetched.data]));
+                            imageUrl = await convertJPEG(bt601);
                             if (this.__version !== version) {
                                 return;
                             }

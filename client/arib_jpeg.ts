@@ -1,9 +1,6 @@
 // データ放送に含まれるJPEGのカラリメトリはBT.709だが通常JPEGはBT601なので色がおかしくなる(TR-B14 第二分冊 3.2.1 JPEG、ITU-T Rec. T.871 6.2 Colour space参照)
 // 一旦BT.601としてRGBからYCBCRに変換しそれをBT.709としてRGBに変換することで修正
-export async function convertJPEG(source: string): Promise<{ blobUrl: string, width: number, height: number }> {
-    const image = new Image();
-    image.src = source;
-    await image.decode();
+export async function convertJPEG(image: ImageBitmap): Promise<{ blobUrl: string, width: number, height: number }> {
     const canvas = document.createElement("canvas");
     canvas.width = image.width;
     canvas.height = image.height;
