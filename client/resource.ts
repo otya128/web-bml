@@ -140,7 +140,7 @@ class CacheMap {
         const entry = this.cachedRemoteResources.get(url);
         if (entry != null) {
             this.sizeBytes -= entry.data.length;
-            for (const [_, blob] of entry.blobUrl) {
+            for (const blob of entry.blobUrl.values()) {
                 URL.revokeObjectURL(blob.blobUrl);
             }
             return this.cachedRemoteResources.delete(url);
@@ -238,7 +238,11 @@ export class Resources {
             modules: new Map<number, LockedModule>(),
             dataEventId: cachedComponent.dataEventId,
         };
+        const prevLockedModule = lockedComponent.modules.get(moduleId);
         lockedComponent.modules.set(moduleId, { files: cachedModule.files, lockedBy, moduleId: cachedModule.moduleId, version: cachedModule.version, dataEventId: cachedModule.dataEventId });
+        if (prevLockedModule != null) {
+            this.revokeCachedModule(componentId, prevLockedModule);
+        }
         this.lockedComponents.set(componentId, lockedComponent);
         return true;
     }
@@ -253,19 +257,47 @@ export class Resources {
 
     public unlockModules(lockedBy?: "lockModuleOnMemory" | "lockModuleOnMemoryEx") {
         if (lockedBy == null) {
+            const components = [...this.lockedComponents.values()];
             this.lockedComponents.clear();
+            for (const component of components) {
+                this.revokeCachedComponent(component);
+            }
         } else {
             for (const component of this.lockedComponents.values()) {
-                for (const mod of [...component.modules.values()]) {
-                    if (mod.lockedBy === lockedBy) {
-                        component.modules.delete(mod.moduleId);
-                    }
+                for (const mod of component.modules.values()) {
+                    this.unlockModule(component.componentId, mod.moduleId, lockedBy);
                 }
             }
         }
     }
 
-    public unlockModule(componentId: number, moduleId: number, lockedBy?: "lockModuleOnMemory" | "lockModuleOnMemoryEx"): boolean {
+    private revokeCachedFile(file: CachedFile): void {
+        for (const blob of file.blobUrl.values()) {
+            URL.revokeObjectURL(blob.blobUrl);
+        }
+        file.blobUrl.clear();
+    }
+
+    private revokeCachedModule(componentId: number, module: CachedModule): void {
+        // キャッシュされている(新たなバージョンのモジュールが存在しない)かロックされていれば無効にしない
+        if (this.cachedComponents.get(componentId)?.modules?.has(module.moduleId)) {
+            return;
+        }
+        if (this.lockedComponents.get(componentId)?.modules?.has(module.moduleId)) {
+            return;
+        }
+        for (const file of module.files.values()) {
+            this.revokeCachedFile(file);
+        }
+    }
+
+    private revokeCachedComponent(component: Component): void {
+        for (const module of component.modules.values()) {
+            this.revokeCachedModule(component.componentId, module);
+        }
+    }
+
+    public unlockModule(componentId: number, moduleId: number, lockedBy: "lockModuleOnMemory" | "lockModuleOnMemoryEx"): boolean {
         const m = this.lockedComponents.get(componentId);
         if (m != null) {
             const lockedModule = m.modules.get(moduleId);
@@ -275,7 +307,9 @@ export class Resources {
             if (lockedModule.lockedBy !== lockedBy) {
                 return false;
             }
-            return m.modules.delete(moduleId);
+            m.modules.delete(moduleId);
+            this.revokeCachedModule(componentId, lockedModule);
+            return true;
         }
         return false;
     }
@@ -394,11 +428,14 @@ export class Resources {
                     contentType: file.contentType,
                     data: Uint8Array.from(window.atob(file.dataBase64), c => c.charCodeAt(0)),
                     blobUrl: new Map(),
-                } as CachedFile]))),
+                }]))),
                 version: msg.version,
                 dataEventId: msg.dataEventId,
             };
             cachedComponent.modules.set(msg.moduleId, cachedModule);
+            if (prevModule != null) {
+                this.revokeCachedModule(msg.componentId, prevModule);
+            }
             this.cachedComponents.set(msg.componentId, cachedComponent);
             // OnModuleUpdated
             const str = moduleAndComponentToString(msg.componentId, msg.moduleId);
@@ -435,6 +472,7 @@ export class Resources {
                     const newEntry = component.modules.get(cachedModule.moduleId);
                     if (newEntry == null || newEntry.version !== cachedModule.version) {
                         cachedComponent.modules.delete(cachedModule.moduleId);
+                        this.revokeCachedModule(msg.componentId, cachedModule);
                     }
                 }
             }
@@ -454,7 +492,10 @@ export class Resources {
             this.eventTarget.dispatchEvent<"componentupdated">(new CustomEvent("componentupdated", { detail: { component } }));
             // DIIのdata_event_idが更新された
             if (prevComponent != null && prevComponent.dataEventId !== component.dataEventId) {
-                this.cachedComponents.delete(msg.componentId);
+                if (cachedComponent != null) {
+                    this.cachedComponents.delete(msg.componentId);
+                    this.revokeCachedComponent(cachedComponent);
+                }
                 this.eventTarget.dispatchEvent<"dataeventchanged">(new CustomEvent("dataeventchanged", { detail: { prevComponent, component, returnToEntryFlag: msg.returnToEntryFlag } }));
             }
         } else if (msg.type === "pmt") {
