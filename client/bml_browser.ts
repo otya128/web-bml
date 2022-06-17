@@ -207,9 +207,9 @@ export class BMLBrowser {
         }
         this.shadowRoot.appendChild(this.documentElement);
         this.resources = new Resources(this.indicator, options.ip ?? {});
-        this.broadcasterDatabase = new BroadcasterDatabase(this.resources);
+        this.broadcasterDatabase = new BroadcasterDatabase(this.resources, (options.storagePrefix ?? "") + (options.broadcasterDatabasePrefix ?? ""));
         this.broadcasterDatabase.openDatabase();
-        this.nvram = new NVRAM(this.resources, this.broadcasterDatabase, options.nvramPrefix);
+        this.nvram = new NVRAM(this.resources, this.broadcasterDatabase, (options.storagePrefix ?? "") + (options.nvramPrefix ?? "nvram_"));
         this.epg = options.epg ?? {};
         this.interpreter = new JSInterpreter();
         this.eventQueue = new EventQueue(this.interpreter);
