@@ -4,6 +4,7 @@ import { RemoteControl } from "./remote_controller_client";
 import { keyCodeToAribKey } from "./content";
 import { decodeTS } from "../server/decode_ts";
 import { CaptionPlayer } from "./player/caption_player";
+import { OverlayInputApplication } from "./overlay_input";
 
 // BML文書と動画と字幕が入る要素
 const browserElement = document.getElementById("data-broadcasting-browser")!;
@@ -28,6 +29,8 @@ const epg: EPG = {
     }
 };
 
+const inputApplication = new OverlayInputApplication(browserElement.querySelector(".overlay-input-container") as HTMLElement);
+
 const bmlBrowser = new BMLBrowser({
     containerElement: contentElement,
     mediaElement: videoContainer,
@@ -38,6 +41,7 @@ const bmlBrowser = new BMLBrowser({
         squareGothic
     },
     epg,
+    inputApplication,
 });
 
 remoteControl.content = bmlBrowser.content;
@@ -66,6 +70,9 @@ bmlBrowser.addEventListener("load", (evt) => {
 });
 
 window.addEventListener("keydown", (event) => {
+    if (inputApplication.isLaunching) {
+        return;
+    }
     if (event.altKey || event.ctrlKey || event.metaKey) {
         return;
     }
@@ -78,14 +85,13 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("keyup", (event) => {
-    if (event.altKey || event.ctrlKey || event.metaKey || event.key === "Tab") {
-        return;
-    }
     const k = keyCodeToAribKey(event.key);
     if (k == -1) {
         return;
     }
-    event.preventDefault();
+    if (!event.altKey && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+    }
     bmlBrowser.content.processKeyUp(k);
 });
 
@@ -121,6 +127,7 @@ async function delayAsync(msec: number): Promise<void> {
 async function openReadableStream(stream: ReadableStream<Uint8Array>) {
     const reader = stream.getReader();
     const tsStream = decodeTS({ sendCallback: onMessage, parsePES: true });
+    tsStream.on("data", () => { });
     while (true) {
         const r = await reader.read();
         if (r.done) {

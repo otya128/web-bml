@@ -41,6 +41,22 @@
             position: relative;
             overflow: hidden;
         }
+        .overlay-input-container {
+            width: 500px;
+            height: 101px;
+            margin: auto;
+            left: 0px;
+            padding: 10px;
+            color: white;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            top: 0px;
+            bottom: 0px;
+            right: 0px;
+            display: flex;
+            gap: 5px;
+            flex-direction: column;
+        }
     </style>
 </head>
 
@@ -84,6 +100,14 @@
             </div>
             <div class="arib-video-cc-container"
                 style="width: 960px; height: 540px; display: none; position: absolute; left: 0px; top: 0px;">
+            </div>
+            <div class="overlay-input-container" style="display: none;">
+                <div>文字入力</div>
+                <div><input type="text" style="display: block; width: 100%; box-sizing: border-box;"></div>
+                <div>
+                    <button style="width: 30%" class="submit">確定</button>
+                    <button style="width: 30%" class="cancel">キャンセル</button>
+                </div>
             </div>
             <div class="remote-control-receiving-status" style="display: none;">
                 データ取得中...

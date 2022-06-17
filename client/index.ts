@@ -177,9 +177,6 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("keyup", (event) => {
-    if (inputApplication.isLaunching) {
-        return;
-    }
     const k = keyCodeToAribKey(event.key);
     if (k == -1) {
         return;
