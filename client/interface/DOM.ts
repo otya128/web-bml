@@ -65,18 +65,13 @@ export namespace BML {
     }
 
     function wrapNodeNonNull(node: globalThis.Node, ownerDocument: BMLDocument): Node {
-        const a: any = node;
-        const klass = getNodeClass(node);
-        if (a.__klass) {
-            if (a.__klass !== klass) {
-                console.error("??", a);
-            } else {
-                return a.__bmlInstance;
-            }
+        const bmlNode = ownerDocument.internalBMLNodeInstanceMap.get(node);
+        if (bmlNode != null) {
+            return bmlNode;
         }
-        a.__klass = klass;
+        const klass = getNodeClass(node);
         const inst = new klass(node, ownerDocument);
-        a.__bmlInstance = inst;
+        ownerDocument.internalBMLNodeInstanceMap.set(node, inst);
         return inst;
     }
 
@@ -438,6 +433,7 @@ export namespace BML {
 
     // impl
     export class BMLDocument extends HTMLDocument {
+        public readonly internalBMLNodeInstanceMap = new WeakMap<globalThis.Node, Node>();
         _currentFocus: HTMLElement | null = null;
         _currentEvent: BMLEvent | null = null;
         public readonly interpreter: Interpreter;
