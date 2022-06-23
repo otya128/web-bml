@@ -233,6 +233,8 @@ export class BMLBrowser {
         }
         if (options.fonts?.boldRoundGothic) {
             this.fonts.push(new FontFace(bmlBrowserFontNames.boldRoundGothic, options.fonts?.boldRoundGothic.source, options.fonts?.boldRoundGothic.descriptors));
+        } else if (options.fonts?.roundGothic) {
+            this.fonts.push(new FontFace(bmlBrowserFontNames.boldRoundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));
         }
         if (options.fonts?.squareGothic) {
             this.fonts.push(new FontFace(bmlBrowserFontNames.squareGothic, options.fonts?.squareGothic.source, options.fonts?.squareGothic.descriptors));

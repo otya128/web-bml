@@ -64,7 +64,6 @@ const invisibleVideoContainer = browserElement.querySelector(".arib-video-invisi
 const contentElement = browserElement.querySelector(".data-broadcasting-browser-content") as HTMLElement;
 // BML用フォント
 const roundGothic: BMLBrowserFontFace = { source: "url('/KosugiMaru-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
-const boldRoundGothic: BMLBrowserFontFace = { source: "url('/KosugiMaru-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
 const squareGothic: BMLBrowserFontFace = { source: "url('/Kosugi-Regular.ttf'), url('/rounded-mplus-1m-arib.ttf'), local('MS Gothic')" };
 
 // リモコン
@@ -130,7 +129,6 @@ const bmlBrowser = new BMLBrowser({
     indicator: remoteControl,
     fonts: {
         roundGothic,
-        boldRoundGothic,
         squareGothic
     },
     epg,
