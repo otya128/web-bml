@@ -695,7 +695,7 @@ export namespace BML {
             }
             return aribData;
         }
-        private __version: number = 0;
+        private version: number = 0;
         protected animation: Animation | undefined;
         protected effect: KeyframeEffect | undefined;
         protected delete() {
@@ -753,10 +753,10 @@ export namespace BML {
                     return;
                 }
                 // 順序が逆転するのを防止
-                this.__version = this.__version + 1;
-                const version: number = (this as any).__version;
+                this.version = this.version + 1;
+                const version: number = this.version;
                 const fetched = await this.ownerDocument.resources.fetchResourceAsync(value);
-                if (this.__version !== version) {
+                if (this.version !== version) {
                     return;
                 }
                 if (!fetched) {
@@ -772,7 +772,7 @@ export namespace BML {
                     const clutCss = window.getComputedStyle(this.node).getPropertyValue("--clut");
                     const clutUrl = clutCss == null ? null : parseCSSValue(clutCss);
                     const fetchedClut = clutUrl == null ? null : (await this.ownerDocument.resources.fetchResourceAsync(clutUrl))?.data;
-                    if (this.__version !== version) {
+                    if (this.version !== version) {
                         return;
                     }
                     if (isMNG) {
@@ -825,7 +825,7 @@ export namespace BML {
                         try {
                             const bt601 = await globalThis.createImageBitmap(new Blob([fetched.data]));
                             imageUrl = await convertJPEG(bt601);
-                            if (this.__version !== version) {
+                            if (this.version !== version) {
                                 return;
                             }
                         } catch {
