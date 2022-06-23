@@ -189,7 +189,7 @@ export class BMLBrowser {
     public readonly content: Content;
     private bmlDomDocument: BML.BMLDocument;
     private indicator?: Indicator;
-    private eventTarget = new EventTarget() as BMLBrowserEventTarget;
+    private eventTarget: BMLBrowserEventTarget = new EventTarget();
     private fonts: FontFace[] = [];
     private readonly epg: EPG;
     private readonly defaultAudioNodeProvider?: DefaultAudioNodeProvider;

@@ -345,9 +345,7 @@ function writeHHEA(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
 
 function writeHMTX(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     for (let i = 0; i <= glyphs.length; i++) {
-        // SVGグリフで文字間に間が空くので適当に縮める
-        // どのみち拡大すると破綻する
-        writer.writeUInt16BE(1024);//2550);
+        writer.writeUInt16BE(1024);
         writer.writeInt16BE(0);
     }
 }

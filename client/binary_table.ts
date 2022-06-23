@@ -1,20 +1,6 @@
 import { decodeEUCJP, encodeEUCJP } from "./euc_jp";
 import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
 
-export interface BinaryTableConstructor {
-    new(table_ref: string, structure: string): IBinaryTable;// | null;
-}
-
-export interface IBinaryTable {
-    nrow: number;
-    ncolumn: number;
-    close(): number;
-    toNumber(row: number, column: number): number;
-    toString(row: number, column: number): string | null;
-    toArray(startRow: number, numRow: number): any[] | null;
-    search(startRow: number, ...args: any[]): number;
-}
-
 enum BinaryTableUnit {
     Byte = "B",
     Bit = "b",
@@ -383,7 +369,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint
 }
 
 
-export class BinaryTable implements IBinaryTable {
+export class BinaryTable {
     rows: any[][];
     fields: BinaryTableField[];
 
