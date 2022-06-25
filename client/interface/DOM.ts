@@ -1,5 +1,5 @@
 import { EventQueue } from "../event_queue";
-import { BMLCSS2Properties } from "./BMLCSS2Properties";
+import { BMLCSS2Properties, BMLCSSStyleDeclaration } from "./BMLCSS2Properties";
 import { CachedFileMetadata, Resources } from "../resource";
 import { aribPNGToPNG } from "../arib_png";
 import { readCLUT } from "../clut";
@@ -132,45 +132,6 @@ export namespace BML {
         }
         return Node;
     }
-    function getNormalStyle(node: globalThis.HTMLElement, eventTarget: BMLBrowserEventTarget): BMLCSS2Properties {
-        return new BMLCSS2Properties(window.getComputedStyle(node), node.style, node, eventTarget);
-    }
-
-    function getFocusStyle(node: globalThis.HTMLElement, eventTarget: BMLBrowserEventTarget): BMLCSS2Properties {
-        console.error("focusStyle is halfplemented");
-        const prevFocus = node.getAttribute("arib-focus");
-        const prevActive = node.getAttribute("arib-active");
-        node.setAttribute("arib-focus", "arib-focus");
-        node.removeAttribute("arib-active");
-        const comuptedStyle = window.getComputedStyle(node);
-        if (prevFocus != null) {
-            node.setAttribute("arib-focus", prevFocus);
-        } else {
-            node.removeAttribute("arib-focus");
-        }
-        if (prevActive != null) {
-            node.setAttribute("arib-active", prevActive);
-        }
-        return new BMLCSS2Properties(comuptedStyle, node.style, node, eventTarget);
-    }
-
-    function getActiveStyle(node: globalThis.HTMLElement, eventTarget: BMLBrowserEventTarget): BMLCSS2Properties {
-        console.error("activeStyle is halfplemented");
-        const prevFocus = node.getAttribute("arib-focus");
-        const prevActive = node.getAttribute("arib-active");
-        node.removeAttribute("arib-focus");
-        node.setAttribute("arib-active", "arib-active");
-        const comuptedStyle = window.getComputedStyle(node);
-        if (prevFocus != null) {
-            node.setAttribute("arib-focus", prevFocus);
-        }
-        if (prevActive != null) {
-            node.setAttribute("arib-active", prevActive);
-        } else {
-            node.removeAttribute("arib-active");
-        }
-        return new BMLCSS2Properties(comuptedStyle, node.style, node, eventTarget);
-    }
 
     export function isFocusable(elem: globalThis.Element) {
         if (elem instanceof globalThis.HTMLInputElement) {
@@ -198,7 +159,7 @@ export namespace BML {
         } else {
             ownerDocument._currentFocus = node;
         }
-        node["node"].setAttribute("arib-focus", "arib-focus");
+        node.internalSetFocus(true);
         ownerDocument.eventQueue.queueSyncEvent({ type: "focus", target: node["node"] });
     }
 
@@ -206,8 +167,8 @@ export namespace BML {
         if (ownerDocument.currentFocus !== node) {
             return;
         }
-        node["node"].removeAttribute("arib-focus");
-        node["node"].removeAttribute("arib-active");
+        node.internalSetActive(false);
+        node.internalSetFocus(false);
         if (node instanceof HTMLInputElement) {
             // changeイベントはblurイベントに先立って実行される
             ownerDocument.inputApplication?.cancel("blur");
@@ -485,15 +446,147 @@ export namespace BML {
     // impl
     export class HTMLElement extends Element {
         protected node: globalThis.HTMLElement;
+        protected normalStyleMap: Map<string, string>;
+        protected focusStyleMap: Map<string, string>;
+        protected activeStyleMap: Map<string, string>;
+
         constructor(node: globalThis.HTMLElement, ownerDocument: BMLDocument) {
             super(node, ownerDocument);
             this.node = node;
+            this.normalStyleMap = new Map();
+            this.focusStyleMap = new Map();
+            this.activeStyleMap = new Map();
+            for (const style of this.node.style) {
+                this.normalStyleMap.set(style, this.node.style.getPropertyValue(style));
+            }
         }
         public get id(): string {
             return this.node.id;
         }
         public get className(): string {
             return this.node.className;
+        }
+
+        public internalSetFocus(focus: boolean): void {
+            if (focus === (this.node.getAttribute("web-bml-state") === "focus")) {
+                return;
+            }
+            if (focus) {
+                this.node.setAttribute("web-bml-state", "focus");
+            } else {
+                this.node.removeAttribute("web-bml-state");
+            }
+            this.applyStyle();
+        }
+    
+        public internalSetActive(active: boolean): void {
+            if (active === (this.node.getAttribute("web-bml-state") === "active")) {
+                return;
+            }
+            if (active) {
+                this.node.setAttribute("web-bml-state", "active");
+            } else {
+                this.node.removeAttribute("web-bml-state");
+            }
+            this.applyStyle();
+        }
+
+        private applyStyle() {
+            if (this.focusStyleMap.size === 0 && this.activeStyleMap.size === 0) {
+                return;
+            }
+            const state = this.node.getAttribute("web-bml-state");
+            this.node.style.cssText = "";
+            for (const [style, value] of this.normalStyleMap) {
+                this.node.style.setProperty(style, value);
+            }
+            if (state === "focus") {
+                for (const [style, value] of this.focusStyleMap) {
+                    this.node.style.setProperty(style, value);
+                }
+            } else if (state === "active") {
+                for (const [style, value] of this.activeStyleMap) {
+                    this.node.style.setProperty(style, value);
+                }
+            }
+        }
+
+        protected getNormalStyle(): BMLCSS2Properties {
+            const normalComputedPropertyGetter = (property: string): string => {
+                const savedState = this.node.getAttribute("web-bml-state");
+                if (savedState === "active") {
+                    this.internalSetActive(false);
+                } else if (savedState === "focus") {
+                    this.internalSetFocus(false);
+                }
+                const value = window.getComputedStyle(this.node).getPropertyValue(property);
+                if (savedState === "active") {
+                    this.internalSetActive(true);
+                } else if (savedState === "focus") {
+                    this.internalSetFocus(true);
+                }
+                return value;
+            };
+            const normalPropertySetter = (property: string, value: string): void => {
+                const currentState = this.node.getAttribute("web-bml-state");
+                if (currentState === "focus") {
+                    if (!this.focusStyleMap.has(property)) {
+                        this.node.style.setProperty(property, value);
+                    }
+                } else if (currentState === "active") {
+                    if (!this.activeStyleMap.has(property)) {
+                        this.node.style.setProperty(property, value);
+                    }
+                } else {
+                    this.node.style.setProperty(property, value);
+                }
+            };
+            const declaration = new BMLCSSStyleDeclaration(this.normalStyleMap, this.normalStyleMap, normalComputedPropertyGetter, normalPropertySetter);
+            return new BMLCSS2Properties(declaration, this.node, this.ownerDocument.browserEventTarget);
+        }
+
+        protected getFocusStyle(): BMLCSS2Properties {
+            const focusComputedPropertyGetter = (property: string): string => {
+                const savedState = this.node.getAttribute("web-bml-state");
+                this.internalSetFocus(true);
+                const value = window.getComputedStyle(this.node).getPropertyValue(property);
+                if (savedState === "active") {
+                    this.internalSetActive(true);
+                } else {
+                    this.internalSetFocus(savedState === "focus");
+                }
+                return value;
+            };
+            const focusPropertySetter = (property: string, value: string): void => {
+                const currentState = this.node.getAttribute("web-bml-state");
+                if (currentState === "focus") {
+                    this.node.style.setProperty(property, value);
+                }
+            };
+            const declaration = new BMLCSSStyleDeclaration(this.focusStyleMap, this.focusStyleMap, focusComputedPropertyGetter, focusPropertySetter);
+            return new BMLCSS2Properties(declaration, this.node, this.ownerDocument.browserEventTarget);
+        }
+
+        protected getActiveStyle(): BMLCSS2Properties {
+            const activeComputedPropertyGetter = (property: string): string => {
+                const savedState = this.node.getAttribute("web-bml-state");
+                this.internalSetActive(true);
+                const value = window.getComputedStyle(this.node).getPropertyValue(property);
+                if (savedState === "focus") {
+                    this.internalSetFocus(true);
+                } else {
+                    this.internalSetActive(savedState === "active");
+                }
+                return value;
+            };
+            const activePropertySetter = (property: string, value: string): void => {
+                const currentState = this.node.getAttribute("web-bml-state");
+                if (currentState === "active") {
+                    this.node.style.setProperty(property, value);
+                }
+            };
+            const declaration = new BMLCSSStyleDeclaration(this.activeStyleMap, this.activeStyleMap, activeComputedPropertyGetter, activePropertySetter);
+            return new BMLCSS2Properties(declaration, this.node, this.ownerDocument.browserEventTarget);
         }
     }
 
@@ -505,7 +598,7 @@ export namespace BML {
     // impl
     export class BMLBRElement extends HTMLBRElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getNormalStyle();
         }
     }
 
@@ -540,13 +633,13 @@ export namespace BML {
     // impl
     export class BMLAnchorElement extends HTMLAnchorElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getNormalStyle();
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getFocusStyle();
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getActiveStyle();
         }
     }
 
@@ -630,13 +723,13 @@ export namespace BML {
     // impl
     export class BMLInputElement extends HTMLInputElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getNormalStyle();
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getFocusStyle();
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getActiveStyle();
         }
     }
 
@@ -860,13 +953,13 @@ export namespace BML {
             return this.node.type;
         }
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getNormalStyle();
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getFocusStyle();
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getActiveStyle();
         }
         public get accessKey(): string {
             return this.node.accessKey;
@@ -1056,13 +1149,13 @@ export namespace BML {
     // impl
     export class BMLSpanElement extends HTMLElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getNormalStyle();
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getFocusStyle();
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getActiveStyle();
         }
         public get accessKey(): string {
             return this.node.accessKey;
@@ -1098,7 +1191,7 @@ export namespace BML {
             this.ownerDocument.browserEventTarget.dispatchEvent<"invisible">(new CustomEvent("invisible", { detail: v }));
         }
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getNormalStyle();
         }
     }
 
@@ -1110,13 +1203,13 @@ export namespace BML {
     // impl
     export class BMLDivElement extends HTMLDivElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getNormalStyle();
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getFocusStyle();
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getActiveStyle();
         }
         public get accessKey(): string {
             return this.node.accessKey;
@@ -1137,13 +1230,13 @@ export namespace BML {
     // impl
     export class BMLParagraphElement extends HTMLParagraphElement {
         public get normalStyle(): BMLCSS2Properties {
-            return getNormalStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getNormalStyle();
         }
         public get focusStyle(): BMLCSS2Properties {
-            return getFocusStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getFocusStyle();
         }
         public get activeStyle(): BMLCSS2Properties {
-            return getActiveStyle(this.node, this.ownerDocument.browserEventTarget);
+            return this.getActiveStyle();
         }
         public get accessKey(): string {
             return this.node.accessKey;

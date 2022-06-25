@@ -963,9 +963,10 @@ export class Content {
                     break;
                 }
             }
-            focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
-            if (k == AribKeyCode.Enter && focusElement) {
-                focusElement.setAttribute("arib-active", "arib-active");
+            const currentFocus = this.bmlDocument.currentFocus;
+            if (k == AribKeyCode.Enter && currentFocus) {
+                focusElement = currentFocus["node"];
+                currentFocus.internalSetActive(true);
                 this.eventQueue.queueSyncEvent({ type: "click", target: focusElement });
                 if (this.bmlDocument.currentFocus instanceof BML.BMLInputElement) {
                     const inputMode = focusElement.getAttribute("inputmode");
@@ -991,13 +992,14 @@ export class Content {
             } else {
                 this.keyProcessStatus = undefined;
             }
-            const focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
-            if (!focusElement) {
+            const currentFocus = this.bmlDocument.currentFocus;
+            if (currentFocus == null) {
                 return false;
             }
+            const focusElement = currentFocus["node"];
             const keyCode = keyProcessStatus.isAccessKey ? AribKeyCode.Enter : k;
             if (keyCode === AribKeyCode.Enter) {
-                focusElement.removeAttribute("arib-active");
+                currentFocus.internalSetFocus(true);
             }
             const computedStyle = window.getComputedStyle(this.getBody()!);
             const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
