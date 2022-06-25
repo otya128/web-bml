@@ -176,12 +176,12 @@ span, a { letter-spacing : inherit !important }
     --clut-color-127: rgba(255, 255, 85, 0.5);
     background-color: var(--clut-color-0);
     --background-color: var(--clut-color-0);
-    --background-color--index: 0;
+    --background-color-index: 0;
 }
 :where(div, p, span, a, input) {
     background-color: var(--clut-color-8);
     --background-color: var(--clut-color-8);
-    --background-color--index: 8;
+    --background-color-index: 8;
 }
 /* ?? これだとobjectが透過できなくなる */
 /* object { background-color : var(--clut-color-0) !important, --background-color: 0 !important;} */
