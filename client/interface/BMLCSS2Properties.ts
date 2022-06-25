@@ -48,7 +48,7 @@ export class BMLCSS2Properties {
 
     private setColorIndexVariable(bmlPropName: string, cssPropName: string, value: DOMString) {
         this.declaration.setProperty("--" + bmlPropName, value);
-        if (bmlPropName === "background-color") {
+        if (cssPropName === "background-color") {
             this.declaration.setProperty("--background-color", colorIndexToVar(value) ?? "");
             // videoPlaneModeEnabledの場合bodyにはbackground-colorを設定しない
             if (this.declaration.getPropertyValue("background-color") === "transparent") {
