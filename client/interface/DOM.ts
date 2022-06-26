@@ -563,7 +563,7 @@ export namespace BML {
                     this.node.style.setProperty(property, value);
                 }
             };
-            const declaration = new BMLCSSStyleDeclaration(this.focusStyleMap, this.focusStyleMap, focusComputedPropertyGetter, focusPropertySetter);
+            const declaration = new BMLCSSStyleDeclaration(this.normalStyleMap, this.focusStyleMap, focusComputedPropertyGetter, focusPropertySetter);
             return new BMLCSS2Properties(declaration, this.node, this.ownerDocument.browserEventTarget);
         }
 
@@ -585,7 +585,7 @@ export namespace BML {
                     this.node.style.setProperty(property, value);
                 }
             };
-            const declaration = new BMLCSSStyleDeclaration(this.activeStyleMap, this.activeStyleMap, activeComputedPropertyGetter, activePropertySetter);
+            const declaration = new BMLCSSStyleDeclaration(this.normalStyleMap, this.activeStyleMap, activeComputedPropertyGetter, activePropertySetter);
             return new BMLCSS2Properties(declaration, this.node, this.ownerDocument.browserEventTarget);
         }
     }
