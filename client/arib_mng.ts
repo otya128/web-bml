@@ -119,11 +119,17 @@ export function aribMNGToCSSAnimation(mng: Buffer, clut: number[][]): MNGAnimati
             if (ihdr != null) {
                 const idat = mng.subarray(inOff, inOff + chunkLength + 4 + 4 + 4);
                 const frameImage = new Blob([pngSignature, ihdr, plte, trns, idat], { type: "image/png" });
+                const image = URL.createObjectURL(frameImage);
+
+                // 初回アニメーションのフレーム遷移時に一瞬何も表示されなくなりちらつきが発生してしまうためとりあえずあらかじめ画像を読んでデコードされることを期待しておく
+                // ChromeとFirefoxで動くので大丈夫そう
+                new Image().src = image;
+
                 frames.push({
                     delay: fram.interframeDelay,
                     x: defi.xLocation,
                     y: defi.yLocation,
-                    image: URL.createObjectURL(frameImage),
+                    image,
                     // framing mode = 1 単純に上書き
                     // framing mode = 3 透明色で消去
                     keep: fram.framingMode !== 3,
