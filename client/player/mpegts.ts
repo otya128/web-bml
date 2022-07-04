@@ -20,9 +20,8 @@ function parseMalformedPES(data: any): any {
 }
 
 export class MPEGTSVideoPlayer extends VideoPlayer {
-    captionRenderer: aribb24js.CanvasRenderer | null = null;
-    superimposeRenderer: aribb24js.CanvasRenderer | null = null;
-    resizeObserver?: ResizeObserver;
+    captionRenderer: aribb24js.SVGRenderer | null = null;
+    superimposeRenderer: aribb24js.SVGRenderer | null = null;
 
     private PRACallback = (index: number): void => {
         if (this.audioNode == null || this.container.style.display === "none") {
@@ -48,31 +47,26 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
             player.play();
 
             // 字幕対応
-            const captionOption: aribb24js.CanvasRendererOption = {
+            const captionOption: aribb24js.SVGRendererOption = {
                 normalFont: "丸ゴシック",
                 forceStrokeColor: true,
                 PRACallback: this.PRACallback,
             };
             captionOption.data_identifier = 0x80;
-            const captionRenderer = new aribb24js.CanvasRenderer(captionOption);
-            const superimposeOption: aribb24js.CanvasRendererOption = {
+            const captionRenderer = new aribb24js.SVGRenderer(captionOption);
+            const superimposeOption: aribb24js.SVGRendererOption = {
                 normalFont: "丸ゴシック",
                 forceStrokeColor: true,
                 PRACallback: this.PRACallback,
             };
             superimposeOption.data_identifier = 0x81;
-            const superimposeRenderer = new aribb24js.CanvasRenderer(superimposeOption);
+            const superimposeRenderer = new aribb24js.SVGRenderer(superimposeOption);
             this.captionRenderer = captionRenderer;
             this.superimposeRenderer = superimposeRenderer;
             captionRenderer.attachMedia(this.video);
             superimposeRenderer.attachMedia(this.video);
-            this.container.appendChild(captionRenderer.getViewCanvas()!);
-            this.container.appendChild(superimposeRenderer.getViewCanvas()!);
-            // 字幕は小さい動画の上ではなく画面全体に表示される
-            this.resizeObserver = new ResizeObserver(() => {
-                this.resizeCanvas();
-            });
-            this.resizeObserver.observe(this.video);
+            this.container.appendChild(captionRenderer.getSVG());
+            this.container.appendChild(superimposeRenderer.getSVG());
             /**
              * 字幕スーパー用の処理
              * 元のソースは下記参照
@@ -97,36 +91,17 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
             });
         }
     }
-    resizeCanvas = () => {
-        const vc = this.captionRenderer?.getViewCanvas();
-        if (vc) {
-            vc.width = 960 * this.scaleFactor;
-            vc.height = 540 * this.scaleFactor;
-        }
-        const vc2 = this.superimposeRenderer?.getViewCanvas();
-        if (vc2) {
-            vc2.width = 960 * this.scaleFactor;
-            vc2.height = 540 * this.scaleFactor;
-        }
-    };
+
     public showCC(): void {
         this.captionRenderer?.show();
         this.superimposeRenderer?.show();
         this.container.style.display = "";
-        this.container.style.setProperty("z-index", "1000", "important");
-        this.resizeCanvas();
     }
+
     public hideCC(): void {
         this.captionRenderer?.hide();
         this.superimposeRenderer?.hide();
         this.container.style.display = "none";
-        this.container.style.setProperty("z-index", "-1", "important");
-        this.resizeCanvas();
-    }
-    scaleFactor: number = 1;
-    public scale(factor: number) {
-        this.scaleFactor = factor;
-        this.resizeCanvas();
     }
 
     private audioNode?: AudioNode;

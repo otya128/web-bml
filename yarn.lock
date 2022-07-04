@@ -458,10 +458,10 @@ arib-subtitle-timedmetadater@^4.0.9:
     arib-mpeg2ts-parser "^3.0.7"
     commander "^7.1.0"
 
-aribb24.js@^1.9.16:
-  version "1.9.16"
-  resolved "https://registry.yarnpkg.com/aribb24.js/-/aribb24.js-1.9.16.tgz#b024c37debf9fc7acc17dcaad3eb7065de97517a"
-  integrity sha512-HooKo7kYsfMzAG7QTZG+p1hhiVLB1I+SAkYZx5xP/wTVGh/3V6qVJ3RKS1rxyzlh4PRVQoMwAdkWqqS5OqaNNA==
+aribb24.js@^1.10.5:
+  version "1.10.5"
+  resolved "https://registry.yarnpkg.com/aribb24.js/-/aribb24.js-1.10.5.tgz#6e8d32d38e68b27cf8f9db6f9941738cb11e97c4"
+  integrity sha512-6wN9yv7f2HEwUJOVEH83WNb9eb5rti/dN0aFOBug15ivOqT6QIOJSnT9SXl5yvUZfE0cpaaRz1GjnqQxqo8Ftg==
 
 assert@^2.0.0:
   version "2.0.0"

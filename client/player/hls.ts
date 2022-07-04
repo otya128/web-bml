@@ -4,7 +4,7 @@ import { VideoPlayer } from "./video_player";
 import { playRomSound } from "../romsound";
 
 export class HLSVideoPlayer extends VideoPlayer {
-    captionRenderer: aribb24js.CanvasRenderer | null = null;
+    captionRenderer: aribb24js.SVGRenderer | null = null;
 
     private PRACallback = (index: number): void => {
         if (this.audioNode == null || this.container.style.display === "none") {
@@ -14,13 +14,13 @@ export class HLSVideoPlayer extends VideoPlayer {
     }
 
     public setSource(source: string): void {
-        const captionOption: aribb24js.CanvasRendererOption = {
+        const captionOption: aribb24js.SVGRendererOption = {
             normalFont: "丸ゴシック",
             enableAutoInBandMetadataTextTrackDetection: !Hls.isSupported(),
             forceStrokeColor: true,
             PRACallback: this.PRACallback,
         };
-        const renderer = new aribb24js.CanvasRenderer(captionOption);
+        const renderer = new aribb24js.SVGRenderer(captionOption);
         this.captionRenderer = renderer;
         renderer.attachMedia(this.video);
         if (Hls.isSupported()) {
@@ -38,9 +38,11 @@ export class HLSVideoPlayer extends VideoPlayer {
             this.video.src = source + ".m3u8";
         }
     }
+
     public showCC(): void {
         this.captionRenderer?.show();
     }
+
     public hideCC(): void {
         this.captionRenderer?.hide();
     }
