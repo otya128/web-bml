@@ -94,15 +94,7 @@ export function bmlToXHTMLFXP(data: string): string {
         }
         if (nodeName == "object" && node[":@"] != null) {
             node[":@"]["@_arib-type"] = node[":@"]["@_type"];
-            if (node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "video/x-arib-mpeg2") {
-                node[":@"]["@_type"] = "unknown/unknwon";
-            }
-            if (node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "image/x-arib-png") {
-                node[":@"]["@_type"] = "image/png";
-            }
-            if (node[":@"]["@_type"] && node[":@"]["@_type"].toLowerCase() === "image/x-arib-mng") {
-                delete node[":@"]["@_type"];
-            }
+            delete node[":@"]["@_type"];
             if (node[":@"]["@_data"]) {
                 const data = node[":@"]["@_data"];
                 node[":@"]["@_arib-data"] = data;
