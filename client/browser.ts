@@ -749,7 +749,7 @@ export class BrowserAPI {
             const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemory");
             if (!cachedModule) {
                 console.warn("lockModuleOnMemory: module not cached", module);
-                this.resources.fetchResourceAsync(module).then(() => {
+                this.resources.fetchResourceAsync(module, "lockModuleOnMemory").then(() => {
                     const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemory");
                     if (cachedModule == null) {
                         // 発生しない?
@@ -792,7 +792,7 @@ export class BrowserAPI {
             if (!cachedModule) {
                 const dataEventId = this.resources.getDownloadComponentInfo(componentId)?.dataEventId;
                 console.warn("lockModuleOnMemoryEx: module not cached", module);
-                this.resources.fetchResourceAsync(module).then(() => {
+                this.resources.fetchResourceAsync(module, "lockModuleOnMemoryEx").then(() => {
                     if (dataEventId != null) {
                         const eid = this.resources.getDownloadComponentInfo(componentId)?.dataEventId;
                         if (eid != null && eid !== dataEventId) {
@@ -968,8 +968,8 @@ export class BrowserAPI {
         getLockedModuleInfo: (): LockedModuleInfo[] | null => {
             console.log("getLockedModuleInfo");
             const l: LockedModuleInfo[] = [];
-            for (const { module, isEx } of this.resources.getLockedModules()) {
-                l.push([module, isEx ? 2 : 1, 1]);
+            for (const { module, isEx, requesting } of this.resources.getLockedModules()) {
+                l.push([module, isEx ? 2 : 1, requesting ? 2 : 1]);
             }
             return l;
         },

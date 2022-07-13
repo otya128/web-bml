@@ -71,6 +71,7 @@ type ComponentRequest = {
 type ModuleRequest = {
     filename: string | null,
     resolve: (resolveValue: CachedFile | null) => void,
+    requestType: "lockModuleOnMemory" | "lockModuleOnMemoryEx" | undefined,
 };
 
 type RemoteResourceRequest = {
@@ -273,6 +274,7 @@ export class Resources {
 
     private revokeCachedFile(file: CachedFile): void {
         for (const blob of file.blobUrl.values()) {
+            console.log("revoke", blob.blobUrl);
             URL.revokeObjectURL(blob.blobUrl);
         }
         file.blobUrl.clear();
@@ -286,6 +288,7 @@ export class Resources {
         if (this.lockedComponents.get(componentId)?.modules?.has(module.moduleId)) {
             return;
         }
+        console.log("revoke", moduleAndComponentToString(componentId, module.moduleId));
         for (const file of module.files.values()) {
             this.revokeCachedFile(file);
         }
@@ -717,7 +720,7 @@ export class Resources {
         return file;
     }
 
-    public fetchResourceAsync(url: string): Promise<CachedFile | null> {
+    public fetchResourceAsync(url: string, requestType?: "lockModuleOnMemory" | "lockModuleOnMemoryEx"): Promise<CachedFile | null> {
         if (this.isInternetContent) {
             if (
                 ((this.activeDocument?.startsWith("http://") || this.activeDocument?.startsWith("https://")) && !url.startsWith("arib://") && !url.startsWith("arib-dc://")) ||
@@ -751,7 +754,7 @@ export class Resources {
         console.warn("async fetch requested", url);
         return new Promise((resolve, _) => {
             const c = this.componentRequests.get(componentId);
-            const entry = { filename, resolve };
+            const entry = { filename, resolve, requestType };
             if (c == null) {
                 this.componentRequests.set(componentId, { moduleRequests: new Map<number, ModuleRequest[]>([[moduleId, [entry]]]) });
             } else {
@@ -766,10 +769,20 @@ export class Resources {
         });
     }
 
-    public *getLockedModules() {
+    public *getLockedModules(): Generator<{ module: string, isEx: boolean, requesting: boolean }> {
+        for (const [componentId, c] of this.componentRequests) {
+            for (const [moduleId, m] of c.moduleRequests) {
+                for (const request of m.reverse()) {
+                    if (request.requestType != null) {
+                        yield { module: `/${moduleAndComponentToString(componentId, moduleId)}`, isEx: request.requestType === "lockModuleOnMemoryEx", requesting: true };
+                        break;
+                    }
+                }
+            }
+        }
         for (const c of this.lockedComponents.values()) {
             for (const m of c.modules.values()) {
-                yield { module: `/${moduleAndComponentToString(c.componentId, m.moduleId)}`, isEx: m.lockedBy === "lockModuleOnMemoryEx" };
+                yield { module: `/${moduleAndComponentToString(c.componentId, m.moduleId)}`, isEx: m.lockedBy === "lockModuleOnMemoryEx", requesting: false };
             }
         }
     }
