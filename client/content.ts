@@ -395,6 +395,7 @@ export class Content {
             const bgJpegs: HTMLElement[] = Array.from(body.querySelectorAll("object[arib-type=\"image/jpeg\"]")).filter(x => {
                 return (x.compareDocumentPosition(videoElement) & Node.DOCUMENT_POSITION_FOLLOWING) === Node.DOCUMENT_POSITION_FOLLOWING;
             }) as HTMLElement[];
+            let prevRect: Rect | undefined = undefined;
             const changed = () => {
                 // transformの影響を受けないbodyからの相対座標を算出
                 const body = this.getBody()!;
@@ -414,12 +415,25 @@ export class Content {
                         bgJpeg.style.clipPath = "";
                     }
                 }
-                this.bmlEventTarget.dispatchEvent<"videochanged">(new CustomEvent("videochanged", { detail: { boundingRect: videoElement.getBoundingClientRect(), clientRect: videoRect } }));
+                if (prevRect == null || videoRect.left !== prevRect.left || videoRect.right !== prevRect.right || videoRect.top !== prevRect.top || videoRect.bottom !== prevRect.bottom) {
+                    prevRect = videoRect;
+                    this.bmlEventTarget.dispatchEvent<"videochanged">(new CustomEvent("videochanged", { detail: { boundingRect: videoElement.getBoundingClientRect(), clientRect: videoRect } }));
+                }
             };
             const observer = new MutationObserver(changed);
-            observer.observe(videoElement, { attributes: true, attributeFilter: ["style", "web-bml-state"] });
+            // 一応left, top, width, heightにはinheritが指定される可能性があるため親要素も監視する必要がある
+            function observe(target: Node) {
+                do {
+                    observer.observe(target, { attributes: true, attributeFilter: ["style", "web-bml-state"] });
+                    if (target.parentNode == null) {
+                        break;
+                    }
+                    target = target.parentNode;
+                } while (target !== body);
+            }
+            observe(videoElement);
             for (const bgJpeg of bgJpegs) {
-                observer.observe(bgJpeg, { attributes: true, attributeFilter: ["style", "web-bml-state"] });
+                observe(bgJpeg);
             }
             changed();
         }
