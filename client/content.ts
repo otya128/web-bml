@@ -417,9 +417,9 @@ export class Content {
                 this.bmlEventTarget.dispatchEvent<"videochanged">(new CustomEvent("videochanged", { detail: { boundingRect: videoElement.getBoundingClientRect(), clientRect: videoRect } }));
             };
             const observer = new MutationObserver(changed);
-            observer.observe(videoElement, { attributes: true });
+            observer.observe(videoElement, { attributes: true, attributeFilter: ["style", "web-bml-state"] });
             for (const bgJpeg of bgJpegs) {
-                observer.observe(bgJpeg, { attributes: true });
+                observer.observe(bgJpeg, { attributes: true, attributeFilter: ["style", "web-bml-state"] });
             }
             changed();
         }
@@ -508,7 +508,7 @@ export class Content {
                 }
             });
             observer.observe(newBody, {
-                attributeFilter: ["style"],
+                attributeFilter: ["style", "web-bml-state"],
                 attributes: true,
                 subtree: true,
             });
