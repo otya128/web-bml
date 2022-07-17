@@ -1227,6 +1227,9 @@ export class Content {
                         componentId = esRefComponentId;
                     }
                 }
+                if (componentId !== msg.componentId) {
+                    return;
+                }
                 for (const event of msg.events) {
                     // 即時イベントのみ実装
                     if (event.type === "nptEvent") {
