@@ -592,7 +592,7 @@ export class BrowserAPI {
     }
 
     public setGreg(index: number, value: string) {
-        if (index > 0 && index < this.browser.Greg.length) {
+        if (index >= 0 && index < this.browser.Greg.length) {
             this.greg.setReg(index, stripStringEUCJP(value, 256));
         }
     }
@@ -606,7 +606,7 @@ export class BrowserAPI {
     }
 
     public setUreg(index: number, value: string) {
-        if (index > 0 && index < this.browser.Ureg.length) {
+        if (index >= 0 && index < this.browser.Ureg.length) {
             this.ureg.setReg(index, stripStringEUCJP(value, 256));
         }
     }
