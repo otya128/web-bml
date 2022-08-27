@@ -159,10 +159,12 @@ export class Resources {
     // とりあえず10 MiB, 400ファイル
     private readonly cachedRemoteResources: CacheMap = new CacheMap(400, 1024 * 1024 * 10);
     private readonly remoteResourceRequests: Map<string, RemoteResourceRequest[]> = new Map();
+    private readonly cProfile: boolean;
 
-    public constructor(indicator: Indicator | undefined, ip: IP) {
+    public constructor(indicator: Indicator | undefined, ip: IP, cProfile: boolean) {
         this.indicator = indicator;
         this.ip = ip;
+        this.cProfile = cProfile;
     }
 
     private _activeDocument: null | string = null;
@@ -846,9 +848,8 @@ export class Resources {
         // this.cachedComponents.clear();
     }
 
-    // Cプロファイルだと0x80
     public get startupComponentId(): number {
-        return 0x40;
+        return this.cProfile ? 0x80 : 0x40;
     }
 
     public get startupModuleId(): number {

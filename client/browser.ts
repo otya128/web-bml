@@ -458,6 +458,7 @@ export class BrowserAPI {
     private readonly indicator?: Indicator;
     private readonly ureg: Reg;
     private readonly greg: Reg;
+    private readonly cProfile: boolean;
 
     constructor(
         resources: resource.Resources,
@@ -471,6 +472,7 @@ export class BrowserAPI {
         indicator: Indicator | undefined,
         ureg: Reg | undefined,
         greg: Reg | undefined,
+        cProfile: boolean,
     ) {
         this.resources = resources;
         this.eventQueue = eventQueue;
@@ -489,6 +491,7 @@ export class BrowserAPI {
             getReg: (index) => this.browser.Greg[index],
             setReg: (index, value) => this.browser.Greg[index] = value,
         };
+        this.cProfile = cProfile;
     }
 
     asyncBrowser: AsyncBrowser = {
@@ -769,9 +772,11 @@ export class BrowserAPI {
             if (componentId == null || moduleId == null || module == null) {
                 return NaN;
             }
-            // TR-B14 第二分冊 5.12.6.9 (6) 参照
-            if (componentId !== 0x40 && componentId !== 0x50 && componentId !== 0x60) {
-                return NaN;
+            if (!this.cProfile) {
+                // TR-B14 第二分冊 5.12.6.9 (6) 参照
+                if (componentId !== 0x40 && componentId !== 0x50 && componentId !== 0x60) {
+                    return NaN;
+                }
             }
             // lockModuleOnMemoryでロックされているモジュールをlockModuleOnMemoryExでロックできない
             if (this.resources.getModuleLockedBy(componentId, moduleId) === "lockModuleOnMemory") {

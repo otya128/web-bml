@@ -83,14 +83,31 @@ export function bmlToXHTMLFXP(data: string): string {
                 }
             }
         }
-        if (nodeName == "script") {
+        if (nodeName == "bml:beitem") {
+            // Cプロファイル
+            renameXmlNode(node, "beitem");
+        } else if (nodeName == "bml:bevent") {
+            // Cプロファイル
+            renameXmlNode(node, "bevent");
+        } else if (nodeName == "script") {
             renameXmlNode(node, "arib-script");
-        }
-        if (nodeName == "style") {
+        } else if (nodeName == "style") {
             renameXmlNode(node, "arib-style");
-        }
-        if (nodeName == "link") {
+        } else if (nodeName == "link") {
             renameXmlNode(node, "arib-link");
+        }
+        // Cプロファイル
+        if (node[":@"] != null) {
+            for (const a of Object.getOwnPropertyNames(node[":@"])) {
+                if (a.startsWith("@_bml:")) {
+                    node[":@"]["@_" + a.substring("@_bml:".length)] = node[":@"][a];
+                    delete node[":@"][a];
+                } else if (a.startsWith("@_xml:")) {
+                    /* xml:space */
+                    node[":@"]["@_xml-" + a.substring("@_xml:".length)] = node[":@"][a];
+                    delete node[":@"][a];
+                }
+            }
         }
         if (nodeName == "object" && node[":@"] != null) {
             node[":@"]["@_arib-type"] = node[":@"]["@_type"];

@@ -334,6 +334,7 @@ export class JSInterpreter implements Interpreter {
             this.registerDOMClasses(interpreter, globalObject);
             interpreter.setProperty(globalObject, "document", this.domObjectToPseudo(interpreter, this.content.bmlDocument));
 
+            const cProfile = this.cProfile;
             const pseudoBinaryTable = interpreter.createAsyncFunction(function BinaryTable(this: any, callback: (result: any, resolveValue: any) => void, table_ref: string, structure: string) {
                 resources.fetchResourceAsync(table_ref).then(res => {
                     if (!res) {
@@ -343,7 +344,7 @@ export class JSInterpreter implements Interpreter {
                     }
                     browserLog("new BinaryTable", table_ref);
                     let buffer: Uint8Array = res.data;
-                    this.instance = new BT.BinaryTable(buffer, structure);
+                    this.instance = new BT.BinaryTable(buffer, structure, cProfile ? decodeShiftJIS : decodeEUCJP);
                     callback(this, undefined);
                 });
             });
@@ -477,22 +478,24 @@ export class JSInterpreter implements Interpreter {
         this.resetStack();
     }
 
-    _isExecuting: boolean;
+    private _isExecuting: boolean;
     // lazyinit
-    browserAPI: BrowserAPI = null!;
-    resources: Resources = null!;
-    content: Content = null!;
-    epg: EPG = null!;
+    private browserAPI: BrowserAPI = null!;
+    private resources: Resources = null!;
+    private content: Content = null!;
+    private epg: EPG = null!;
+    private cProfile: boolean = false;
     public constructor() {
         this._isExecuting = false;
     }
 
-    public setupEnvironment(browserAPI: BrowserAPI, resources: Resources, content: Content, epg: EPG): void {
+    public setupEnvironment(browserAPI: BrowserAPI, resources: Resources, content: Content, epg: EPG, cProfile: boolean): void {
         this.browserAPI = browserAPI;
         this._isExecuting = false;
         this.resources = resources;
         this.content = content;
         this.epg = epg;
+        this.cProfile = cProfile;
         this.reset();
     }
 

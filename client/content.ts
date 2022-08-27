@@ -1,6 +1,7 @@
 import css from "css";
 import { Resources, CachedFile } from "./resource";
 import { decodeEUCJP } from "./euc_jp";
+import { decodeShiftJIS } from "./shift_jis";
 import { defaultCLUT } from "./default_clut";
 import { readCLUT } from "./clut";
 import { transpileCSS } from "./transpile_css";
@@ -183,6 +184,8 @@ export class Content {
     private strictTextRenderingEnabled = true;
     private readonly inputApplication?: InputApplication;
     private npt?: NPT;
+    private decodeText: (input: Uint8Array) => string;
+    private cProfile: boolean;
     public constructor(
         bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
@@ -195,6 +198,7 @@ export class Content {
         indicator: Indicator | undefined,
         videoPlaneModeEnabled: boolean,
         inputApplication: InputApplication | undefined,
+        cProfile: boolean,
     ) {
         this.bmlDocument = bmlDocument;
         this.documentElement = documentElement;
@@ -207,6 +211,8 @@ export class Content {
         this.indicator = indicator;
         this.videoPlaneModeEnabled = videoPlaneModeEnabled;
         this.inputApplication = inputApplication;
+        this.decodeText = cProfile ? decodeShiftJIS : decodeEUCJP;
+        this.cProfile = cProfile;
 
         this.documentElement.addEventListener("keydown", (event) => {
             if (event.altKey || event.ctrlKey || event.metaKey) {
@@ -471,7 +477,7 @@ export class Content {
                     const newStyle = document.createElement("style");
                     const res = await this.resources.fetchResourceAsync(href);
                     if (res != null) {
-                        newStyle.textContent = await transpileCSS(decodeEUCJP(res.data), { inline: false, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
+                        newStyle.textContent = await transpileCSS(this.decodeText(res.data), { inline: false, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
                         style.parentElement?.appendChild(newStyle);
                     }
                 }
@@ -612,7 +618,7 @@ export class Content {
         }
         this.resources.activeDocument = documentName;
         await requestAnimationFrameAsync();
-        await this.loadDocumentToDOM(decodeEUCJP(file.data));
+        await this.loadDocumentToDOM(this.decodeText(file.data));
         this.loadObjects();
         this.eventQueue.reset();
         this.unloadAllDRCS();
@@ -660,7 +666,7 @@ export class Content {
                 if (src) {
                     const res = await this.resources.fetchResourceAsync(src);
                     if (res !== null) {
-                        if (exit = await this.interpreter.addScript(decodeEUCJP(res.data), src)) {
+                        if (exit = await this.interpreter.addScript(this.decodeText(res.data), src)) {
                             return true;
                         }
                     }
@@ -1231,7 +1237,6 @@ export class Content {
                     return;
                 }
                 for (const event of msg.events) {
-                    // 即時イベントのみ実装
                     if (event.type === "nptEvent") {
                         const currentNPT = this.getNPT90kHz();
                         if (currentNPT == null || event.eventMessageNPT > currentNPT) {
@@ -1263,7 +1268,7 @@ export class Content {
                         continue;
                     }
                     beitem.internalMessageVersion.set(eventMessageId, eventMessageVersion);
-                    const privateData = decodeEUCJP(Uint8Array.from(event.privateDataByte));
+                    const privateData = this.decodeText(Uint8Array.from(event.privateDataByte));
                     console.log("EventMessageFired", eventMessageId, eventMessageVersion, privateData);
                     this.eventQueue.queueAsyncEvent(async () => {
                         this.eventDispatcher.setCurrentBeventEvent({

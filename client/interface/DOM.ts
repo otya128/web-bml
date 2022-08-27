@@ -844,7 +844,7 @@ export namespace BML {
                 // 順序が逆転するのを防止
                 this.version = this.version + 1;
                 const version: number = this.version;
-                const fetched = await this.ownerDocument.resources.fetchResourceAsync(value);
+                const fetched = this.ownerDocument.resources.fetchLockedResource(value) ?? await this.ownerDocument.resources.fetchResourceAsync(value);
                 if (this.version !== version) {
                     return;
                 }
@@ -860,7 +860,7 @@ export namespace BML {
                 if (isPNG || isMNG) {
                     const clutCss = window.getComputedStyle(this.node).getPropertyValue("--clut");
                     const clutUrl = clutCss == null ? null : parseCSSValue(clutCss);
-                    const fetchedClut = clutUrl == null ? null : (await this.ownerDocument.resources.fetchResourceAsync(clutUrl))?.data;
+                    const fetchedClut = clutUrl == null ? null : (this.ownerDocument.resources.fetchLockedResource(clutUrl) ?? await this.ownerDocument.resources.fetchResourceAsync(clutUrl))?.data;
                     if (this.version !== version) {
                         return;
                     }
@@ -924,6 +924,9 @@ export namespace BML {
                         fetched.blobUrl.set("BT.709", imageUrl);
                     }
                     imageType = "image/jpeg";
+                } else if (aribType?.toLowerCase() === "image/gif") {
+                    imageType = "image/gif";
+                    imageUrl = { blobUrl: this.ownerDocument.resources.getCachedFileBlobUrl(fetched) };
                 } else {
                     this.delete();
                     return;
