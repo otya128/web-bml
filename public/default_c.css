@@ -6,7 +6,7 @@ div, form, object, img { padding-top: 0 !important; padding-right: 0 !important;
 :where(div, p, pre, form, input, textarea) { border-width: 0; border-top-color: transparent; border-right-color: transparent; border-bottom-color: transparent; border-left-color: transparent; }
 object, img { border-width: 0 !important; border-style: none !important }
 /* display */ 
-/*html, */head, title, meta, script, link, bevent, beitem { display: none !important }
+/* html, */head, title, meta, script, link, bevent, beitem { display: none !important }
 body, div, pre, form, input, textarea, object, img { display: block !important }
 :where(p) { display: block }
 br, span, a { display: inline !important }
@@ -26,9 +26,10 @@ span, a { visibility: inherit !important }
 div, p, pre, form, input, textarea, object, img { overflow: hidden !important }
 /* color */ 
 :where(p, pre, input, textarea) { color: black; --color: black; }
+:where(span, a) { color: inherit }
 /* background-color */ 
 object, img { background-color: transparent !important; --background-color: transparent !important; --background-color-inherit: transparent !important; }
-body { background-color: white !important; --background-color: white !important; --background-color-inherit: white !important; }
+:where(body) { background-color: white; --background-color: white; --background-color-inherit: white; }
 /* background-repeat */ 
 body { background-repeat: repeat !important }
 /* font-family */ 
@@ -36,8 +37,8 @@ p, pre, span, a, input, textarea { font-family: "丸ゴシック" !important }
 /* text-align */ 
 :where(p, input, textarea) { text-align: left }
 /* white-space */ 
-p, input, textarea { white-space: normal !important }
-pre { white-space: pre !important }
+p, input { white-space: normal !important }
+pre, textarea { white-space: pre !important }
 /* resolution */ 
 body { --resolution: 240x480 !important }
 /* marquee */ 
