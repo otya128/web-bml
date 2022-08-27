@@ -366,7 +366,7 @@ export class NVRAM {
                     } else if (accessInfo.originalNetworkId == null) {
                         console.error("originalNetworkId == null!", accessInfo);
                         return null;
-                    } else if (broadcasterInfo.originalNetworkId !== accessInfo.originalNetworkId) {
+                    } else if (broadcasterInfo.originalNetworkId === accessInfo.originalNetworkId) {
                         params.append("original_network_id", String(accessInfo.originalNetworkId));
                     } else {
                         console.error("permission denied (original_network_id)", broadcasterInfo.originalNetworkId, accessInfo.originalNetworkId);
