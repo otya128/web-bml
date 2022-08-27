@@ -628,6 +628,12 @@ export namespace BML {
         public set href(value: string) {
             this.node.href = value;
         }
+        public blur(): void {
+            blur(this, this.ownerDocument);
+        }
+        public focus(): void {
+            focus(this, this.ownerDocument);
+        }
     }
 
     // impl
