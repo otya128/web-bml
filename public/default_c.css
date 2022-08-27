@@ -1,0 +1,119 @@
+/* margin */ 
+div, p, pre, form, input, textarea, object, img { margin: 0 !important }
+/* padding */ 
+div, form, object, img { padding-top: 0 !important; padding-right: 0 !important; padding-bottom: 0 !important; padding-left: 0 !important }
+/* border */ 
+:where(div, p, pre, form, input, textarea) { border-width: 0; border-top-color: transparent; border-right-color: transparent; border-bottom-color: transparent; border-left-color: transparent; }
+object, img { border-width: 0 !important; border-style: none !important }
+/* display */ 
+/*html, */head, title, meta, script, link, bevent, beitem { display: none !important }
+body, div, pre, form, input, textarea, object, img { display: block !important }
+:where(p) { display: block }
+br, span, a { display: inline !important }
+/* position */ 
+div, p, pre, form, input, textarea, object, img { position: absolute !important }
+br, span, a { position: static !important }
+/* top, left, width, height */ 
+:where(div, p, pre, form, input, textarea, object, img) { top: 0; left: 0; width: 0; height: 0 }
+/* z-index */ 
+body, div, p, pre, br, span, a, form, input, textarea, object, img { z-index: auto !important }
+/* line-height */ 
+br, span, a { line-height: inherit !important }
+/* visibility */ 
+body { visibility: visible !important }
+span, a { visibility: inherit !important }
+/* overflow */ 
+div, p, pre, form, input, textarea, object, img { overflow: hidden !important }
+/* color */ 
+:where(p, pre, input, textarea) { color: black; --color: black; }
+/* background-color */ 
+object, img { background-color: transparent !important; --background-color: transparent !important; --background-color-inherit: transparent !important; }
+body { background-color: white !important; --background-color: white !important; --background-color-inherit: white !important; }
+/* background-repeat */ 
+body { background-repeat: repeat !important }
+/* font-family */ 
+p, pre, span, a, input, textarea { font-family: "丸ゴシック" !important }
+/* text-align */ 
+:where(p, input, textarea) { text-align: left }
+/* white-space */ 
+p, input, textarea { white-space: normal !important }
+pre { white-space: pre !important }
+/* resolution */ 
+body { --resolution: 240x480 !important }
+/* marquee */ 
+:where(p) { ---wap-marquee-loop: 1; }
+p { ---wap-marquee-dir: rtl !important }
+
+/* reset UA CSS */
+:where(p) {
+    margin-block-start: 0;
+    margin-block-end: 0;
+    margin-inline-start: 0;
+    margin-inline-end: 0;
+}
+p {
+    white-space: break-spaces !important;
+    line-break: anywhere !important;
+}
+body {
+    padding: 0!important; /* NHK BS1とかbodyにpadding: 6pt;があって崩れる? */
+    margin: 0!important;
+}
+
+:where(body) {
+    font-family: "丸ゴシック", monospace;
+}
+
+arib-style {
+    display: none;
+}
+
+arib-script {
+    display: none;
+}
+
+body[arib-loading] { display: none !important; }
+
+:where(html, bml) {
+    line-height: 1; /* Firefox */
+}
+
+html {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
+
+/* 継承しない拡張特性の初期値 */
+:where(*) {
+    --used-key-list: basic;
+    --background-color: ;
+}
+
+arib-text, arib-cdata {
+    display: inline !important;
+    font: inherit !important;
+    letter-spacing: inherit !important;
+    text-align: inherit !important;
+    line-height: inherit !important;
+    visibility: unset !important;
+    border: none !important;
+}
+
+a[web-bml-state="focus"], a[web-bml-state="active"] {
+    background-color: var(--color) !important;
+    color: var(--background-color-inherit) !important;
+}
+
+:where(p) {
+    ---wap-marquee-speed: normal;
+    ---wap-marquee-style: scroll;
+}
+
+:where(input, textarea) {
+    ---wap-input-format: *M;
+}
+
+:where(html) {
+    --background-color-inherit: white;
+}

@@ -1,12 +1,3 @@
-arib-style {
-    display: none;
-}
-
-arib-script {
-    display: none;
-}
-
-
 /* STD-B24 Annex A Default Style Sheet */
 /* margin */
 div, p, input, object {margin: 0 !important}
@@ -214,6 +205,14 @@ object[type="audio/X-arib-mpeg2-aac"] {
 
 object[type="image/X-arib-png"] {
     visibility: hidden !important;
+}
+
+arib-style {
+    display: none;
+}
+
+arib-script {
+    display: none;
 }
 
 body[arib-loading] { display: none !important; }

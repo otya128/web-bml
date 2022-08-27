@@ -10,6 +10,8 @@ import { NVRAM } from "./nvram";
 import { Resources } from "./resource";
 // @ts-ignore
 import defaultCSS from "../public/default.css";
+// @ts-ignore
+import defaultCProfileCSS from "../public/default_c.css";
 
 export interface AudioNodeProvider {
     getAudioDestinationNode(): AudioNode;
@@ -204,7 +206,7 @@ export class BMLBrowser {
         this.indicator = options.indicator;
         this.shadowRoot = options.containerElement.attachShadow({ mode: "closed" });
         const uaStyle = document.createElement("style");
-        uaStyle.textContent = defaultCSS;
+        uaStyle.textContent = cProfile ? defaultCProfileCSS : defaultCSS;
         this.shadowRoot.appendChild(uaStyle);
         this.documentElement = document.createElement("html");
         if (options.tabIndex != null) {
