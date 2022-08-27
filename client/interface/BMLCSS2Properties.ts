@@ -1,5 +1,5 @@
 import { BMLBrowserEventTarget } from "../bml_browser";
-import { colorIndexToVar, varToColorIndex } from "../transpile_css";
+import { colorIndexToVar, getFontSize, setFontSize, varToColorIndex } from "../transpile_css";
 
 type DOMString = string;
 
@@ -77,8 +77,15 @@ export class BMLCSS2Properties {
     public set visibility(value: DOMString) { this.declaration.setProperty("visibility", value); }
     public get fontFamily() { return this.declaration.getPropertyValue("font-family"); }
     public set fontFamily(value: DOMString) { this.declaration.setProperty("font-family", value); }
-    public get fontSize() { return this.declaration.getPropertyValue("font-size"); }
-    public set fontSize(value: DOMString) { this.declaration.setProperty("font-size", value); }
+    public get fontSize(): DOMString {
+        const fontSize = this.declaration.getPropertyValue("font-size");
+        // Cプロファイル
+        return getFontSize(fontSize);
+    }
+    public set fontSize(value: DOMString) {
+        // Cプロファイル
+        this.declaration.setProperty("font-size", setFontSize(String(value)));
+    }
     public get fontWeight() { return this.declaration.getPropertyValue("font-weight"); }
     public set fontWeight(value: DOMString) { this.declaration.setProperty("font-weight", value); }
     public get textAlign() { return this.declaration.getPropertyValue("text-align"); }

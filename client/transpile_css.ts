@@ -64,6 +64,28 @@ export function varToColorIndex(colorIndexVar: string | null | undefined): strin
     return match?.groups?.index ?? colorIndexVar;
 }
 
+export function setFontSize(value: string): string {
+    const v = value.trim().toLowerCase();
+    // Cプロファイル
+    if (v === "small" || v === "medium" || v === "large") {
+        return `var(--${v})`
+    }
+    return value;
+}
+
+export function getFontSize(value: string): string {
+    // Cプロファイル
+    switch (value) {
+        case "var(--small)":
+            return "small";
+        case "var(--medium)":
+            return "medium";
+        case "var(--large)":
+            return "large";
+    }
+    return value;
+}
+
 async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<undefined | string | (css.Comment | css.Declaration)[]> {
     if (node.type === "stylesheet") {
         const stylesheet = node as css.Stylesheet;
@@ -128,10 +150,10 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                 property: "--" + origProperty,
                 value: origValue,
             }, {
-                type: "declaration",
-                property: "--" + origProperty + "2",
-                value: decl.value,
-            }];
+                    type: "declaration",
+                    property: "--" + origProperty + "2",
+                    value: decl.value,
+                }];
         } else if (decl.property) {
             const sub = colorIndexRules.get(decl.property);
             if (sub) {
@@ -148,6 +170,10 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                     property: "--" + sub,
                     value: decl.value,
                 }];
+            } else if (decl.property === "font-size") {
+                if (decl.value != null) {
+                    decl.value = setFontSize(decl.value);
+                }
             } else if (decl.property === "color" || decl.property === "background-color") {
                 // Cプロファイルで<a>でフォーカスが当たった時背景色を文字色を入れ替えるため(-inherit)と#xxxxxxがrgb(x, x, x)になって微妙なので変数としても追加する
                 if (decl.value?.trim() !== "transparent") {

@@ -83,6 +83,10 @@ html {
     position: absolute;
     top: 0px;
     left: 0px;
+    /* TR-B14 第三分冊 8.1.9.2 表8-1 */
+    --small: 16px;
+    --medium: 20px;
+    --large: 30px;
 }
 
 /* 継承しない拡張特性の初期値 */
