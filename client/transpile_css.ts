@@ -21,6 +21,12 @@ const bmlCssProperties: Set<string> = new Set([
     "resolution",
     "display-aspect-ratio",
     "grayscale-color-index",
+    // WAP(Cプロファイル)
+    "-wap-marquee-style",
+    "-wap-marquee-loop",
+    "-wap-marquee-dir",
+    "-wap-marquee-spoeed",
+    "-wap-input-format",
 ]);
 
 export function parseCSSValue(value: string): string | null {
@@ -140,6 +146,24 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                 }, {
                     type: "declaration",
                     property: "--" + sub,
+                    value: decl.value,
+                }];
+            } else if (decl.property === "color" || decl.property === "background-color") {
+                // Cプロファイルで<a>でフォーカスが当たった時背景色を文字色を入れ替えるため(-inherit)と#xxxxxxがrgb(x, x, x)になって微妙なので変数としても追加する
+                if (decl.value?.trim() !== "transparent") {
+                    return [decl, {
+                        type: "declaration",
+                        property: "--" + decl.property,
+                        value: decl.value,
+                    }, {
+                        type: "declaration",
+                        property: "--" + decl.property + "-inherit",
+                        value: decl.value,
+                    }];
+                }
+                return [decl, {
+                    type: "declaration",
+                    property: "--" + decl.property,
                     value: decl.value,
                 }];
             }
