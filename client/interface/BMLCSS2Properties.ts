@@ -165,4 +165,37 @@ export class BMLCSS2Properties {
             }));
         }
     }
+    // Cプロファイル
+    public get borderTopColor() { return this.declaration.getPropertyValue("border-top-color"); }
+    public set borderTopColor(value: DOMString) { this.declaration.setProperty("border-top-color", value); }
+    public get borderRightColor() { return this.declaration.getPropertyValue("border-right-color"); }
+    public set borderRightColor(value: DOMString) { this.declaration.setProperty("border-right-color", value); }
+    public get borderBottomColor() { return this.declaration.getPropertyValue("border-bottom-color"); }
+    public set borderBottomColor(value: DOMString) { this.declaration.setProperty("border-bottom-color", value); }
+    public get borderLeftColor() { return this.declaration.getPropertyValue("border-left-color"); }
+    public set borderLeftColor(value: DOMString) { this.declaration.setProperty("border-left-color", value); }
+    public get backgroundColor() { return this.declaration.getPropertyValue("--background-color").trim(); }
+    // Cプロファイルで<a>でフォーカスが当たった時背景色を文字色を入れ替えるために変数としても追加する
+    public set backgroundColor(value: DOMString) {
+        this.declaration.setProperty("--background-color", value);
+        this.declaration.setProperty("--background-color-inherit", value);
+        this.declaration.setProperty("background-color", value);
+    }
+    public get color() { return this.declaration.getPropertyValue("--color").trim(); }
+    public set color(value: DOMString) {
+        this.declaration.setProperty("--color", value);
+        this.declaration.setProperty("color", value);
+    }
+    public get WapMarqueeStyle() {
+        return this.declaration.getPropertyValue("---wap-marquee-style").trim();
+    }
+    public get WapMarqueeLoop() {
+        return this.declaration.getPropertyValue("---wap-marquee-loop").trim();
+    }
+    public get WapMarqueeSpeed() {
+        return this.declaration.getPropertyValue("---wap-marquee-speed").trim();
+    }
+    public get WapInputFormat() {
+        return this.declaration.getPropertyValue("---wap-input-format").trim();
+    }
 }
