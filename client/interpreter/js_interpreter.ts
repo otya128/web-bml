@@ -35,6 +35,8 @@ import * as bmlDate from "../date";
 import * as bmlNumber from "../number";
 import * as bmlString from "../string";
 import { EPG } from "../bml_browser";
+import { decodeShiftJIS } from "../shift_jis";
+import { decodeEUCJP } from "../euc_jp";
 
 function initNumber(interpreter: any, globalObject: any) {
     var thisInterpreter = interpreter;
@@ -249,6 +251,14 @@ export class JSInterpreter implements Interpreter {
         const content = this.content;
         function launchDocument(callback: (result: any, promiseValue: any) => void, documentName: string, transitionStyle: string | undefined): void {
             browserLog("launchDocument", documentName, transitionStyle);
+            if (documentName.startsWith("#")) {
+                // Cプロファイル TR-B14 第三分冊
+                // 8.2.3.4 #fragment運用における受信機動作およびコンテンツガイドライン
+                // "#top"の場合リロードされないことが望ましい
+                // "startup.bml#top"の場合リロードが行われることが望ましい
+                callback(0, undefined);
+                return;
+            }
             const r = content.launchDocument(String(documentName));
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }
