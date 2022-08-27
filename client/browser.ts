@@ -851,7 +851,7 @@ export class BrowserAPI {
                     // filesizeのキャッシュを備えているかどうか
                     const filesize = Number(additionalinfo2);
                     // ひとまず10 MiB
-                    return filesize <= 1024 * 1024 * 10 ? 1 : 0;
+                    return filesize * 1024 <= 1024 * 1024 * 10 ? 1 : 0;
                 } else if (functionname === "AudioFile") {
                     // filesizeの音声ファイルを再生可能かどうか
                     const filesize = Number(additionalinfo);
