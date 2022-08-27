@@ -1107,6 +1107,12 @@ export class Content {
             const adata = obj.getAttribute("arib-data");
             BML.nodeToBMLNode(obj, this.bmlDocument).data = adata!;
         });
+        if (this.cProfile) {
+            this.documentElement.querySelectorAll("img").forEach(obj => {
+                const asrc = obj.getAttribute("arib-src");
+                BML.nodeToBMLNode(obj, this.bmlDocument).src = asrc!;
+            });
+        }
     }
 
     pcrBase?: number;

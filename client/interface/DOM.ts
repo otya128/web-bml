@@ -23,6 +23,7 @@ export namespace BML {
     export function nodeToBMLNode(node: globalThis.HTMLHtmlElement, ownerDocument: BMLDocument): BMLBmlElement;
     export function nodeToBMLNode(node: globalThis.HTMLScriptElement, ownerDocument: BMLDocument): HTMLScriptElement;
     export function nodeToBMLNode(node: globalThis.HTMLObjectElement, ownerDocument: BMLDocument): BMLObjectElement;
+    export function nodeToBMLNode(node: globalThis.HTMLImageElement, ownerDocument: BMLDocument): BMLImageElement; // Cプロファイル
     export function nodeToBMLNode(node: globalThis.HTMLHeadElement, ownerDocument: BMLDocument): HTMLHeadElement;
     export function nodeToBMLNode(node: globalThis.HTMLTitleElement, ownerDocument: BMLDocument): HTMLTitleElement;
     export function nodeToBMLNode(node: globalThis.HTMLSpanElement, ownerDocument: BMLDocument): BMLSpanElement;
@@ -88,6 +89,9 @@ export namespace BML {
             return HTMLScriptElement;
         } else if (node instanceof globalThis.HTMLObjectElement) {
             return BMLObjectElement;
+        } else if (node instanceof globalThis.HTMLImageElement) {
+            // Cプロファイル
+            return BMLImageElement;
         } else if (node instanceof globalThis.HTMLHeadElement) {
             return HTMLHeadElement;
         } else if (node instanceof globalThis.HTMLTitleElement) {
@@ -1152,6 +1156,85 @@ export namespace BML {
         }
         public focus(): void {
             focus(this, this.ownerDocument);
+        }
+    }
+
+    // Cプロファイル
+    export class HTMLImageElement extends HTMLElement {
+        protected node: globalThis.HTMLImageElement;
+        private version: number = 0;
+        constructor(node: globalThis.HTMLImageElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
+            this.node = node;
+        }
+        public get alt(): string {
+            return (this.node as globalThis.HTMLImageElement).alt;
+        }
+        public get src(): string {
+            return this.node.getAttribute("arib-src") ?? "";
+        }
+        public set src(value: string) {
+            (async () => {
+                if (value == null) {
+                    this.node.src = "";
+                    this.node.removeAttribute("arib-src");
+                    return;
+                }
+                this.node.setAttribute("arib-src", value);
+                if (value == "") {
+                    this.node.src = "";
+                    return;
+                }
+                this.version = this.version + 1;
+                const version: number = this.version;
+                const fetched = this.ownerDocument.resources.fetchLockedResource(value) ?? await this.ownerDocument.resources.fetchResourceAsync(value);
+                if (this.version !== version) {
+                    return;
+                }
+                if (!fetched) {
+                    this.node.src = "";
+                    return;
+                }
+                const isGIF = fetched.data[0] === 0x47 && fetched.data[1] === 0x49 && fetched.data[2] === 0x46;
+                const isJPEG = fetched.data[0] === 0xff && fetched.data[1] === 0xd8 && fetched.data[2] === 0xff && fetched.data[3] === 0xe0;
+                if (!isGIF && !isJPEG) {
+                    console.error("unknown media", value);
+                    return;
+                }
+                let imageUrl: CachedFileMetadata | undefined;
+                if (isJPEG) {
+                    imageUrl = fetched.blobUrl.get("BT.709");
+                    if (imageUrl == null) {
+                        try {
+                            const bt601 = await globalThis.createImageBitmap(new Blob([fetched.data]));
+                            imageUrl = await convertJPEG(bt601);
+                            if (this.version !== version) {
+                                return;
+                            }
+                        } catch {
+                            this.node.src = "";
+                            return;
+                        }
+                        fetched.blobUrl.set("BT.709", imageUrl);
+                    }
+                } else if (isGIF) {
+                    imageUrl = { blobUrl: this.ownerDocument.resources.getCachedFileBlobUrl(fetched) };
+                } else {
+                    this.node.src = "";
+                    return;
+                }
+                if (imageUrl == null) {
+                    this.node.src = "";
+                    return;
+                }
+                this.node.src = imageUrl.blobUrl;
+            })();
+        }
+    }
+
+    export class BMLImageElement extends HTMLImageElement {
+        public get normalStyle(): BMLCSS2Properties {
+            return this.getNormalStyle();
         }
     }
 

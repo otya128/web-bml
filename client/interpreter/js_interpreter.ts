@@ -226,6 +226,8 @@ export class JSInterpreter implements Interpreter {
         interpreter.setProperty(globalObject, "BMLInputElement", this.domClassToPseudo(interpreter, BML.BMLInputElement));
         interpreter.setProperty(globalObject, "HTMLObjectElement", this.domClassToPseudo(interpreter, BML.HTMLObjectElement));
         interpreter.setProperty(globalObject, "BMLObjectElement", this.domClassToPseudo(interpreter, BML.BMLObjectElement));
+        interpreter.setProperty(globalObject, "HTMLImageElement", this.domClassToPseudo(interpreter, BML.HTMLImageElement)); // Cプロファイル
+        interpreter.setProperty(globalObject, "BMLImageElement", this.domClassToPseudo(interpreter, BML.BMLImageElement)); // Cプロファイル
         interpreter.setProperty(globalObject, "BMLSpanElement", this.domClassToPseudo(interpreter, BML.BMLSpanElement));
         interpreter.setProperty(globalObject, "HTMLBodyElement", this.domClassToPseudo(interpreter, BML.HTMLBodyElement));
         interpreter.setProperty(globalObject, "BMLBodyElement", this.domClassToPseudo(interpreter, BML.BMLBodyElement));

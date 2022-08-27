@@ -118,6 +118,10 @@ export function bmlToXHTMLFXP(data: string): string {
                 delete node[":@"]["@_data"];
             }
         }
+        if (nodeName == "img" && node[":@"] != null) {
+            node[":@"]["@_arib-src"] = node[":@"]["@_src"];
+            delete node[":@"]["@_src"];
+        }
         if (node[":@"] && node[":@"]["@_onload"]) {
             if (node[":@"] && node[":@"]["@_onload"]) {
                 const data = node[":@"]["@_onload"];
