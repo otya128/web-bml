@@ -42,9 +42,17 @@ export enum AribKeyCode {
     DataButton1 = 25, // E
     DataButton2 = 26, // F
     Bookmark = 100,
+    // Cプロファイル
+    TVLink = 100,
+    // Cプロファイル *
+    Star = 101,
+    // Cプロファイル #
+    Hash = 102,
 }
 
-type KeyGroup = "basic" | "data-button" | "numeric-tuning" | "other-tuning";
+type KeyGroup = "basic" | "data-button" | "numeric-tuning" | "other-tuning"
+    | "special-1" | "special-2" // Cプロファイル
+    ;
 
 // TR-B14 第二分冊 5.3.1 表5-5参照
 const keyCodeToKeyGroup = new Map<AribKeyCode, KeyGroup>([
@@ -72,6 +80,25 @@ const keyCodeToKeyGroup = new Map<AribKeyCode, KeyGroup>([
     [AribKeyCode.Digit10, "numeric-tuning"],
     [AribKeyCode.Digit11, "numeric-tuning"],
     [AribKeyCode.Digit12, "numeric-tuning"],
+]);
+
+// TR-B14 第三分冊 7.3.1 表7-2参照
+const keyCodeToKeyGroupCProfile = new Map<AribKeyCode, KeyGroup>([
+    [AribKeyCode.Enter, "basic"],
+    [AribKeyCode.Back, "basic"],
+    [AribKeyCode.Digit0, "numeric-tuning"],
+    [AribKeyCode.Digit1, "numeric-tuning"],
+    [AribKeyCode.Digit2, "numeric-tuning"],
+    [AribKeyCode.Digit3, "numeric-tuning"],
+    [AribKeyCode.Digit4, "numeric-tuning"],
+    [AribKeyCode.Digit5, "numeric-tuning"],
+    [AribKeyCode.Digit6, "numeric-tuning"],
+    [AribKeyCode.Digit7, "numeric-tuning"],
+    [AribKeyCode.Digit8, "numeric-tuning"],
+    [AribKeyCode.Digit9, "numeric-tuning"],
+    [AribKeyCode.Star, "special-1"],
+    [AribKeyCode.Hash, "special-1"],
+    [AribKeyCode.TVLink, "special-2"],
 ]);
 
 const keyCodeToAccessKey = new Map<AribKeyCode, string>([
@@ -606,6 +633,37 @@ export class Content {
         await this.launchStartup();
     }
 
+    private focusFirstNavIndex() {
+        for (let i = 0; ; i++) {
+            const element = this.findNavIndex(i);
+            if (element == null) {
+                break;
+            }
+            if (BML.isFocusable(element)) {
+                this.focusHelper(element);
+                break;
+            }
+        }
+    }
+
+    // Cプロファイルでは受信機が適切にナビゲーションを行う (STD-B24 第二分冊 (2/2) 5.1.6 フォーカスの運用)
+    // nav-indexを使って再現する
+    private shimCProfileNavigation() {
+        if (!this.cProfile) {
+            return;
+        }
+        this.documentElement.querySelectorAll("a, input, textarea, [onclick], [onfocus], [onblur], [onkeydown], [onkeyup]").forEach((element, i) => {
+            const htmlElement = element as HTMLElement;
+            htmlElement.style.setProperty("--nav-index", `${i}`);
+            if (i !== 0) {
+                htmlElement.style.setProperty("--nav-up", `${i - 1}`);
+                htmlElement.style.setProperty("--nav-left", `${i - 1}`);
+            }
+            htmlElement.style.setProperty("--nav-down", `${i + 1}`);
+            htmlElement.style.setProperty("--nav-right", `${i + 1}`);
+        });
+    }
+
     private async loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
         await this.unloadDocument();
         this._context = { from: this.resources.activeDocument, to: documentName };
@@ -660,7 +718,12 @@ export class Content {
         let exit = false;
         let scriptCount = 0;
         try {
-            this.focusHelper(this.findNavIndex(0));
+            if (this.cProfile) {
+                this.shimCProfileNavigation();
+                this.focusFirstNavIndex();
+            } else {
+                this.focusHelper(this.findNavIndex(0));
+            }
             for (const x of Array.from(this.documentElement.querySelectorAll("arib-script"))) {
                 const src = x.getAttribute("src");
                 if (src) {
@@ -839,7 +902,18 @@ export class Content {
             isAccessKey: false,
         };
         this.keyProcessStatus = keyProcessStatus;
-        let focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
+        let focusElement = this.bmlDocument.currentFocus?.["node"];
+        if (this.cProfile) {
+            if (k == AribKeyCode.Left || k == AribKeyCode.Right || k == AribKeyCode.Up || k == AribKeyCode.Down) {
+                if (focusElement == null) {
+                    this.focusFirstNavIndex();
+                } else {
+                    this.focusNextNavIndex(k, focusElement);
+                }
+                this.eventQueue.processEventQueue();
+                return;
+            }
+        }
         if (!focusElement) {
             return;
         }
@@ -864,7 +938,7 @@ export class Content {
         if (usedKeyList.length && usedKeyList[0] === "none") {
             return;
         }
-        const keyGroup = keyCodeToKeyGroup.get(k);
+        const keyGroup = (this.cProfile ? keyCodeToKeyGroupCProfile : keyCodeToKeyGroup).get(k);
         if (keyGroup == null) {
             return;
         }
@@ -875,17 +949,18 @@ export class Content {
         } else if (!usedKeyList.some(x => x === keyGroup)) {
             return;
         }
-        focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
+        focusElement = this.bmlDocument.currentFocus?.["node"];
         if (!focusElement) {
             return;
         }
         const onkeydown = focusElement.getAttribute("onkeydown");
+        const target = focusElement;
         this.eventQueue.queueAsyncEvent(async () => {
             if (onkeydown) {
                 this.eventDispatcher.setCurrentIntrinsicEvent({
                     keyCode: k as number,
                     type: "keydown",
-                    target: focusElement,
+                    target,
                 });
                 let exit = false;
                 try {
@@ -953,35 +1028,10 @@ export class Content {
                     keyProcessStatus.isAccessKey = true;
                 }
             }
-            focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
+            focusElement = this.bmlDocument.currentFocus?.["node"];
             if (focusElement) {
                 // [4] A'に対してnavigation関連特性を適用
-                let nextFocus = "";
-                let nextFocusStyle = window.getComputedStyle(focusElement);
-                while (true) {
-                    if (k == AribKeyCode.Left) {
-                        nextFocus = nextFocusStyle.getPropertyValue("--nav-left");
-                    } else if (k == AribKeyCode.Right) {
-                        nextFocus = nextFocusStyle.getPropertyValue("--nav-right");
-                    } else if (k == AribKeyCode.Up) {
-                        nextFocus = nextFocusStyle.getPropertyValue("--nav-up");
-                    } else if (k == AribKeyCode.Down) {
-                        nextFocus = nextFocusStyle.getPropertyValue("--nav-down");
-                    }
-                    const nextFocusIndex = parseInt(nextFocus);
-                    if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
-                        const next = this.findNavIndex(nextFocusIndex);
-                        if (next != null) {
-                            nextFocusStyle = window.getComputedStyle(next);
-                            // 非表示要素であれば飛ばされる (STD-B24 第二分冊 (1/2 第二編) 5.4.13.3参照)
-                            if (!BML.isFocusable(next)) {
-                                continue;
-                            }
-                            this.focusHelper(next);
-                        }
-                    }
-                    break;
-                }
+                this.focusNextNavIndex(k, focusElement);
             }
             const currentFocus = this.bmlDocument.currentFocus;
             if (k == AribKeyCode.Enter && currentFocus) {
@@ -999,6 +1049,35 @@ export class Content {
             return false;
         });
         this.eventQueue.processEventQueue();
+    }
+
+    private focusNextNavIndex(k: AribKeyCode, focusElement: HTMLElement) {
+        let nextFocus = "";
+        let nextFocusStyle = window.getComputedStyle(focusElement);
+        while (true) {
+            if (k == AribKeyCode.Left) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-left");
+            } else if (k == AribKeyCode.Right) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-right");
+            } else if (k == AribKeyCode.Up) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-up");
+            } else if (k == AribKeyCode.Down) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-down");
+            }
+            const nextFocusIndex = parseInt(nextFocus);
+            if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
+                const next = this.findNavIndex(nextFocusIndex);
+                if (next != null) {
+                    nextFocusStyle = window.getComputedStyle(next);
+                    // 非表示要素であれば飛ばされる (STD-B24 第二分冊 (1/2 第二編) 5.4.13.3参照)
+                    if (!BML.isFocusable(next)) {
+                        continue;
+                    }
+                    this.focusHelper(next);
+                }
+            }
+            break;
+        }
     }
 
     public processKeyUp(k: AribKeyCode) {
