@@ -53,7 +53,6 @@ p { ---wap-marquee-dir: rtl !important }
     margin-inline-end: 0;
 }
 p {
-    white-space: break-spaces !important;
     line-break: anywhere !important;
 }
 body {
@@ -89,6 +88,7 @@ html {
     --large: 30px;
     /* タブは空白一文字分 (TR-B14 第三分冊 7.7.3 注4) */
     tab-size: 1;
+    font-size: var(--medium);
 }
 
 /* 継承しない拡張特性の初期値 */
