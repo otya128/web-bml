@@ -721,6 +721,8 @@ export class Content {
             }
         } else if (resolution === "240x480") {
             [width, height] = [240, 480];
+            aspectNum = 1;
+            aspectDen = 2;
         }
         this.bmlEventTarget.dispatchEvent<"load">(new CustomEvent("load", { detail: { resolution: { width, height }, displayAspectRatio: { numerator: aspectNum, denominator: aspectDen } } }));
         body.style.maxWidth = width + "px";
