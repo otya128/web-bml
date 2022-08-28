@@ -600,23 +600,29 @@ export class BrowserAPI {
                 return [NaN, "", ""];
             }
             function encodeBinary(data: Uint8Array): string {
-                const encoded: string[] = [];
+                let encoded = "";
                 for (const c of data) {
                     const s = String.fromCharCode(c);
                     if ((s >= "A" && s <= "Z") || (s >= "a" && s <= "z") || (s >= "0" && s <= "9") || "-_.!~*'()".indexOf(s) !== -1) {
-                        encoded.push(s);
+                        encoded += s;
                     } else {
-                        encoded.push("%");
-                        encoded.push(c.toString(16).padStart(2, "0"));
+                        encoded += "%";
+                        encoded += c.toString(16).padStart(2, "0");
                     }
                 }
-                return encoded.join("");
+                return encoded;
             }
             if (charset === "EUC-JP") {
                 this.indicator?.setNetworkingPostStatus(true);
                 const { resultCode, statusCode, response } = await this.ip.transmitTextDataOverIP(uri, new TextEncoder().encode("Denbun=" + encodeBinary(encodeEUCJP(text))));
                 this.indicator?.setNetworkingPostStatus(false);
                 return [resultCode, statusCode, decodeEUCJP(response)];
+            } else if (charset === "Shift_JIS") {
+                // Cプロファイル
+                this.indicator?.setNetworkingPostStatus(true);
+                const { resultCode, statusCode, response } = await this.ip.transmitTextDataOverIP(uri, new TextEncoder().encode("Denbun=" + encodeBinary(encodeShiftJIS(text))));
+                this.indicator?.setNetworkingPostStatus(false);
+                return [resultCode, statusCode, decodeShiftJIS(response)];
             } else {
                 return [NaN, "", ""];
             }
