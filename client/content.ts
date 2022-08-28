@@ -1052,6 +1052,13 @@ export class Content {
             if (k == AribKeyCode.Enter && currentFocus) {
                 focusElement = currentFocus["node"];
                 currentFocus.internalSetActive(true);
+                if (currentFocus instanceof BML.BMLAnchorElement && currentFocus.href != "") {
+                    if (!currentFocus.href.startsWith("#")) {
+                        if (this.launchDocument(currentFocus.href)) {
+                            return true;
+                        }
+                    }
+                }
                 this.eventQueue.queueSyncEvent({ type: "click", target: focusElement });
                 if (this.bmlDocument.currentFocus instanceof BML.BMLInputElement) {
                     const inputMode = focusElement.getAttribute("inputmode");

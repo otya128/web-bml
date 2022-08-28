@@ -630,10 +630,10 @@ export namespace BML {
             return this.node.accessKey;
         }
         public get href(): string {
-            return this.node.href;
+            return this.node.getAttribute("bml-href") ?? "";
         }
         public set href(value: string) {
-            this.node.href = value;
+            this.node.setAttribute("bml-href", value);
         }
         public blur(): void {
             blur(this, this.ownerDocument);

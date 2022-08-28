@@ -109,6 +109,12 @@ export function bmlToXHTMLFXP(data: string, cProfile: boolean): string {
         } else if (nodeName == "link") {
             renameXmlNode(node, "arib-link");
         }
+        if (nodeName === "a" && node[":@"] != null) {
+            if (node[":@"]["@_href"] != null) {
+                node[":@"]["@_bml-href"] = node[":@"]["@_href"];
+                delete node[":@"]["@_href"];
+            }
+        }
         // Cプロファイル
         if (node[":@"] != null) {
             for (const a of Object.getOwnPropertyNames(node[":@"])) {
