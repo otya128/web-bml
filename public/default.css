@@ -224,6 +224,8 @@ html {
     position: absolute;
     top: 0px;
     left: 0px;
+    /* タブは空白一文字分 (STD-B24 第二分冊(2/2) 付属2 5.3.2 表5-12) */
+    tab-size: 1;
 }
 
 /*
