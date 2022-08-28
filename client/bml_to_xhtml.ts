@@ -68,19 +68,21 @@ export function bmlToXHTMLFXP(data: string): string {
             // STD-B24 第二分冊(2/2) 第二編 付属2 5.3.2参照
             if ("#text" in c) {
                 if ((prev === "span" || prev === "a") && nodeName === "p") {
-                    c["#text"] = c["#text"].replace(/^([ \t\n\r] +)/g, " ");
+                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)/g, " ");
                     if ((next === "span" || next === "a" || next === "br") && nodeName === "p") {
-                        c["#text"] = c["#text"].replace(/([ \t\n\r] +)$/g, " ");
-                        c["#text"] = c["#text"].replace(/(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
+                        c["#text"] = c["#text"].replace(/([ \t\n\r]+)$/g, " ");
+                        c["#text"] = c["#text"].replace(/(?<=[\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, "");
                     }
                 } else if ((next === "span" || next === "a" || next === "br") && nodeName === "p") {
-                    c["#text"] = c["#text"].replace(/([ \t\n\r] +)$/g, " ");
-                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
+                    c["#text"] = c["#text"].replace(/([ \t\n\r]+)$/g, " ");
+                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|(?<=[\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, "");
                 } else {
                     // 制御符号は0x20, 0x0d, 0x0a, 0x09のみ
                     // 2バイト文字と2バイト文字との間の制御符号は削除する
-                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|([ \t\n\r] +)$|(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
+                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|([ \t\n\r]+)$|(?<=[\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, "");
                 }
+                // 制御符号のみの文字列に対してはテキストノードは生成しない
+                c["#text"] = c["#text"].replace(/^[ \t\n\r]$/, "");
             }
         }
         if (nodeName == "bml:beitem") {
