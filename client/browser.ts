@@ -195,8 +195,9 @@ export interface Browser {
     // async X_CSP_setAccessInfoToProviderArea(filename: string, structure: string): number;
 
     // Cプロファイル
-    X_DPA_getComBrowserUA(): string[][];(): string[][];
     X_DPA_startResidentApp(appName: string, showAV: number, returnURI: string, ...Ex_info: string[]): number;
+    X_DPA_getComBrowserUA(): string[][];(): string[][];
+    X_DPA_getIRDID(type: number): string | null;
 }
 
 export interface AsyncBrowser {
@@ -476,7 +477,7 @@ const cproAPIGroup = new Map([
     ["Xdpa.AddressBook", 0],
     ["Xdpa.launchWithL", 0],
     ["Xdpa.chkAV", 0],
-    ["Xdpa.getIRDID", 0],
+    ["Xdpa.getIRDID", 1],
     ["Xdpa.CproBM", 0],
 ]);
 
@@ -1111,6 +1112,8 @@ export class BrowserAPI {
             return activeDocument;
         },
         getResidentAppVersion(appName: string): any[] | null {
+            // Cプロファイルでもこの関数は運用される
+            // ただしappNameにComBrowserは指定しない (TR-B14 第三分冊 7.10.6)
             console.log("getResidentAppVersion", appName);
             return null;
         },
@@ -1243,6 +1246,21 @@ export class BrowserAPI {
                 return NaN;
             }
             return NaN;
+        },
+        X_DPA_getIRDID: (type: number): string | null => {
+            switch (type) {
+                // 受信機固有識別子
+                case 1:
+                    return null;
+                // 視聴者固有識別子
+                case 2:
+                    return null;
+                // 受信機固有識別子又は視聴者固有識別子
+                case 3:
+                    return null;
+            }
+            console.error("X_DPA_getIRDID: unknown type", type);
+            return null;
         },
     } as Browser;
 
