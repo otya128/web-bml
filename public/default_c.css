@@ -97,6 +97,16 @@ html {
     --background-color: ;
 }
 
+arib-bg {
+    background-color: var(--background-color-inherit) !important; /* 全称セレクタ対策 */
+    background-image: var(--background-image2) !important;
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute !important;
+    left: 0px !important;
+    top: 0px !important;
+}
+
 arib-text, arib-cdata {
     display: inline !important;
     font: inherit !important;
