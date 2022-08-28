@@ -25,7 +25,7 @@ const bmlCssProperties: Set<string> = new Set([
     "-wap-marquee-style",
     "-wap-marquee-loop",
     "-wap-marquee-dir",
-    "-wap-marquee-spoeed",
+    "-wap-marquee-speed",
     "-wap-input-format",
 ]);
 
