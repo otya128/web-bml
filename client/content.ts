@@ -1052,18 +1052,20 @@ export class Content {
             if (k == AribKeyCode.Enter && currentFocus) {
                 focusElement = currentFocus["node"];
                 currentFocus.internalSetActive(true);
-                if (currentFocus instanceof BML.BMLAnchorElement && currentFocus.href != "") {
-                    if (!currentFocus.href.startsWith("#")) {
-                        if (this.launchDocument(currentFocus.href)) {
-                            return true;
-                        }
-                    }
-                }
                 this.eventQueue.queueSyncEvent({ type: "click", target: focusElement });
                 if (this.bmlDocument.currentFocus instanceof BML.BMLInputElement) {
                     const inputMode = focusElement.getAttribute("inputmode");
                     if (inputMode === "indirect") {
                         this.bmlDocument.currentFocus.internalLaunchInputApplication();
+                    }
+                }
+                if (currentFocus instanceof BML.BMLAnchorElement && currentFocus.href != "") {
+                    if (!currentFocus.href.startsWith("#")) {
+                        if (this.launchDocument(currentFocus.href)) {
+                            return true;
+                        }
+                    } else {
+                        this.focusFragment(currentFocus.href);
                     }
                 }
             }
@@ -1099,6 +1101,31 @@ export class Content {
                 }
             }
             break;
+        }
+    }
+
+    public focusFragment(fragment: string): void {
+        if (fragment.startsWith("#")) {
+            fragment = fragment.substring(1);
+        }
+        const fragmentElement = this.bmlDocument.getElementById(fragment)?.["node"];
+        if (fragmentElement == null) {
+            return;
+        }
+        if (this.isFocusable(fragmentElement)) {
+            this.focusHelper(fragmentElement);
+        } else {
+            // 直接fragmentにフォーカスを当てられなければ後方のフォーカスを当てられる要素に、それでも見つからなければ前方の要素
+            const elements = [...this.documentElement.querySelectorAll("*")];
+            const fragmentElementIndex = elements.indexOf(fragmentElement);
+            for (const element of elements.slice(fragmentElementIndex + 1).concat(elements.slice(0, fragmentElementIndex).reverse())) {
+                if (element instanceof HTMLElement) {
+                    if (this.isFocusable(element)) {
+                        this.focusHelper(element);
+                        return;
+                    }
+                }
+            }
         }
     }
 

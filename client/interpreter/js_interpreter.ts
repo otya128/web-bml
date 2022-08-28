@@ -258,6 +258,7 @@ export class JSInterpreter implements Interpreter {
                 // 8.2.3.4 #fragment運用における受信機動作およびコンテンツガイドライン
                 // "#top"の場合リロードされないことが望ましい
                 // "startup.bml#top"の場合リロードが行われることが望ましい
+                content.focusFragment(documentName);
                 callback(0, undefined);
                 return;
             }
