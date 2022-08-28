@@ -882,6 +882,7 @@ export class Content {
                 await this.exitDocument();
                 return NaN;
             }
+            this.resources.invalidateRemoteCache(documentName);
         } else if (filename != null) {
             normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}/${filename}`;
         } else {

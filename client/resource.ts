@@ -722,6 +722,14 @@ export class Resources {
         return file;
     }
 
+    public invalidateRemoteCache(url: string): void {
+        if (this.ip.get == null || this.activeDocument == null || this.baseURIDirectory == null) {
+            return;
+        }
+        const full = this.activeDocument.startsWith("http://") || this.activeDocument.startsWith("https://") ? new URL(url, this.activeDocument).toString() : url;
+        this.cachedRemoteResources.delete(full);
+    }
+
     public fetchResourceAsync(url: string, requestType?: "lockModuleOnMemory" | "lockModuleOnMemoryEx"): Promise<CachedFile | null> {
         if (this.isInternetContent) {
             if (
