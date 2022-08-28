@@ -258,6 +258,9 @@ export namespace BML {
         private flowText(text: string) {
             const nextElement = this.textNode.nextElementSibling;
             const computedStyle = window.getComputedStyle(this.textNode);
+            if (computedStyle.whiteSpace === "normal") {
+                text = text.replace(/[ \n\r\t]+/g, " ");
+            }
             if (computedStyle.letterSpacing === "normal" || computedStyle.letterSpacing === "0px") {
                 if (this.textNodeInRoot == null) {
                     // shadow DOMの中なので外の* {}のようなCSSは適用されない一方プロパティは継承される

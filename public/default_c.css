@@ -105,6 +105,10 @@ arib-text, arib-cdata {
     border: none !important;
 }
 
+arib-cdata {
+    white-space: break-spaces !important;
+}
+
 a[web-bml-state="focus"], a[web-bml-state="active"] {
     background-color: var(--color) !important;
     color: var(--background-color-inherit) !important;

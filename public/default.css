@@ -187,7 +187,6 @@ span, a { letter-spacing : inherit !important }
     margin-inline-end: 0;
 }
 p {
-    white-space: break-spaces !important;
     line-break: anywhere !important;
 }
 body {
@@ -273,4 +272,8 @@ arib-text, arib-cdata {
     line-height: inherit !important;
     visibility: unset !important;
     border: none !important;
+}
+
+arib-cdata {
+    white-space: break-spaces !important;
 }
