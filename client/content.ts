@@ -633,13 +633,26 @@ export class Content {
         await this.launchStartup();
     }
 
+    private isFocusable(element: HTMLElement): boolean {
+        if (!BML.isFocusable(element)) {
+            return false;
+        }
+        if (this.cProfile) {
+            const { width, height } = element.getBoundingClientRect();
+            if (width === 0 || height === 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private focusFirstNavIndex() {
         for (let i = 0; ; i++) {
             const element = this.findNavIndex(i);
             if (element == null) {
                 break;
             }
-            if (BML.isFocusable(element)) {
+            if (this.isFocusable(element)) {
                 this.focusHelper(element);
                 break;
             }
@@ -981,7 +994,7 @@ export class Content {
             const accessKey = keyCodeToAccessKey.get(k);
             if (accessKey != null) {
                 const elem = this.documentElement.querySelector(`[accesskey="${accessKey}"]`) as HTMLElement;
-                if (elem != null && BML.isFocusable(elem)) {
+                if (elem != null && this.isFocusable(elem)) {
                     this.focusHelper(elem);
                     console.warn("accesskey is half implemented.");
                     // [6] 疑似的にkeyup割り込み事象が発生 keyCode = アクセスキー
@@ -1072,7 +1085,7 @@ export class Content {
                 if (next != null) {
                     nextFocusStyle = window.getComputedStyle(next);
                     // 非表示要素であれば飛ばされる (STD-B24 第二分冊 (1/2 第二編) 5.4.13.3参照)
-                    if (!BML.isFocusable(next)) {
+                    if (!this.isFocusable(next)) {
                         continue;
                     }
                     this.focusHelper(next);
