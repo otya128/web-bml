@@ -193,6 +193,10 @@ type NPT = {
     scaleNumerator: number,
 };
 
+export type LaunchDocumentOptions = {
+    withLink?: boolean,
+};
+
 export class Content {
     private documentElement: HTMLElement;
     private resources: Resources;
@@ -837,8 +841,8 @@ export class Content {
         });
     }
 
-    public launchDocument(documentName: string) {
-        this.launchDocumentAsync(documentName);
+    public launchDocument(documentName: string, options?: LaunchDocumentOptions) {
+        this.launchDocumentAsync(documentName, options);
         return NaN;
     }
 
@@ -857,7 +861,8 @@ export class Content {
         return false;
     }
 
-    private async launchDocumentAsync(documentName: string) {
+    private async launchDocumentAsync(documentName: string, options?: LaunchDocumentOptions) {
+        const withLink = options?.withLink ?? false;
         console.log("%claunchDocument", "font-size: 4em", documentName);
         this.eventQueue.discard();
         const { component, module, filename } = this.resources.parseURL(documentName);
@@ -866,7 +871,7 @@ export class Content {
         let normalizedDocument: string;
         if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
             const isInternet = documentName.startsWith("http://") || documentName.startsWith("https://");
-            if (isInternet && !this.resources.isInternetContent) {
+            if (isInternet && (!this.resources.isInternetContent || (this.cProfile && withLink))) {
                 // 放送コンテンツ->通信コンテンツへの遷移
                 this.resources.setBaseURIDirectory(documentName);
                 normalizedDocument = documentName;

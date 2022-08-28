@@ -251,6 +251,9 @@ export class JSInterpreter implements Interpreter {
 
     public reset() {
         const content = this.content;
+        const cProfile = this.cProfile;
+        const epg = this.epg;
+        const resources = this.resources;
         function launchDocument(callback: (result: any, promiseValue: any) => void, documentName: string, transitionStyle: string | undefined): void {
             browserLog("launchDocument", documentName, transitionStyle);
             if (documentName.startsWith("#")) {
@@ -272,8 +275,29 @@ export class JSInterpreter implements Interpreter {
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }
 
-        const epg = this.epg;
-        const resources = this.resources;
+        function X_DPA_launchDocWithLink(callback: (result: any, promiseValue: any) => void, documentName: string, transitionStyle: string | undefined): void {
+            console.log("%X_DPA_launchDocWithLink", "font-size: 4em", documentName);
+            if (!cProfile) {
+                callback(NaN, LAUNCH_DOCUMENT_CALLED);
+                return;
+            }
+            // 絶対URIを使用すること
+            // TR-B14 第三分冊 8.3.10.2
+            if (!documentName.startsWith("http://") && documentName.startsWith("https://")) {
+                callback(NaN, LAUNCH_DOCUMENT_CALLED);
+                return;
+            }
+            if (!resources.isInternetContent) {
+                // 放送受信状態で使われた場合失敗動作となる
+                // エラーメッセージを表示すべき (8.3.11.4)
+                content.quitDocument();
+                callback(NaN, LAUNCH_DOCUMENT_CALLED);
+                return;
+            }
+            const r = content.launchDocument(documentName, { withLink: true });
+            callback(r, LAUNCH_DOCUMENT_CALLED);
+        }
+
         function epgTune(callback: (result: any, promiseValue: any) => void, service_ref: string): void {
             browserLog("%cepgTune", "font-size: 4em", service_ref);
             const { originalNetworkId, transportStreamId, serviceId } = resources.parseServiceReference(service_ref);
@@ -329,6 +353,7 @@ export class JSInterpreter implements Interpreter {
             }
             interpreter.setProperty(pseudoBrowser, "launchDocument", interpreter.createAsyncFunction(launchDocument));
             interpreter.setProperty(pseudoBrowser, "reloadActiveDocument", interpreter.createAsyncFunction(reloadActiveDocument));
+            interpreter.setProperty(pseudoBrowser, "X_DPA_launchDocWithLink", interpreter.createAsyncFunction(X_DPA_launchDocWithLink));
             interpreter.setProperty(pseudoBrowser, "epgTune", interpreter.createAsyncFunction(epgTune));
             interpreter.setProperty(pseudoBrowser, "readPersistentArray", interpreter.createNativeFunction(function readPersistentArray(filename: string, structure: string): any[] | null {
                 return interpreter.arrayNativeToPseudo(browser.readPersistentArray(filename, structure));
@@ -347,7 +372,6 @@ export class JSInterpreter implements Interpreter {
             this.registerDOMClasses(interpreter, globalObject);
             interpreter.setProperty(globalObject, "document", this.domObjectToPseudo(interpreter, this.content.bmlDocument));
 
-            const cProfile = this.cProfile;
             const pseudoBinaryTable = interpreter.createAsyncFunction(function BinaryTable(this: any, callback: (result: any, resolveValue: any) => void, table_ref: string, structure: string) {
                 resources.fetchResourceAsync(table_ref).then(res => {
                     if (!res) {

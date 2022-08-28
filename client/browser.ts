@@ -197,7 +197,9 @@ export interface Browser {
     // Cプロファイル
     X_DPA_startResidentApp(appName: string, showAV: number, returnURI: string, ...Ex_info: string[]): number;
     X_DPA_getComBrowserUA(): string[][];(): string[][];
+    X_DPA_launchDocWithLink(documentName: string): number;
     X_DPA_getIRDID(type: number): string | null;
+    X_DPA_writeCproBM(title: string, dstURI: string, outline: string, CproBMtype: number, expire?: Date): number;
 }
 
 export interface AsyncBrowser {
@@ -1261,6 +1263,31 @@ export class BrowserAPI {
             }
             console.error("X_DPA_getIRDID: unknown type", type);
             return null;
+        },
+        X_DPA_writeCproBM: (title: string, dstURI: string, outline: string, CproBMtype: number, expire?: Date): number => {
+            // テレビリンクの登録
+            console.error("X_DPA_writeCproBM", title, dstURI, outline, CproBMtype, expire);
+            return NaN;
+        },
+        X_DPA_launchDocWithLink: (documentName: string): number => {
+            console.log("%X_DPA_launchDocWithLink", "font-size: 4em", documentName);
+            if (!this.cProfile) {
+                return NaN;
+            }
+            // 絶対URIを使用すること
+            // TR-B14 第三分冊 8.3.10.2
+            if (!documentName.startsWith("http://") && documentName.startsWith("https://")) {
+                return NaN;
+            }
+            if (!this.resources.isInternetContent) {
+                // 放送受信状態で使われた場合失敗動作となる
+                // エラーメッセージを表示すべき (8.3.11.4)
+                this.content.quitDocument();
+                return NaN;
+            }
+            this.content.launchDocument(documentName, { withLink: true });
+            this.interpreter.destroyStack();
+            throw new Error("unreachable!!");
         },
     } as Browser;
 
