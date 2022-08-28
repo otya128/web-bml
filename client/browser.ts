@@ -193,6 +193,10 @@ export interface Browser {
     // オプション
     // CS事業者専用領域に対する放送用拡張関数 (TR-B15 第四分冊)
     // async X_CSP_setAccessInfoToProviderArea(filename: string, structure: string): number;
+
+    // Cプロファイル
+    X_DPA_getComBrowserUA(): string[][];(): string[][];
+    X_DPA_startResidentApp(appName: string, showAV: number, returnURI: string, ...Ex_info: string[]): number;
 }
 
 export interface AsyncBrowser {
@@ -459,7 +463,7 @@ const cproAPIGroup = new Map([
     ["Print.MemoryCard1", 0],
     ["Print.MemoryCard2", 0],
     ["Xdpa.mailTo", 0],
-    ["Xdpa.RAStart", 0],
+    ["Xdpa.RAStart", 1],
     ["Xdpa.phoneTo", 0],
     ["Xdpa.RcvCond", 0],
     ["Xdpa.CurPos", 0],
@@ -468,7 +472,7 @@ const cproAPIGroup = new Map([
     ["Xdpa.stopExAv", 0],
     ["Xdpa.tuneRF", 0],
     ["Xdpa.SchInfo", 0],
-    ["Xdpa.ComBrowserUA", 0],
+    ["Xdpa.ComBrowserUA", 1],
     ["Xdpa.AddressBook", 0],
     ["Xdpa.launchWithL", 0],
     ["Xdpa.chkAV", 0],
@@ -1045,7 +1049,7 @@ export class BrowserAPI {
         },
         getBrowserStatus: (sProvider: string, statusname: string, additionalinfo: string): number => {
             console.log("getBrowserStatus", sProvider, statusname, additionalinfo);
-            if (sProvider === "TerrP") {
+            if (sProvider === "TerrP" || sProvider === "DPA" /* Cプロファイル */) {
                 if (statusname === "IRDState") {
                     if (additionalinfo === "Link") {
                         // リンク状態のみ実装
@@ -1217,6 +1221,28 @@ export class BrowserAPI {
             const npt = Math.floor((this.content.getNPT90kHz() ?? NaN) / 90);
             console.log("getNPT", npt);
             return npt;
+        },
+        // Cプロファイル
+        X_DPA_getComBrowserUA: (): string[][] => {
+            return [
+                [
+                    // メーカーID
+                    "00",
+                    // User-Agent
+                    ""
+                ]
+            ];
+        },
+        X_DPA_startResidentApp: (appName: string, showAV: number, returnURI: string, ...Ex_info: string[]): number => {
+            if (appName === "ComBrowser") {
+                const uri = String(Ex_info[0]);
+                // const mode = String(Ex_info[1]);
+                // const fullscreen = String(Ex_info[2]) === "1";
+                return NaN;
+            } else if (appName === "BOokmarkList") {
+                return NaN;
+            }
+            return NaN;
         },
     } as Browser;
 
