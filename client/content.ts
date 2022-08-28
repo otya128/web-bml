@@ -638,6 +638,11 @@ export class Content {
             return false;
         }
         if (this.cProfile) {
+            // STD-B24 第二分冊(2/2) 付属4 5.1.6
+            const focusable = element.nodeName.toLowerCase() === "a" || element.nodeName.toLowerCase() === "input" || element.nodeName.toLowerCase() === "textarea" || element.hasAttribute("onclick") || element.hasAttribute("onfocus") || element.hasAttribute("onblur") || element.hasAttribute("onkeydown") || element.hasAttribute("onkeyup");
+            if (!focusable) {
+                return false;
+            }
             const { width, height } = element.getBoundingClientRect();
             if (width === 0 || height === 0) {
                 return false;
