@@ -110,6 +110,10 @@ export interface Reg {
     setReg(index: number, value: string): void;
 }
 
+export type KeyGroup = "basic" | "data-button" | "numeric-tuning" | "other-tuning"
+    | "special-1" | "special-2" // Cプロファイル
+    ;
+
 interface BMLBrowserEventMap {
     // 読み込まれたとき
     "load": CustomEvent<{ resolution: { width: number, height: number }, displayAspectRatio: { numerator: number, denominator: number } }>;
@@ -120,7 +124,7 @@ interface BMLBrowserEventMap {
      * invisibleがtrueである場合渡される矩形に関わらず全面に表示する必要がある
      */
     "videochanged": CustomEvent<{ clientRect: { left: number, top: number, right: number, bottom: number }, boundingRect: DOMRect }>;
-    "usedkeylistchanged": CustomEvent<{ usedKeyList: Set<"basic" | "data-button" | "numeric-tuning"> }>;
+    "usedkeylistchanged": CustomEvent<{ usedKeyList: Set<KeyGroup> }>;
     "audiostreamchanged": CustomEvent<{ componentId: number, channelId?: number }>;
 }
 

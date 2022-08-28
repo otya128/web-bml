@@ -1,4 +1,4 @@
-import { BMLBrowserEventTarget } from "../bml_browser";
+import { BMLBrowserEventTarget, KeyGroup } from "../bml_browser";
 import { colorIndexToVar, getFontSize, setFontSize, varToColorIndex } from "../transpile_css";
 
 type DOMString = string;
@@ -165,8 +165,8 @@ export class BMLCSS2Properties {
             // bodyにfocus/activeは運用されない
             this.eventTarget.dispatchEvent<"usedkeylistchanged">(new CustomEvent("usedkeylistchanged", {
                 detail: {
-                    usedKeyList: new Set(value.split(" ").filter((x): x is "basic" | "numeric-tuning" | "data-button" => {
-                        return x === "basic" || x === "numeric-tuning" || x === "data-button";
+                    usedKeyList: new Set(value.split(" ").filter((x): x is KeyGroup => {
+                        return x === "basic" || x === "numeric-tuning" || x === "data-button" || x === "special-1" || x === "special-2";
                     }))
                 }
             }));

@@ -11,7 +11,7 @@ import { bmlToXHTMLFXP } from "./bml_to_xhtml";
 import { NPTReference, ResponseMessage } from "../server/ws_api";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { Interpreter } from "./interpreter/interpreter";
-import { BMLBrowserEventTarget, Indicator, InputApplication } from "./bml_browser";
+import { BMLBrowserEventTarget, Indicator, InputApplication, KeyGroup } from "./bml_browser";
 import { convertJPEG } from "./arib_jpeg";
 
 export enum AribKeyCode {
@@ -49,10 +49,6 @@ export enum AribKeyCode {
     // Cプロファイル #
     Hash = 102,
 }
-
-type KeyGroup = "basic" | "data-button" | "numeric-tuning" | "other-tuning"
-    | "special-1" | "special-2" // Cプロファイル
-    ;
 
 // TR-B14 第二分冊 5.3.1 表5-5参照
 const keyCodeToKeyGroup = new Map<AribKeyCode, KeyGroup>([
@@ -733,8 +729,8 @@ export class Content {
         const usedKeyList = bodyStyle.getPropertyValue("--used-key-list");
         this.bmlEventTarget.dispatchEvent<"usedkeylistchanged">(new CustomEvent("usedkeylistchanged", {
             detail: {
-                usedKeyList: new Set(usedKeyList.split(" ").filter((x): x is "basic" | "numeric-tuning" | "data-button" => {
-                    return x === "basic" || x === "numeric-tuning" || x === "data-button";
+                usedKeyList: new Set(usedKeyList.split(" ").filter((x): x is KeyGroup => {
+                    return x === "basic" || x === "numeric-tuning" || x === "data-button" || x === "special-1" || x === "special-2";
                 }))
             }
         }));
