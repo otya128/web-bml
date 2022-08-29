@@ -7,16 +7,16 @@ export type TextEncodeFunction = (input: string) => Uint8Array;
 
 export function getTextDecoder(profile: Profile | undefined): TextDecodeFunction {
     if (profile === Profile.TrProfileC) {
-        return decodeEUCJP;
-    } else {
         return decodeShiftJIS;
+    } else {
+        return decodeEUCJP;
     }
 }
 
 export function getTextEncoder(profile: Profile | undefined): TextEncodeFunction {
     if (profile === Profile.TrProfileC) {
-        return encodeEUCJP;
-    } else {
         return encodeShiftJIS;
+    } else {
+        return encodeEUCJP;
     }
 }

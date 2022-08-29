@@ -196,7 +196,6 @@ export class BMLBrowser {
     private readonly epg: EPG;
     private readonly defaultAudioNodeProvider?: DefaultAudioNodeProvider;
     public constructor(options: BMLBrowserOptions) {
-        const cProfile = options.cProfile ?? false;
         this.containerElement = options.containerElement;
         this.mediaElement = options.mediaElement;
         this.indicator = options.indicator;
