@@ -12,5 +12,5 @@ export interface Interpreter {
     destroyStack(): void;
     resetStack(): void;
     get isExecuting(): boolean;
-    setupEnvironment(browserAPI: BrowserAPI, resources: Resources, content: Content, epg: EPG, cProfile: boolean): void;
+    setupEnvironment(browserAPI: BrowserAPI, resources: Resources, content: Content, epg: EPG): void;
 }

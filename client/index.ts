@@ -51,7 +51,6 @@ function getParametersFromUrl(urlString: string): Param | {} {
 }
 
 const format = new URLSearchParams(location.search).get("format");
-const cProfile = new URLSearchParams(location.search).has("cProfile");
 const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/ws?param=" + encodeURIComponent(JSON.stringify(getParametersFromUrl(location.href))));
 
 let player: VideoPlayer | undefined;
@@ -135,7 +134,6 @@ const bmlBrowser = new BMLBrowser({
     epg,
     ip: apiIP,
     inputApplication,
-    cProfile,
 });
 
 remoteControl.content = bmlBrowser.content;

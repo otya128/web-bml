@@ -3,7 +3,15 @@ import * as BT from "../binary_table";
 import { Interpreter } from "./interpreter";
 import { Content } from "../content";
 import { getTrace, getLog } from "../util/trace";
-import { Resources } from "../resource";
+import { Profile, Resources } from "../resource";
+import { BML } from "../interface/DOM";
+import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
+import { BrowserAPI } from "../browser";
+import * as bmlDate from "../date";
+import * as bmlNumber from "../number";
+import * as bmlString from "../string";
+import { EPG } from "../bml_browser";
+import { getTextDecoder } from "../text";
 
 const domTrace = getTrace("js-interpreter.dom");
 const eventTrace = getTrace("js-interpreter.event");
@@ -27,16 +35,6 @@ const LAUNCH_DOCUMENT_CALLED = {};
  * XMLDoc (Class.XMLDocが1であればサポート)
  * navigator (運用しない)
  */
-
-import { BML } from "../interface/DOM";
-import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
-import { BrowserAPI } from "../browser";
-import * as bmlDate from "../date";
-import * as bmlNumber from "../number";
-import * as bmlString from "../string";
-import { EPG } from "../bml_browser";
-import { decodeShiftJIS } from "../shift_jis";
-import { decodeEUCJP } from "../euc_jp";
 
 function initNumber(interpreter: any, globalObject: any) {
     var thisInterpreter = interpreter;
@@ -251,7 +249,6 @@ export class JSInterpreter implements Interpreter {
 
     public reset() {
         const content = this.content;
-        const cProfile = this.cProfile;
         const epg = this.epg;
         const resources = this.resources;
         function launchDocument(callback: (result: any, promiseValue: any) => void, documentName: string, transitionStyle: string | undefined): void {
@@ -277,7 +274,7 @@ export class JSInterpreter implements Interpreter {
 
         function X_DPA_launchDocWithLink(callback: (result: any, promiseValue: any) => void, documentName: string, transitionStyle: string | undefined): void {
             console.log("%X_DPA_launchDocWithLink", "font-size: 4em", documentName);
-            if (!cProfile) {
+            if (resources.profile !== Profile.TrProfileC) {
                 callback(NaN, LAUNCH_DOCUMENT_CALLED);
                 return;
             }
@@ -381,7 +378,7 @@ export class JSInterpreter implements Interpreter {
                     }
                     browserLog("new BinaryTable", table_ref);
                     let buffer: Uint8Array = res.data;
-                    this.instance = new BT.BinaryTable(buffer, structure, cProfile ? decodeShiftJIS : decodeEUCJP);
+                    this.instance = new BT.BinaryTable(buffer, structure, getTextDecoder(resources.profile));
                     callback(this, undefined);
                 });
             });
@@ -521,18 +518,16 @@ export class JSInterpreter implements Interpreter {
     private resources: Resources = null!;
     private content: Content = null!;
     private epg: EPG = null!;
-    private cProfile: boolean = false;
     public constructor() {
         this._isExecuting = false;
     }
 
-    public setupEnvironment(browserAPI: BrowserAPI, resources: Resources, content: Content, epg: EPG, cProfile: boolean): void {
+    public setupEnvironment(browserAPI: BrowserAPI, resources: Resources, content: Content, epg: EPG): void {
         this.browserAPI = browserAPI;
         this._isExecuting = false;
         this.resources = resources;
         this.content = content;
         this.epg = epg;
-        this.cProfile = cProfile;
         this.reset();
     }
 

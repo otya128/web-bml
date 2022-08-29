@@ -1,7 +1,5 @@
 import css from "css";
-import { Resources, CachedFile } from "./resource";
-import { decodeEUCJP } from "./euc_jp";
-import { decodeShiftJIS } from "./shift_jis";
+import { Resources, CachedFile, Profile } from "./resource";
 import { defaultCLUT } from "./default_clut";
 import { readCLUT } from "./clut";
 import { transpileCSS } from "./transpile_css";
@@ -13,6 +11,11 @@ import { EventDispatcher, EventQueue } from "./event_queue";
 import { Interpreter } from "./interpreter/interpreter";
 import { BMLBrowserEventTarget, Indicator, InputApplication, KeyGroup } from "./bml_browser";
 import { convertJPEG } from "./arib_jpeg";
+import { getTextDecoder } from "./text";
+// @ts-ignore
+import defaultCSS from "../public/default.css";
+// @ts-ignore
+import defaultCProfileCSS from "../public/default_c.css";
 
 export enum AribKeyCode {
     Up = 1,
@@ -211,8 +214,7 @@ export class Content {
     private strictTextRenderingEnabled = true;
     private readonly inputApplication?: InputApplication;
     private npt?: NPT;
-    private decodeText: (input: Uint8Array) => string;
-    private cProfile: boolean;
+    private uaStyle?: HTMLStyleElement;
     public constructor(
         bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
@@ -225,7 +227,6 @@ export class Content {
         indicator: Indicator | undefined,
         videoPlaneModeEnabled: boolean,
         inputApplication: InputApplication | undefined,
-        cProfile: boolean,
     ) {
         this.bmlDocument = bmlDocument;
         this.documentElement = documentElement;
@@ -238,8 +239,6 @@ export class Content {
         this.indicator = indicator;
         this.videoPlaneModeEnabled = videoPlaneModeEnabled;
         this.inputApplication = inputApplication;
-        this.decodeText = cProfile ? decodeShiftJIS : decodeEUCJP;
-        this.cProfile = cProfile;
 
         this.documentElement.addEventListener("keydown", (event) => {
             if (event.altKey || event.ctrlKey || event.metaKey) {
@@ -382,6 +381,10 @@ export class Content {
         });
     }
 
+    private decodeText(input: Uint8Array): string {
+        return getTextDecoder(this.resources.profile)(input);
+    }
+
     private _currentDateMode: number = 0;
     public set currentDateMode(timeMode: number) {
         this._currentDateMode = timeMode;
@@ -488,9 +491,14 @@ export class Content {
     }
 
     private async loadDocumentToDOM(data: string): Promise<void> {
+        if (this.uaStyle == null) {
+            this.uaStyle = document.createElement("style");
+            this.uaStyle.textContent = this.resources.profile === Profile.TrProfileC ? defaultCProfileCSS : defaultCSS;
+            this.documentElement.parentNode?.prepend(this.uaStyle);
+        }
         const xhtmlDocument = new DOMParser().parseFromString(`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja"></html>`, "application/xhtml+xml");
         const documentElement = xhtmlDocument.createElement("html");
-        documentElement.innerHTML = bmlToXHTMLFXP(data, this.cProfile);
+        documentElement.innerHTML = bmlToXHTMLFXP(data, this.resources.profile === Profile.TrProfileC);
         const p = Array.from(this.documentElement.childNodes).filter(x => x.nodeName.toLowerCase() === "body" || x.nodeName.toLowerCase() === "head");
         const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
         const prevBody = this.getBody();
@@ -637,7 +645,7 @@ export class Content {
         if (!BML.isFocusable(element)) {
             return false;
         }
-        if (this.cProfile) {
+        if (this.resources.profile === Profile.TrProfileC) {
             // STD-B24 第二分冊(2/2) 付属4 5.1.6
             const focusable = element.nodeName.toLowerCase() === "a" || element.nodeName.toLowerCase() === "input" || element.nodeName.toLowerCase() === "textarea" || element.hasAttribute("onclick") || element.hasAttribute("onfocus") || element.hasAttribute("onblur") || element.hasAttribute("onkeydown") || element.hasAttribute("onkeyup");
             if (!focusable) {
@@ -667,7 +675,7 @@ export class Content {
     // Cプロファイルでは受信機が適切にナビゲーションを行う (STD-B24 第二分冊 (2/2) 5.1.6 フォーカスの運用)
     // nav-indexを使って再現する
     private shimCProfileNavigation() {
-        if (!this.cProfile) {
+        if (this.resources.profile !== Profile.TrProfileC) {
             return;
         }
         this.documentElement.querySelectorAll("a, input, textarea, [onclick], [onfocus], [onblur], [onkeydown], [onkeyup]").forEach((element, i) => {
@@ -740,7 +748,7 @@ export class Content {
         let exit = false;
         let scriptCount = 0;
         try {
-            if (this.cProfile) {
+            if (this.resources.profile === Profile.TrProfileC) {
                 this.shimCProfileNavigation();
                 this.focusFirstNavIndex();
             } else {
@@ -869,7 +877,7 @@ export class Content {
         let normalizedDocument: string;
         if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
             const isInternet = documentName.startsWith("http://") || documentName.startsWith("https://");
-            if (isInternet && (!this.resources.isInternetContent || (this.cProfile && withLink))) {
+            if (isInternet && (!this.resources.isInternetContent || (this.resources.profile === Profile.TrProfileC && withLink))) {
                 // 放送コンテンツ->通信コンテンツへの遷移
                 this.resources.setBaseURIDirectory(documentName);
                 normalizedDocument = documentName;
@@ -927,7 +935,7 @@ export class Content {
         };
         this.keyProcessStatus = keyProcessStatus;
         let focusElement = this.bmlDocument.currentFocus?.["node"];
-        if (this.cProfile) {
+        if (this.resources.profile === Profile.TrProfileC) {
             if (k == AribKeyCode.Left || k == AribKeyCode.Right || k == AribKeyCode.Up || k == AribKeyCode.Down) {
                 if (focusElement == null) {
                     this.focusFirstNavIndex();
@@ -962,7 +970,7 @@ export class Content {
         if (usedKeyList.length && usedKeyList[0] === "none") {
             return;
         }
-        const keyGroup = (this.cProfile ? keyCodeToKeyGroupCProfile : keyCodeToKeyGroup).get(k);
+        const keyGroup = (this.resources.profile === Profile.TrProfileC ? keyCodeToKeyGroupCProfile : keyCodeToKeyGroup).get(k);
         if (keyGroup == null) {
             return;
         }
@@ -1244,7 +1252,7 @@ export class Content {
             const adata = obj.getAttribute("arib-data");
             BML.nodeToBMLNode(obj, this.bmlDocument).data = adata!;
         });
-        if (this.cProfile) {
+        if (this.resources.profile === Profile.TrProfileC) {
             this.documentElement.querySelectorAll("img").forEach(obj => {
                 const asrc = obj.getAttribute("arib-src");
                 BML.nodeToBMLNode(obj, this.bmlDocument).src = asrc!;

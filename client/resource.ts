@@ -151,6 +151,13 @@ class CacheMap {
     }
 }
 
+export enum Profile {
+    BS = 0x0007,
+    CS = 0x000b,
+    TrProfileA = 0x000c,
+    TrProfileC = 0x000d,
+}
+
 export class Resources {
     private readonly indicator?: Indicator;
     private readonly eventTarget: ResourcesEventTarget = new EventTarget();
@@ -159,12 +166,16 @@ export class Resources {
     // とりあえず10 MiB, 400ファイル
     private readonly cachedRemoteResources: CacheMap = new CacheMap(400, 1024 * 1024 * 10);
     private readonly remoteResourceRequests: Map<string, RemoteResourceRequest[]> = new Map();
-    private readonly cProfile: boolean;
 
-    public constructor(indicator: Indicator | undefined, ip: IP, cProfile: boolean) {
+    public constructor(indicator: Indicator | undefined, ip: IP) {
         this.indicator = indicator;
         this.ip = ip;
-        this.cProfile = cProfile;
+    }
+
+    private _profile?: Profile;
+
+    public get profile(): Profile | undefined {
+        return this._profile;
     }
 
     private _activeDocument: null | string = null;
@@ -508,6 +519,9 @@ export class Resources {
             const prevComponents = this.pmtComponents;
             // 0x0d: データカルーセル
             this.pmtComponents = new Map(msg.components.filter(x => x.streamType === 0x0d).map(x => [x.componentId, x]));
+            if (prevComponents.size === 0) {
+                this._profile = this.pmtComponents.get(0x40)?.dataComponentId ?? this.pmtComponents.get(0x80)?.dataComponentId;
+            }
             for (const [componentId, creqs] of this.componentRequests) {
                 if (this.pmtComponents.has(componentId)) {
                     continue;
@@ -857,7 +871,7 @@ export class Resources {
     }
 
     public get startupComponentId(): number {
-        return this.cProfile ? 0x80 : 0x40;
+        return this._profile === Profile.TrProfileC ? 0x80 : 0x40;
     }
 
     public get startupModuleId(): number {

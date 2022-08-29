@@ -8,10 +8,6 @@ import { Interpreter } from "./interpreter/interpreter";
 import { JSInterpreter } from "./interpreter/js_interpreter";
 import { NVRAM } from "./nvram";
 import { Resources } from "./resource";
-// @ts-ignore
-import defaultCSS from "../public/default.css";
-// @ts-ignore
-import defaultCProfileCSS from "../public/default_c.css";
 
 export interface AudioNodeProvider {
     getAudioDestinationNode(): AudioNode;
@@ -178,10 +174,6 @@ export type BMLBrowserOptions = {
     ureg?: Reg;
     greg?: Reg;
     setMainAudioStreamCallback?: (componentId: number, channelId?: number) => boolean;
-    /**
-     * Cプロファイル(ワンセグ)のデータ放送ならtrueを指定
-     */
-    cProfile?: boolean;
 };
 
 export class BMLBrowser {
@@ -197,7 +189,7 @@ export class BMLBrowser {
     private eventDispatcher: EventDispatcher;
     public readonly broadcasterDatabase: BroadcasterDatabase;
     public readonly content: Content;
-    private bmlDomDocument: BML.BMLDocument;
+    private readonly bmlDocument: BML.BMLDocument;
     private indicator?: Indicator;
     private eventTarget: BMLBrowserEventTarget = new EventTarget();
     private fonts: FontFace[] = [];
@@ -209,36 +201,32 @@ export class BMLBrowser {
         this.mediaElement = options.mediaElement;
         this.indicator = options.indicator;
         this.shadowRoot = options.containerElement.attachShadow({ mode: "closed" });
-        const uaStyle = document.createElement("style");
-        uaStyle.textContent = cProfile ? defaultCProfileCSS : defaultCSS;
-        this.shadowRoot.appendChild(uaStyle);
         this.documentElement = document.createElement("html");
         if (options.tabIndex != null) {
             this.documentElement.tabIndex = options.tabIndex;
         }
         this.shadowRoot.appendChild(this.documentElement);
-        this.resources = new Resources(this.indicator, options.ip ?? {}, cProfile);
-        this.broadcasterDatabase = new BroadcasterDatabase(this.resources, (options.storagePrefix ?? "") + (options.broadcasterDatabasePrefix ?? ""));
-        this.broadcasterDatabase.openDatabase();
-        this.nvram = new NVRAM(this.resources, this.broadcasterDatabase, cProfile, (options.storagePrefix ?? "") + (options.nvramPrefix ?? "nvram_"));
-        this.epg = options.epg ?? {};
-        this.interpreter = new JSInterpreter();
-        this.eventQueue = new EventQueue(this.interpreter);
         let audioNodeProvider = options.audioNodeProvider;
         if (audioNodeProvider == null) {
             this.defaultAudioNodeProvider = new DefaultAudioNodeProvider();
             audioNodeProvider = this.defaultAudioNodeProvider;
         }
-        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioNodeProvider, options.inputApplication, options.setMainAudioStreamCallback);
-        this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
-        this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false, options.inputApplication, cProfile);
-        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioNodeProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg, cProfile);
-
+        this.epg = options.epg ?? {};
+        this.interpreter = new JSInterpreter();
+        this.eventQueue = new EventQueue(this.interpreter);
+        this.resources = new Resources(this.indicator, options.ip ?? {});
+        this.broadcasterDatabase = new BroadcasterDatabase(this.resources, (options.storagePrefix ?? "") + (options.broadcasterDatabasePrefix ?? ""));
+        this.broadcasterDatabase.openDatabase();
+        this.nvram = new NVRAM(this.resources, this.broadcasterDatabase, (options.storagePrefix ?? "") + (options.nvramPrefix ?? "nvram_"));
+        this.bmlDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioNodeProvider, options.inputApplication, options.setMainAudioStreamCallback);
+        this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDocument, this.resources);
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
         this.eventQueue.dispatchChange = this.eventDispatcher.dispatchChange.bind(this.eventDispatcher);
-        this.interpreter.setupEnvironment(this.browserAPI, this.resources, this.content, this.epg, cProfile);
+        this.content = new Content(this.bmlDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false, options.inputApplication);
+        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioNodeProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg);
+        this.interpreter.setupEnvironment(this.browserAPI, this.resources, this.content, this.epg);
         if (options.fonts?.roundGothic) {
             this.fonts.push(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));
         }

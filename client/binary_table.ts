@@ -1,3 +1,4 @@
+import { TextDecodeFunction, TextEncodeFunction } from "./text";
 import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
 
 enum BinaryTableUnit {
@@ -89,7 +90,7 @@ export function parseBinaryStructure(structure: string): BinaryTableField[] | nu
     return fields;
 }
 
-export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[], decodeText: (input: Uint8Array) => string, posBits?: number): [result: any[], posBits: number] {
+export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[], decodeText: TextDecodeFunction, posBits?: number): [result: any[], posBits: number] {
     posBits = posBits ?? 0;
     const columns: any[] = [];
     for (const field of fields) {
@@ -193,7 +194,7 @@ export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[],
     return [columns, posBits];
 }
 
-export function writeBinaryFields(data: any[], fields: BinaryTableField[], encodeText: (input: string) => Uint8Array): Uint8Array {
+export function writeBinaryFields(data: any[], fields: BinaryTableField[], encodeText: TextEncodeFunction): Uint8Array {
     if (data.length < fields.length) {
         throw new Error("FIXME");
     }
@@ -372,13 +373,13 @@ export class BinaryTable {
     rows: any[][];
     fields: BinaryTableField[];
 
-    constructor(table: Uint8Array, structure: string, decodeText: (input: Uint8Array) => string) {
+    constructor(table: Uint8Array, structure: string, decodeText: TextDecodeFunction) {
         const { rows, fields } = BinaryTable.constructBinaryTable(table, structure, decodeText);
         this.rows = rows;
         this.fields = fields;
     }
 
-    static constructBinaryTable(buffer: Uint8Array, structure: string, decodeText: (input: Uint8Array) => string): { rows: any[][], fields: BinaryTableField[] } {
+    static constructBinaryTable(buffer: Uint8Array, structure: string, decodeText: TextDecodeFunction): { rows: any[][], fields: BinaryTableField[] } {
         const sep = structure.split(",");
         if (sep.length < 2) {
             throw new Error("FIXME");

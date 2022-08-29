@@ -1,9 +1,8 @@
 // /documents/nvram.md参照
 import { parseBinaryStructure, readBinaryFields, writeBinaryFields } from "./binary_table";
 import { BroadcasterDatabase } from "./broadcaster_database";
-import { decodeEUCJP, encodeEUCJP } from "./euc_jp";
 import { Resources } from "./resource";
-import { decodeShiftJIS, encodeShiftJIS } from "./shift_jis";
+import { getTextDecoder, getTextEncoder } from "./text";
 
 type NvramAccessId =
     "broadcaster_id" | // 事業者ごと(BSとCS)
@@ -268,19 +267,10 @@ export class NVRAM {
     resources: Resources;
     broadcasterDatabase: BroadcasterDatabase;
     prefix: string;
-    decodeText: (input: Uint8Array) => string;
-    encodeText: (input: string) => Uint8Array;
-    constructor(resources: Resources, broadcasterDatabase: BroadcasterDatabase, cProfile: boolean, prefix?: string) {
+    constructor(resources: Resources, broadcasterDatabase: BroadcasterDatabase, prefix?: string) {
         this.resources = resources;
         this.broadcasterDatabase = broadcasterDatabase;
         this.prefix = prefix ?? "nvram_";
-        if (cProfile) {
-            this.decodeText = decodeShiftJIS;
-            this.encodeText = encodeShiftJIS;
-        } else {
-            this.decodeText = decodeEUCJP;
-            this.encodeText = encodeEUCJP;
-        }
     }
 
     private getBroadcasterInfo(): BroadcasterInfo {
@@ -536,7 +526,7 @@ export class NVRAM {
         if (!a) {
             return null;
         }
-        let [result, _] = readBinaryFields(a, fields, this.decodeText);
+        let [result, _] = readBinaryFields(a, fields, getTextDecoder(this.resources.profile));
         return result;
     }
 
@@ -552,7 +542,7 @@ export class NVRAM {
             console.error("writePersistentArray: fields.length > data.length");
             return NaN;
         }
-        let bin = writeBinaryFields(data, fields, this.encodeText);
+        let bin = writeBinaryFields(data, fields, getTextEncoder(this.resources.profile));
         return this.writeNVRAM(filename, bin, force ?? false);
     }
 
@@ -571,7 +561,7 @@ export class NVRAM {
         let update: string | undefined;
         let serviceIdList: number[] = [];
         while (off < data.length) {
-            const [result, readBits] = readBinaryFields(data.subarray(off), structure, this.decodeText);
+            const [result, readBits] = readBinaryFields(data.subarray(off), structure, getTextDecoder(this.resources.profile));
             if (off === 0) {
                 update = result[0] as string;
             }
@@ -615,7 +605,7 @@ export class NVRAM {
         if (!a) {
             return null;
         }
-        let [result, _] = readBinaryFields(a, fields, this.decodeText);
+        let [result, _] = readBinaryFields(a, fields, getTextDecoder(this.resources.profile));
         return result;
     }
 
@@ -631,7 +621,7 @@ export class NVRAM {
             console.error("writePersistentArrayWithAccessCheck: fields.length > data.length");
             return NaN;
         }
-        let bin = writeBinaryFields(data, fields, this.encodeText);
+        let bin = writeBinaryFields(data, fields, getTextEncoder(this.resources.profile));
         return this.writeNVRAM(filename, bin, false);
     }
 
