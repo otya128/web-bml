@@ -144,7 +144,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
 
     tsStream.on("pmt", (pid: any, data: any) => {
         // 多重化されている
-        if (pidToProgramNumber.size >= 2) {
+        if (pidToProgramNumber.size !== 1) {
             if (pidToProgramNumber.get(pid) !== (serviceId ?? programNumber)) {
                 return;
             }
