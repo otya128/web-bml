@@ -9,7 +9,7 @@ import { bmlToXHTMLFXP } from "./bml_to_xhtml";
 import { NPTReference, ResponseMessage } from "../server/ws_api";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { Interpreter } from "./interpreter/interpreter";
-import { BMLBrowserEventTarget, Indicator, InputApplication, KeyGroup } from "./bml_browser";
+import { BMLBrowserEventTarget, Indicator, InputApplication, KeyGroup, Profile as BMLBrowserProfile } from "./bml_browser";
 import { convertJPEG } from "./arib_jpeg";
 import { getTextDecoder } from "./text";
 // @ts-ignore
@@ -728,7 +728,29 @@ export class Content {
             aspectNum = 1;
             aspectDen = 2;
         }
-        this.bmlEventTarget.dispatchEvent<"load">(new CustomEvent("load", { detail: { resolution: { width, height }, displayAspectRatio: { numerator: aspectNum, denominator: aspectDen } } }));
+
+        function mapProfile(profile: Profile | undefined): BMLBrowserProfile {
+            switch (profile) {
+                case Profile.TrProfileA:
+                    return "A";
+                case Profile.TrProfileC:
+                    return "C";
+                case Profile.BS:
+                    return "BS";
+                case Profile.CS:
+                    return "CS";
+                default:
+                    return "";
+            }
+        }
+    
+        this.bmlEventTarget.dispatchEvent<"load">(new CustomEvent("load", {
+            detail: {
+                resolution: { width, height },
+                displayAspectRatio: { numerator: aspectNum, denominator: aspectDen },
+                profile: mapProfile(this.resources.profile),
+            }
+        }));
         body.style.maxWidth = width + "px";
         body.style.minWidth = width + "px";
         body.style.maxHeight = height + "px";

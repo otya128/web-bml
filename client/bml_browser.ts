@@ -110,9 +110,11 @@ export type KeyGroup = "basic" | "data-button" | "numeric-tuning" | "other-tunin
     | "special-1" | "special-2" // Cプロファイル
     ;
 
+export type Profile = "C" | "A" | "BS" | "CS" | "";
+
 interface BMLBrowserEventMap {
     // 読み込まれたとき
-    "load": CustomEvent<{ resolution: { width: number, height: number }, displayAspectRatio: { numerator: number, denominator: number } }>;
+    "load": CustomEvent<{ resolution: { width: number, height: number }, displayAspectRatio: { numerator: number, denominator: number }, profile: Profile }>;
     // invisibleが設定されているときtrue
     "invisible": CustomEvent<boolean>;
     /**
