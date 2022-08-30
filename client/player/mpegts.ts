@@ -38,7 +38,7 @@ export class MPEGTSVideoPlayer extends VideoPlayer {
                 url: new URL(source + ".h264.m2ts", location.href).toString(),
             }, {
                 enableWorker: true,
-                liveBufferLatencyChasing: true,
+                // liveBufferLatencyChasing: true,
                 liveBufferLatencyMinRemain: 1.0,
                 liveBufferLatencyMaxLatency: 2.0,
             });
