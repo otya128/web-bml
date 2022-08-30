@@ -1,3 +1,4 @@
+import { parseMediaTypeFromString } from "../server/entity_parser";
 import { ComponentPMT, MediaType, ModuleListEntry, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
 import { Indicator, IP } from "./bml_browser";
 
@@ -720,9 +721,17 @@ export class Resources {
             }
             return null;
         }
+        const contentType = headers.get("content-type");
+        let mediaType: MediaType = { originalSubtype: "", originalType: "", parameters: [], subtype: "", type: "" };
+        if (contentType != null) {
+            const result = parseMediaTypeFromString(contentType);
+            if (result.mediaType != null) {
+                mediaType = result.mediaType;
+            }
+        }
         const file: RemoteCachedFile = {
             contentLocation: null,
-            contentType: { originalSubtype: "", originalType: "", parameters: [], subtype: "", type: "" },
+            contentType: mediaType,
             data: response,
             blobUrl: new Map<any, CachedFileMetadata>(),
             cacheControl: headers.get("Cache-Control")?.toLowerCase()
