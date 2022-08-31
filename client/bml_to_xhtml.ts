@@ -67,8 +67,9 @@ export function bmlToXHTMLFXP(data: string, cProfile: boolean): string {
             const next = i + 1 < children.length ? getXmlNodeName(children[i + 1]) : "";
             // STD-B24 第二分冊(2/2) 第二編 付属2 5.3.2参照
             if ("#text" in c) {
-                // STD-B24 第二分冊(2/2) 付属4 5.3.2
-                // TR-B14 第三分冊 7.7.3 注3によると全てxml:space="preserve"相当とも読めるけど違いそう
+                // STD-B24 第二分冊(2/2) 付属4 5.3.2 p, span, a以外も付属2 5.3.2と同様の処理
+                // STD-B24 第二分冊(2/2) 付属4 5.3.3 pre要素はxml:space="preserve"
+                // TR-B14 第三分冊 7.7.3 表7-5 注3 textareaもpreと同様
                 if (cProfile && (nodeName === "pre" || nodeName === "textarea")) {
                     if (prev == "") {
                         c["#text"] = c["#text"].replace(/^([ \t\n\r]+)/g, "");
