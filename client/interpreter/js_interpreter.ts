@@ -88,9 +88,6 @@ function initString(interpreter: any, globalObject: any) {
     interpreter.setProperty(globalObject, 'String', interpreter.STRING,
         Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    // Static methods on String.
-    interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.eucJPFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
-
     // Instance methods on String.
     // Methods with exclusively primitive arguments.
     // toUpperCase/toLowerCaseは全角英字では動かずASCIIの範囲のみかも
@@ -100,7 +97,6 @@ function initString(interpreter: any, globalObject: any) {
             String.prototype[functions[i] as any]);
     }
 
-    interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.eucJPCharCodeAt);
     wrapper = function split(this: string, separator: string) {
         var string = String(this);
         var jsList = string.split(separator);
@@ -507,6 +503,13 @@ export class JSInterpreter implements Interpreter {
             }
             initDate(interpreter, globalObject);
             initString(interpreter, globalObject);
+            if (resources.profile === Profile.TrProfileC) {
+                interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.shiftJISFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
+                interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.shiftJISCharCodeAt);
+            } else {
+                interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.eucJPFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
+                interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.eucJPCharCodeAt);
+            }
             initNumber(interpreter, globalObject);
         });
         this.resetStack();
