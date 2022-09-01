@@ -122,8 +122,10 @@ arib-cdata {
 }
 
 a[web-bml-state="focus"], a[web-bml-state="active"] {
-    background-color: var(--color) !important;
-    color: var(--background-color-inherit) !important;
+    /* background-color: var(--color) !important;
+    color: var(--background-color-inherit) !important; */
+    background-color: blue !important;
+    color: white !important;
 }
 
 :where(p) {
