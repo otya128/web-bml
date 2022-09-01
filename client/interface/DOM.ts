@@ -226,6 +226,7 @@ export namespace BML {
         protected root: ShadowRoot;
         protected textNodeInRoot?: globalThis.CharacterData;
         protected textData: string;
+        protected marquee?: globalThis.HTMLElement;
         constructor(node: globalThis.CharacterData, ownerDocument: BMLDocument) {
             super(node, ownerDocument);
             // strictTextRenderingが有効の場合
@@ -255,17 +256,70 @@ export namespace BML {
             return null;
         }
 
+        private createMarquee(computedStyle: CSSStyleDeclaration): globalThis.HTMLElement {
+            const style = computedStyle.getPropertyValue("---wap-marquee-style").trim().toLowerCase();
+            // 初期値: 1 最大値: 16
+            // infinite
+            const loop = Number.parseInt(computedStyle.getPropertyValue("---wap-marquee-loop").trim().toLowerCase());
+            if (loop === 0 || computedStyle.visibility === "hidden") {
+                // > また、0が設定された場合は、指定回marquee動作を行なった後と同様に表示されるだけである。
+                // TR-B14
+                // > If the value is "0", no looping occurs and the element is displayed as if it had finished looping a specified number of times.
+                // WAP
+                const span = document.createElement("span");
+                if (style !== "slide") {
+                    span.style.visibility = "hidden";
+                }
+                return span;
+            }
+            const marquee = document.createElement("marquee");
+            marquee.behavior = style;
+            if (Number.isFinite(loop)) {
+                if (loop !== 0) {
+                } else {
+                    marquee.loop = loop;
+                }
+            }
+            // dirはrtl固定
+            const speed = computedStyle.getPropertyValue("---wap-marquee-speed").trim().toLowerCase();
+            switch (speed) {
+                case "slow":
+                    marquee.scrollAmount = 3;
+                    break;
+                case "normal":
+                    marquee.scrollAmount = 6;
+                    break;
+                case "fast":
+                    marquee.scrollAmount = 12;
+                    break;
+            }
+            return marquee;
+        }
+
         private flowText(text: string) {
             const nextElement = this.textNode.nextElementSibling;
             const computedStyle = window.getComputedStyle(this.textNode);
             if (computedStyle.whiteSpace === "normal") {
                 text = text.replace(/[ \n\r\t]+/g, " ");
             }
+            const display = computedStyle.getPropertyValue("--display").trim();
+            // Cプロファイル
+            const wapMarquee = display === "-wap-marquee";
             if (computedStyle.letterSpacing === "normal" || computedStyle.letterSpacing === "0px") {
                 if (this.textNodeInRoot == null) {
                     // shadow DOMの中なので外の* {}のようなCSSは適用されない一方プロパティは継承される
                     this.textNodeInRoot = document.createTextNode(text);
-                    this.root.replaceChildren(this.textNodeInRoot);
+                    if (wapMarquee) {
+                        this.marquee = this.createMarquee(computedStyle);
+                        this.marquee.replaceChildren(this.textNodeInRoot);
+                        this.root.replaceChildren(this.marquee);
+                    } else {
+                        this.root.replaceChildren(this.textNodeInRoot);
+                    }
+                } else if (wapMarquee) {
+                    this.marquee = this.createMarquee(computedStyle);
+                    this.marquee.replaceChildren(this.textNodeInRoot);
+                    this.root.replaceChildren(this.marquee);
                 }
                 return;
             }
@@ -324,7 +378,14 @@ export namespace BML {
                 children.push(char);
                 x += fontWidth;
             }
-            this.root.replaceChildren(...children);
+            if (wapMarquee) {
+                this.marquee = this.createMarquee(computedStyle);
+                // Firefoxだとmarqueeのなかに要素を追加する前にrootに追加してしまうとスクロールがおかしくなる
+                this.marquee.replaceChildren(...children);
+                this.root.replaceChildren(this.marquee);
+            } else {
+                this.root.replaceChildren(...children);
+            }
         }
 
         public internalReflow() {
@@ -485,7 +546,7 @@ export namespace BML {
             }
             this.applyStyle();
         }
-    
+
         public internalSetActive(active: boolean): void {
             if (active === (this.node.getAttribute("web-bml-state") === "active")) {
                 return;

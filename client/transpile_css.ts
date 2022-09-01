@@ -192,6 +192,15 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                     property: "--" + decl.property,
                     value: decl.value,
                 }];
+            } else if (decl.property === "display") {
+                if (decl.value === "-wap-marquee") {
+                    decl.value = "block";
+                    return [decl, {
+                        type: "declaration",
+                        property: "--display",
+                        value: "-wap-marquee",
+                    }];
+                }
             }
         }
     }
