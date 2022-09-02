@@ -140,3 +140,7 @@ a[web-bml-state="focus"], a[web-bml-state="active"] {
 :where(html) {
     --background-color-inherit: white;
 }
+
+input[web-bml-state="focus"], input[web-bml-state="active"] {
+    background-color: #a3ceff !important;
+}
