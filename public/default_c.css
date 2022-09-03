@@ -152,3 +152,8 @@ p, input {
 textarea {
     resize: none;
 }
+
+object[web-bml-state="focus"], object[web-bml-state="active"], img[web-bml-state="focus"], img[web-bml-state="active"] {
+    outline: 1px blue dotted;
+    outline-offset: -1px;
+}
