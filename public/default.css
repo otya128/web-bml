@@ -276,6 +276,6 @@ arib-text, arib-cdata {
     border: none !important;
 }
 
-arib-cdata {
+p, input {
     white-space: break-spaces !important;
 }

@@ -37,7 +37,7 @@ p, pre, span, a, input, textarea { font-family: "丸ゴシック" !important }
 /* text-align */ 
 :where(p, input, textarea) { text-align: left }
 /* white-space */ 
-p, input { white-space: normal !important }
+/* p, input { white-space: normal !important } */
 pre, textarea { white-space: pre !important }
 /* resolution */ 
 body { --resolution: 240x480 !important }
@@ -143,4 +143,8 @@ a[web-bml-state="focus"], a[web-bml-state="active"] {
 
 input[web-bml-state="focus"], input[web-bml-state="active"] {
     background-color: #a3ceff !important;
+}
+
+p, input {
+    white-space: break-spaces !important;
 }
