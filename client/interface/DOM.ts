@@ -1144,13 +1144,15 @@ export namespace BML {
                     this.delete();
                     return;
                 }
-                if (imageUrl.width != null && imageUrl.height != null) {
-                    const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("--resolution"), imageUrl.width, imageUrl.height, (aribType ?? this.type));
-                    if (width != null && height != null) {
-                        this.node.style.maxWidth = width + "px";
-                        this.node.style.minWidth = width + "px";
-                        this.node.style.maxHeight = height + "px";
-                        this.node.style.minHeight = height + "px";
+                if (this.ownerDocument.resources.profile !== Profile.TrProfileC) {
+                    if (imageUrl.width != null && imageUrl.height != null) {
+                        const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("--resolution"), imageUrl.width, imageUrl.height, (aribType ?? this.type));
+                        if (width != null && height != null) {
+                            this.node.style.maxWidth = width + "px";
+                            this.node.style.minWidth = width + "px";
+                            this.node.style.maxHeight = height + "px";
+                            this.node.style.minHeight = height + "px";
+                        }
                     }
                 }
                 this.node.type = imageType;
