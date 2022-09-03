@@ -18,6 +18,8 @@ import { getTextDecoder, getTextEncoder } from "../text";
 export namespace BML {
     type DOMString = string;
     export function nodeToBMLNode(node: globalThis.HTMLInputElement, ownerDocument: BMLDocument): BMLInputElement;
+    export function nodeToBMLNode(node: globalThis.HTMLTextAreaElement, ownerDocument: BMLDocument): BMLTextAreaElement;
+    export function nodeToBMLNode(node: globalThis.HTMLFormElement, ownerDocument: BMLDocument): BMLFormElement;
     export function nodeToBMLNode(node: globalThis.HTMLBRElement, ownerDocument: BMLDocument): BMLBRElement;
     export function nodeToBMLNode(node: globalThis.HTMLAnchorElement, ownerDocument: BMLDocument): BMLAnchorElement;
     export function nodeToBMLNode(node: globalThis.HTMLHtmlElement, ownerDocument: BMLDocument): BMLBmlElement;
@@ -781,6 +783,9 @@ export namespace BML {
         public internalLaunchInputApplication(): void {
             let maxLength = this.maxLength;
             let ctype: InputCharacterType;
+            if (this.type.toLowerCase() === "submit") {
+                return;
+            }
             if (this.ownerDocument.resources.profile === Profile.TrProfileC) {
                 const wapInputFormat = window.getComputedStyle(this.node).getPropertyValue("---wap-input-format").trim();
                 const groups = /^((?<unlimited>\*)|(?<length>\d+))?(?<type>A+|a+|N+|n+|X+|x+|M+|m+)$/.exec(wapInputFormat)?.groups;
@@ -812,6 +817,7 @@ export namespace BML {
                 maxLength: this.maxLength,
                 value: this.value,
                 inputMode: this.type === "password" ? "password" : "text",
+                multiline: true,
                 callback: (value) => {
                     value = getTextDecoder(this.ownerDocument.resources.profile)(getTextEncoder(this.ownerDocument.resources.profile)(value));
                     value = value.replace(/[\n\r]/g, "").substring(0, this.maxLength);
@@ -843,6 +849,96 @@ export namespace BML {
         }
         public get activeStyle(): BMLCSS2Properties {
             return this.getActiveStyle();
+        }
+    }
+
+    // Cプロファイル
+    export class HTMLTextAreaElement extends HTMLElement {
+        protected node: globalThis.HTMLTextAreaElement;
+        constructor(node: globalThis.HTMLTextAreaElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
+            this.node = node;
+        }
+        public get defaultValue(): string {
+            return this.node.defaultValue;
+        }
+        public get form(): BMLFormElement | null {
+            if (this.node.form == null) {
+                return null;
+            }
+            return nodeToBMLNode(this.node.form, this.ownerDocument);
+        }
+        public get accessKey(): string {
+            return this.node.accessKey;
+        }
+        public get name(): string {
+            return this.node.name;
+        }
+        public get readOnly(): boolean {
+            return this.node.readOnly;
+        }
+        public set readOnly(value: boolean) {
+            if (this.ownerDocument.currentFocus === this && value && !this.node.readOnly) {
+                this.ownerDocument.inputApplication?.cancel("readonly");
+            }
+            this.node.readOnly = value;
+        }
+        public get value(): string {
+            return this.node.value;
+        }
+        public set value(value: string) {
+            this.node.value = value;
+        }
+
+        public internalLaunchInputApplication(): void {
+            this.ownerDocument.inputApplication?.launch({
+                characterType: "all",
+                maxLength: 240,
+                value: this.value,
+                inputMode: "text",
+                multiline: true,
+                callback: (value) => {
+                    value = getTextDecoder(this.ownerDocument.resources.profile)(getTextEncoder(this.ownerDocument.resources.profile)(value));
+                    value = value.substring(0, 240);
+                    // onchangeイベントは運用しない
+                    this.value = value;
+                }
+            });
+        }
+    }
+
+    // Cプロファイル
+    export class BMLTextAreaElement extends HTMLTextAreaElement {
+        public get normalStyle(): BMLCSS2Properties {
+            return this.getNormalStyle();
+        }
+    }
+
+    // Cプロファイル
+    export class HTMLFormElement extends HTMLElement {
+        protected node: globalThis.HTMLFormElement;
+        constructor(node: globalThis.HTMLFormElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
+            this.node = node;
+        }
+        public get action(): string {
+            return this.node.action;
+        }
+        public set action(value: string) {
+            this.node.action = value;
+        }
+        public get method(): string {
+            return this.node.method;
+        }
+        public submit(): void {
+            console.error("HTMLFormElement submit");
+        }
+    }
+
+    // Cプロファイル
+    export class BMLFormElement extends HTMLFormElement {
+        public get normalStyle(): BMLCSS2Properties {
+            return this.getNormalStyle();
         }
     }
 

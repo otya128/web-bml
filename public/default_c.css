@@ -148,3 +148,7 @@ input[web-bml-state="focus"], input[web-bml-state="active"] {
 p, input {
     white-space: break-spaces !important;
 }
+
+textarea {
+    resize: none;
+}

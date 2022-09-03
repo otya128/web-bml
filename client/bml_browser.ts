@@ -82,6 +82,8 @@ export type InputApplicationLaunchOptions = {
     // 以前入力されていた文字
     value: string,
     inputMode: "text" | "password",
+    // 複数行
+    multiline: boolean,
     // 文字入力が完了した際に呼ぶコールバック
     callback: (value: string) => void,
 };
