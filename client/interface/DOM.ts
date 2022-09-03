@@ -1,6 +1,6 @@
 import { EventQueue } from "../event_queue";
 import { BMLCSS2Properties, BMLCSSStyleDeclaration } from "./BMLCSS2Properties";
-import { CachedFileMetadata, Resources } from "../resource";
+import { CachedFileMetadata, Profile, Resources } from "../resource";
 import { aribPNGToPNG } from "../arib_png";
 import { readCLUT } from "../clut";
 import { defaultCLUT } from "../default_clut";
@@ -12,8 +12,8 @@ import { convertJPEG } from "../arib_jpeg";
 import { aribMNGToCSSAnimation } from "../arib_mng";
 import { playAIFF } from "../arib_aiff";
 import { unicodeToJISMap } from "../unicode_to_jis_map";
-import { decodeEUCJP, encodeEUCJP } from "../euc_jp";
 import { ModuleListEntry } from "../../server/ws_api";
+import { getTextDecoder, getTextEncoder } from "../text";
 
 export namespace BML {
     type DOMString = string;
@@ -779,7 +779,32 @@ export namespace BML {
         }
 
         public internalLaunchInputApplication(): void {
-            const ctype = this.node.getAttribute("charactertype")?.toLowerCase() as InputCharacterType ?? "all";
+            let maxLength = this.maxLength;
+            let ctype: InputCharacterType;
+            if (this.ownerDocument.resources.profile === Profile.TrProfileC) {
+                const wapInputFormat = window.getComputedStyle(this.node).getPropertyValue("---wap-input-format").trim();
+                const groups = /^((?<unlimited>\*)|(?<length>\d+))?(?<type>A+|a+|N+|n+|X+|x+|M+|m+)$/.exec(wapInputFormat)?.groups;
+                ctype = "all";
+                if (groups != null) {
+                    const type = groups.type;
+                    const length = Number.parseInt(groups.length);
+                    if (!Number.isNaN(length)) {
+                        maxLength = length;
+                    } else if (groups.unlimited !== "*") {
+                        maxLength = type.length;
+                    }
+                    if (type.substring(0, 1) === "N") {
+                        ctype = "number";
+                    }
+                }
+            } else {
+                const characterType = this.node.getAttribute("charactertype")?.toLowerCase();
+                if (characterType != null && inputCharacters.has(characterType as InputCharacterType)) {
+                    ctype = characterType as InputCharacterType;
+                } else {
+                    ctype = "all";
+                }
+            }
             const allowed = inputCharacters.get(ctype);
             this.ownerDocument.inputApplication?.launch({
                 characterType: ctype,
@@ -788,8 +813,8 @@ export namespace BML {
                 value: this.value,
                 inputMode: this.type === "password" ? "password" : "text",
                 callback: (value) => {
-                    value = decodeEUCJP(encodeEUCJP(value));
-                    value = value.substring(0, this.maxLength);
+                    value = getTextDecoder(this.ownerDocument.resources.profile)(getTextEncoder(this.ownerDocument.resources.profile)(value));
+                    value = value.replace(/[\n\r]/g, "").substring(0, this.maxLength);
                     if (allowed != null) {
                         value = value.split("").filter(x => {
                             return allowed.includes(x);

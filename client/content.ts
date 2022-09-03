@@ -1089,6 +1089,8 @@ export class Content {
                     const inputMode = focusElement.getAttribute("inputmode");
                     if (inputMode === "indirect") {
                         this.bmlDocument.currentFocus.internalLaunchInputApplication();
+                    } else if (this.resources.profile === Profile.TrProfileC) {
+                        this.bmlDocument.currentFocus.internalLaunchInputApplication();
                     }
                 }
                 if (currentFocus instanceof BML.BMLAnchorElement && currentFocus.href != "") {
