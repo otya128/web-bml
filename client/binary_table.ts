@@ -1,4 +1,4 @@
-import { decodeEUCJP, encodeEUCJP } from "./euc_jp";
+import { TextDecodeFunction, TextEncodeFunction } from "./text";
 import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
 
 enum BinaryTableUnit {
@@ -90,7 +90,7 @@ export function parseBinaryStructure(structure: string): BinaryTableField[] | nu
     return fields;
 }
 
-export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[], posBits?: number): [result: any[], posBits: number] {
+export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[], decodeText: TextDecodeFunction, posBits?: number): [result: any[], posBits: number] {
     posBits = posBits ?? 0;
     const columns: any[] = [];
     for (const field of fields) {
@@ -152,7 +152,7 @@ export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[],
                 } else {
                     throw new Error("string must be byte or variable");
                 }
-                const decoded = decodeEUCJP(buffer.subarray(posBits >> 3, (posBits >> 3) + lengthByte));
+                const decoded = decodeText(buffer.subarray(posBits >> 3, (posBits >> 3) + lengthByte));
                 // なにも設定されていなければ空文字列(TR-B14, TR-B15) => null文字以降切り捨てとする
                 const nullIndex = decoded.indexOf("\u0000");
                 if (nullIndex !== -1) {
@@ -194,7 +194,7 @@ export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[],
     return [columns, posBits];
 }
 
-export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint8Array {
+export function writeBinaryFields(data: any[], fields: BinaryTableField[], encodeText: TextEncodeFunction): Uint8Array {
     if (data.length < fields.length) {
         throw new Error("FIXME");
     }
@@ -246,7 +246,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint
                     sizeBits += field.length * 8;
                 } else if (field.unit === BinaryTableUnit.Variable) {
                     sizeBits += field.length * 8;
-                    let encoded = new Uint8Array(encodeEUCJP(data[i]));
+                    let encoded = new Uint8Array(encodeText(data[i]));
                     sizeBits += encoded.length * 8;
                 } else {
                     throw new Error("string must be byte or variable");
@@ -325,7 +325,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[]): Uint
                 if ((posBits & 7) !== 0) {
                     throw new Error("string must be byte aligned");
                 }
-                const encoded = encodeEUCJP(data[i]);
+                const encoded = encodeText(data[i]);
                 if (field.unit === BinaryTableUnit.Byte) {
                     if (encoded.length === field.length) {
                         buffer.set(encoded, posBits >> 3);
@@ -373,13 +373,13 @@ export class BinaryTable {
     rows: any[][];
     fields: BinaryTableField[];
 
-    constructor(table: Uint8Array, structure: string) {
-        const { rows, fields } = BinaryTable.constructBinaryTable(table, structure);
+    constructor(table: Uint8Array, structure: string, decodeText: TextDecodeFunction) {
+        const { rows, fields } = BinaryTable.constructBinaryTable(table, structure, decodeText);
         this.rows = rows;
         this.fields = fields;
     }
 
-    static constructBinaryTable(buffer: Uint8Array, structure: string): { rows: any[][], fields: BinaryTableField[] } {
+    static constructBinaryTable(buffer: Uint8Array, structure: string, decodeText: TextDecodeFunction): { rows: any[][], fields: BinaryTableField[] } {
         const sep = structure.split(",");
         if (sep.length < 2) {
             throw new Error("FIXME");
@@ -399,7 +399,7 @@ export class BinaryTable {
             if (lengthByte) {
                 [length, posBits] = readBits(posBits, 8 * lengthByte, buffer);
             }
-            let [columns, read] = readBinaryFields(buffer, fields, posBits);
+            let [columns, read] = readBinaryFields(buffer, fields, decodeText, posBits);
             posBits = lengthByte ? posBits + length * 8 : read;
             rows.push(columns);
         }

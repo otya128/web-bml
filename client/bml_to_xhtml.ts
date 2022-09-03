@@ -45,7 +45,7 @@ function visitXmlNodes(node: any, callback: (node: any) => void) {
     }
 }
 
-export function bmlToXHTMLFXP(data: string): string {
+export function bmlToXHTMLFXP(data: string, cProfile: boolean): string {
     const opts = {
         ignoreAttributes: false,
         attributeNamePrefix: "@_",
@@ -67,30 +67,67 @@ export function bmlToXHTMLFXP(data: string): string {
             const next = i + 1 < children.length ? getXmlNodeName(children[i + 1]) : "";
             // STD-B24 第二分冊(2/2) 第二編 付属2 5.3.2参照
             if ("#text" in c) {
+                // STD-B24 第二分冊(2/2) 付属4 5.3.2 p, span, a以外も付属2 5.3.2と同様の処理
+                // STD-B24 第二分冊(2/2) 付属4 5.3.3 pre要素はxml:space="preserve"
+                // TR-B14 第三分冊 7.7.3 表7-5 注3 textareaもpreと同様
+                if (cProfile && (nodeName === "pre" || nodeName === "textarea")) {
+                    if (prev == "") {
+                        c["#text"] = c["#text"].replace(/^([ \t\n\r]+)/g, "");
+                    }
+                    if (next == "") {
+                        c["#text"] = c["#text"].replace(/([ \t\n\r]+)$/g, "");
+                    }
+                    continue;
+                }
                 if ((prev === "span" || prev === "a") && nodeName === "p") {
-                    c["#text"] = c["#text"].replace(/^([ \t\n\r] +)/g, " ");
+                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)/g, " ");
                     if ((next === "span" || next === "a" || next === "br") && nodeName === "p") {
-                        c["#text"] = c["#text"].replace(/([ \t\n\r] +)$/g, " ");
-                        c["#text"] = c["#text"].replace(/(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
+                        c["#text"] = c["#text"].replace(/([ \t\n\r]+)$/g, " ");
+                        c["#text"] = c["#text"].replace(/(?<=[\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, "");
                     }
                 } else if ((next === "span" || next === "a" || next === "br") && nodeName === "p") {
-                    c["#text"] = c["#text"].replace(/([ \t\n\r] +)$/g, " ");
-                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
+                    c["#text"] = c["#text"].replace(/([ \t\n\r]+)$/g, " ");
+                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|(?<=[\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, "");
                 } else {
                     // 制御符号は0x20, 0x0d, 0x0a, 0x09のみ
                     // 2バイト文字と2バイト文字との間の制御符号は削除する
-                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|([ \t\n\r] +)$|(?<=[\u0100-\uffff])[ \t\n\r] +(?=[\u0100-\uffff])/g, "");
+                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|([ \t\n\r]+)$|(?<=[\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, "");
                 }
+                // 制御符号のみの文字列に対してはテキストノードは生成しない
+                c["#text"] = c["#text"].replace(/^[ \t\n\r]$/, "");
             }
         }
-        if (nodeName == "script") {
+        if (nodeName == "bml:beitem") {
+            // Cプロファイル
+            renameXmlNode(node, "beitem");
+        } else if (nodeName == "bml:bevent") {
+            // Cプロファイル
+            renameXmlNode(node, "bevent");
+        } else if (nodeName == "script") {
             renameXmlNode(node, "arib-script");
-        }
-        if (nodeName == "style") {
+        } else if (nodeName == "style") {
             renameXmlNode(node, "arib-style");
-        }
-        if (nodeName == "link") {
+        } else if (nodeName == "link") {
             renameXmlNode(node, "arib-link");
+        }
+        if (nodeName === "a" && node[":@"] != null) {
+            if (node[":@"]["@_href"] != null) {
+                node[":@"]["@_bml-href"] = node[":@"]["@_href"];
+                delete node[":@"]["@_href"];
+            }
+        }
+        // Cプロファイル
+        if (node[":@"] != null) {
+            for (const a of Object.getOwnPropertyNames(node[":@"])) {
+                if (a.startsWith("@_bml:")) {
+                    node[":@"]["@_" + a.substring("@_bml:".length)] = node[":@"][a];
+                    delete node[":@"][a];
+                } else if (a.startsWith("@_xml:")) {
+                    /* xml:space */
+                    node[":@"]["@_xml-" + a.substring("@_xml:".length)] = node[":@"][a];
+                    delete node[":@"][a];
+                }
+            }
         }
         if (nodeName == "object" && node[":@"] != null) {
             node[":@"]["@_arib-type"] = node[":@"]["@_type"];
@@ -100,6 +137,10 @@ export function bmlToXHTMLFXP(data: string): string {
                 node[":@"]["@_arib-data"] = data;
                 delete node[":@"]["@_data"];
             }
+        }
+        if (nodeName == "img" && node[":@"] != null) {
+            node[":@"]["@_arib-src"] = node[":@"]["@_src"];
+            delete node[":@"]["@_src"];
         }
         if (node[":@"] && node[":@"]["@_onload"]) {
             if (node[":@"] && node[":@"]["@_onload"]) {

@@ -26,6 +26,8 @@ export type ComponentPMT = {
     componentId: number,
     bxmlInfo?: AdditionalAribBXMLInfo,
     streamType: number,
+    // STD-B10 第2部 付録J 表J-1参照
+    dataComponentId?: number,
 };
 
 export type AdditionalAribBXMLInfo = {

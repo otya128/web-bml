@@ -1,6 +1,6 @@
 import { EventQueue } from "../event_queue";
 import { BMLCSS2Properties, BMLCSSStyleDeclaration } from "./BMLCSS2Properties";
-import { CachedFileMetadata, Resources } from "../resource";
+import { CachedFileMetadata, Profile, Resources } from "../resource";
 import { aribPNGToPNG } from "../arib_png";
 import { readCLUT } from "../clut";
 import { defaultCLUT } from "../default_clut";
@@ -12,17 +12,20 @@ import { convertJPEG } from "../arib_jpeg";
 import { aribMNGToCSSAnimation } from "../arib_mng";
 import { playAIFF } from "../arib_aiff";
 import { unicodeToJISMap } from "../unicode_to_jis_map";
-import { decodeEUCJP, encodeEUCJP } from "../euc_jp";
 import { ModuleListEntry } from "../../server/ws_api";
+import { getTextDecoder, getTextEncoder } from "../text";
 
 export namespace BML {
     type DOMString = string;
     export function nodeToBMLNode(node: globalThis.HTMLInputElement, ownerDocument: BMLDocument): BMLInputElement;
+    export function nodeToBMLNode(node: globalThis.HTMLTextAreaElement, ownerDocument: BMLDocument): BMLTextAreaElement;
+    export function nodeToBMLNode(node: globalThis.HTMLFormElement, ownerDocument: BMLDocument): BMLFormElement;
     export function nodeToBMLNode(node: globalThis.HTMLBRElement, ownerDocument: BMLDocument): BMLBRElement;
     export function nodeToBMLNode(node: globalThis.HTMLAnchorElement, ownerDocument: BMLDocument): BMLAnchorElement;
     export function nodeToBMLNode(node: globalThis.HTMLHtmlElement, ownerDocument: BMLDocument): BMLBmlElement;
     export function nodeToBMLNode(node: globalThis.HTMLScriptElement, ownerDocument: BMLDocument): HTMLScriptElement;
     export function nodeToBMLNode(node: globalThis.HTMLObjectElement, ownerDocument: BMLDocument): BMLObjectElement;
+    export function nodeToBMLNode(node: globalThis.HTMLImageElement, ownerDocument: BMLDocument): BMLImageElement; // Cプロファイル
     export function nodeToBMLNode(node: globalThis.HTMLHeadElement, ownerDocument: BMLDocument): HTMLHeadElement;
     export function nodeToBMLNode(node: globalThis.HTMLTitleElement, ownerDocument: BMLDocument): HTMLTitleElement;
     export function nodeToBMLNode(node: globalThis.HTMLSpanElement, ownerDocument: BMLDocument): BMLSpanElement;
@@ -88,6 +91,9 @@ export namespace BML {
             return HTMLScriptElement;
         } else if (node instanceof globalThis.HTMLObjectElement) {
             return BMLObjectElement;
+        } else if (node instanceof globalThis.HTMLImageElement) {
+            // Cプロファイル
+            return BMLImageElement;
         } else if (node instanceof globalThis.HTMLHeadElement) {
             return HTMLHeadElement;
         } else if (node instanceof globalThis.HTMLTitleElement) {
@@ -217,31 +223,38 @@ export namespace BML {
     // impl
     export class CharacterData extends Node {
         protected node: globalThis.CharacterData;
-        protected textNode: globalThis.HTMLElement;
-        protected parentBlock: globalThis.HTMLElement;
-        protected root: ShadowRoot;
-        protected textNodeInRoot?: globalThis.CharacterData;
-        protected textData: string;
+        private readonly flowData?: {
+            readonly textNode: globalThis.HTMLElement,
+            readonly parentBlock: globalThis.HTMLElement,
+            readonly root: ShadowRoot,
+            textData: string,
+            textNodeInRoot?: globalThis.CharacterData,
+            marquee?: globalThis.HTMLElement,
+        };
         constructor(node: globalThis.CharacterData, ownerDocument: BMLDocument) {
             super(node, ownerDocument);
-            // strictTextRenderingが有効の場合
-            if (node.nodeName.toLowerCase() === "arib-text" || node.nodeName.toLowerCase() === "arib-cdata") {
-                this.textNode = node as unknown as globalThis.HTMLElement;
-                this.textData = this.textNode.textContent ?? "";
-                this.textNode.replaceChildren();
-                this.root = this.textNode.attachShadow({ mode: "closed" });
-                this.parentBlock = this.getParentBlock()!;
-            } else {
-                this.textNode = undefined!;
-                this.root = undefined!;
-                this.textData = undefined!;
-                this.parentBlock = undefined!;
+            const computedStyle = window.getComputedStyle(this.getParentBlock(node)!);
+            const display = computedStyle.getPropertyValue("--display").trim();
+            if (display === "-wap-marquee" || (computedStyle.letterSpacing !== "normal" && computedStyle.letterSpacing !== "0px")) {
+                let textNode;
+                if (node instanceof globalThis.CDATASection) {
+                    textNode = document.createElement("arib-cdata");
+                } else {
+                    textNode = document.createElement("arib-text");
+                }
+                const textData = node.textContent ?? "";
+                node.replaceWith(textNode);
+                const root = textNode.attachShadow({ mode: "closed" });
+                const parentBlock = this.getParentBlock(textNode)!;
+                this.flowData = { textNode, parentBlock, root, textData };
+                ownerDocument.internalBMLNodeInstanceMap.set(textNode, this);
+                ownerDocument.internalBMLNodeInstanceMap.delete(node);
             }
             this.node = node;
         }
 
-        private getParentBlock() {
-            let parent: globalThis.HTMLElement | null = this.textNode.parentElement;
+        private getParentBlock(node: globalThis.Node) {
+            let parent: globalThis.HTMLElement | null = node.parentElement;
             while (parent != null) {
                 if (window.getComputedStyle(parent).display !== "inline") {
                     return parent;
@@ -251,23 +264,83 @@ export namespace BML {
             return null;
         }
 
+        private createMarquee(computedStyle: CSSStyleDeclaration): globalThis.HTMLElement {
+            const style = computedStyle.getPropertyValue("---wap-marquee-style").trim().toLowerCase();
+            // 初期値: 1 最大値: 16
+            // infinite
+            const loop = Number.parseInt(computedStyle.getPropertyValue("---wap-marquee-loop").trim().toLowerCase());
+            if (loop === 0 || computedStyle.visibility === "hidden") {
+                // > また、0が設定された場合は、指定回marquee動作を行なった後と同様に表示されるだけである。
+                // TR-B14
+                // > If the value is "0", no looping occurs and the element is displayed as if it had finished looping a specified number of times.
+                // WAP
+                const span = document.createElement("span");
+                if (style !== "slide") {
+                    span.style.visibility = "hidden";
+                }
+                return span;
+            }
+            const marquee = document.createElement("marquee");
+            marquee.behavior = style;
+            if (Number.isFinite(loop)) {
+                if (loop !== 0) {
+                } else {
+                    marquee.loop = loop;
+                }
+            }
+            // dirはrtl固定
+            const speed = computedStyle.getPropertyValue("---wap-marquee-speed").trim().toLowerCase();
+            switch (speed) {
+                case "slow":
+                    marquee.scrollAmount = 3;
+                    break;
+                case "normal":
+                    marquee.scrollAmount = 6;
+                    break;
+                case "fast":
+                    marquee.scrollAmount = 12;
+                    break;
+            }
+            return marquee;
+        }
+
         private flowText(text: string) {
-            const nextElement = this.textNode.nextElementSibling;
-            const computedStyle = window.getComputedStyle(this.textNode);
+            const flowData = this.flowData;
+            if (flowData == null) {
+                return;
+            }
+            const nextElement = flowData.textNode.nextElementSibling;
+            const computedStyle = window.getComputedStyle(flowData.textNode);
+            if (flowData.textNode.nodeName.toLowerCase() === "arib-text") {
+                text = text.replace(/[ \n\r\t]+/g, " ");
+            }
+            const display = computedStyle.getPropertyValue("--display").trim();
+            // Cプロファイル
+            const wapMarquee = display === "-wap-marquee";
             if (computedStyle.letterSpacing === "normal" || computedStyle.letterSpacing === "0px") {
-                if (this.textNodeInRoot == null) {
+                if (flowData.textNodeInRoot == null) {
                     // shadow DOMの中なので外の* {}のようなCSSは適用されない一方プロパティは継承される
-                    this.textNodeInRoot = document.createTextNode(text);
-                    this.root.replaceChildren(this.textNodeInRoot);
+                    flowData.textNodeInRoot = document.createTextNode(text);
+                    if (wapMarquee) {
+                        flowData.marquee = this.createMarquee(computedStyle);
+                        flowData.marquee.replaceChildren(flowData.textNodeInRoot);
+                        flowData.root.replaceChildren(flowData.marquee);
+                    } else {
+                        flowData.root.replaceChildren(flowData.textNodeInRoot);
+                    }
+                } else if (wapMarquee) {
+                    flowData.marquee = this.createMarquee(computedStyle);
+                    flowData.marquee.replaceChildren(flowData.textNodeInRoot);
+                    flowData.root.replaceChildren(flowData.marquee);
                 }
                 return;
             }
-            if (this.textNodeInRoot != null) {
-                this.textNodeInRoot = undefined;
+            if (flowData.textNodeInRoot != null) {
+                flowData.textNodeInRoot = undefined;
             }
-            const left = this.textNode.clientLeft;
-            const top = this.textNode.clientTop;
-            const parent = this.parentBlock;
+            const left = flowData.textNode.clientLeft;
+            const top = flowData.textNode.clientTop;
+            const parent = flowData.parentBlock;
             const width = parent.clientWidth;
             let fontSize = Number.parseInt(computedStyle.fontSize);
             if (Number.isNaN(fontSize)) {
@@ -317,25 +390,36 @@ export namespace BML {
                 children.push(char);
                 x += fontWidth;
             }
-            this.root.replaceChildren(...children);
+            if (wapMarquee) {
+                flowData.marquee = this.createMarquee(computedStyle);
+                // Firefoxだとmarqueeのなかに要素を追加する前にrootに追加してしまうとスクロールがおかしくなる
+                flowData.marquee.replaceChildren(...children);
+                flowData.root.replaceChildren(flowData.marquee);
+            } else {
+                flowData.root.replaceChildren(...children);
+            }
         }
 
-        public internalReflow() {
+        public internalReflow(): boolean {
+            if (this.flowData == null) {
+                return false;
+            }
             this.flowText(this.data);
+            return true;
         }
 
         public get data(): string {
-            if (this.textNode) {
-                return this.textData;
+            if (this.flowData == null) {
+                return this.node.data;
             }
-            return this.node.data;
+            return this.flowData.textData;
         }
         public set data(value: string) {
             value = String(value);
-            if (this.textNode) {
-                this.textData = value;
-                if (this.textNodeInRoot != null) {
-                    this.textNodeInRoot.data = value;
+            if (this.flowData != null) {
+                this.flowData.textData = value;
+                if (this.flowData.textNodeInRoot != null) {
+                    this.flowData.textNodeInRoot.data = value;
                 } else {
                     this.flowText(value);
                 }
@@ -344,7 +428,7 @@ export namespace BML {
             this.node.data = value;
         }
         public get length(): number {
-            return this.node.length;
+            return this.data.length;
         }
     }
 
@@ -478,7 +562,7 @@ export namespace BML {
             }
             this.applyStyle();
         }
-    
+
         public internalSetActive(active: boolean): void {
             if (active === (this.node.getAttribute("web-bml-state") === "active")) {
                 return;
@@ -623,10 +707,16 @@ export namespace BML {
             return this.node.accessKey;
         }
         public get href(): string {
-            return this.node.href;
+            return this.node.getAttribute("bml-href") ?? "";
         }
         public set href(value: string) {
-            this.node.href = value;
+            this.node.setAttribute("bml-href", value);
+        }
+        public blur(): void {
+            blur(this, this.ownerDocument);
+        }
+        public focus(): void {
+            focus(this, this.ownerDocument);
         }
     }
 
@@ -691,7 +781,35 @@ export namespace BML {
         }
 
         public internalLaunchInputApplication(): void {
-            const ctype = this.node.getAttribute("charactertype")?.toLowerCase() as InputCharacterType ?? "all";
+            let maxLength = this.maxLength;
+            let ctype: InputCharacterType;
+            if (this.type.toLowerCase() === "submit") {
+                return;
+            }
+            if (this.ownerDocument.resources.profile === Profile.TrProfileC) {
+                const wapInputFormat = window.getComputedStyle(this.node).getPropertyValue("---wap-input-format").trim();
+                const groups = /^((?<unlimited>\*)|(?<length>\d+))?(?<type>A+|a+|N+|n+|X+|x+|M+|m+)$/.exec(wapInputFormat)?.groups;
+                ctype = "all";
+                if (groups != null) {
+                    const type = groups.type;
+                    const length = Number.parseInt(groups.length);
+                    if (!Number.isNaN(length)) {
+                        maxLength = length;
+                    } else if (groups.unlimited !== "*") {
+                        maxLength = type.length;
+                    }
+                    if (type.substring(0, 1) === "N") {
+                        ctype = "number";
+                    }
+                }
+            } else {
+                const characterType = this.node.getAttribute("charactertype")?.toLowerCase();
+                if (characterType != null && inputCharacters.has(characterType as InputCharacterType)) {
+                    ctype = characterType as InputCharacterType;
+                } else {
+                    ctype = "all";
+                }
+            }
             const allowed = inputCharacters.get(ctype);
             this.ownerDocument.inputApplication?.launch({
                 characterType: ctype,
@@ -699,9 +817,10 @@ export namespace BML {
                 maxLength: this.maxLength,
                 value: this.value,
                 inputMode: this.type === "password" ? "password" : "text",
+                multiline: true,
                 callback: (value) => {
-                    value = decodeEUCJP(encodeEUCJP(value));
-                    value = value.substring(0, this.maxLength);
+                    value = getTextDecoder(this.ownerDocument.resources.profile)(getTextEncoder(this.ownerDocument.resources.profile)(value));
+                    value = value.replace(/[\n\r]/g, "").substring(0, this.maxLength);
                     if (allowed != null) {
                         value = value.split("").filter(x => {
                             return allowed.includes(x);
@@ -730,6 +849,96 @@ export namespace BML {
         }
         public get activeStyle(): BMLCSS2Properties {
             return this.getActiveStyle();
+        }
+    }
+
+    // Cプロファイル
+    export class HTMLTextAreaElement extends HTMLElement {
+        protected node: globalThis.HTMLTextAreaElement;
+        constructor(node: globalThis.HTMLTextAreaElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
+            this.node = node;
+        }
+        public get defaultValue(): string {
+            return this.node.defaultValue;
+        }
+        public get form(): BMLFormElement | null {
+            if (this.node.form == null) {
+                return null;
+            }
+            return nodeToBMLNode(this.node.form, this.ownerDocument);
+        }
+        public get accessKey(): string {
+            return this.node.accessKey;
+        }
+        public get name(): string {
+            return this.node.name;
+        }
+        public get readOnly(): boolean {
+            return this.node.readOnly;
+        }
+        public set readOnly(value: boolean) {
+            if (this.ownerDocument.currentFocus === this && value && !this.node.readOnly) {
+                this.ownerDocument.inputApplication?.cancel("readonly");
+            }
+            this.node.readOnly = value;
+        }
+        public get value(): string {
+            return this.node.value;
+        }
+        public set value(value: string) {
+            this.node.value = value;
+        }
+
+        public internalLaunchInputApplication(): void {
+            this.ownerDocument.inputApplication?.launch({
+                characterType: "all",
+                maxLength: 240,
+                value: this.value,
+                inputMode: "text",
+                multiline: true,
+                callback: (value) => {
+                    value = getTextDecoder(this.ownerDocument.resources.profile)(getTextEncoder(this.ownerDocument.resources.profile)(value));
+                    value = value.substring(0, 240);
+                    // onchangeイベントは運用しない
+                    this.value = value;
+                }
+            });
+        }
+    }
+
+    // Cプロファイル
+    export class BMLTextAreaElement extends HTMLTextAreaElement {
+        public get normalStyle(): BMLCSS2Properties {
+            return this.getNormalStyle();
+        }
+    }
+
+    // Cプロファイル
+    export class HTMLFormElement extends HTMLElement {
+        protected node: globalThis.HTMLFormElement;
+        constructor(node: globalThis.HTMLFormElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
+            this.node = node;
+        }
+        public get action(): string {
+            return this.node.action;
+        }
+        public set action(value: string) {
+            this.node.action = value;
+        }
+        public get method(): string {
+            return this.node.method;
+        }
+        public submit(): void {
+            console.error("HTMLFormElement submit");
+        }
+    }
+
+    // Cプロファイル
+    export class BMLFormElement extends HTMLFormElement {
+        public get normalStyle(): BMLCSS2Properties {
+            return this.getNormalStyle();
         }
     }
 
@@ -844,7 +1053,7 @@ export namespace BML {
                 // 順序が逆転するのを防止
                 this.version = this.version + 1;
                 const version: number = this.version;
-                const fetched = await this.ownerDocument.resources.fetchResourceAsync(value);
+                const fetched = this.ownerDocument.resources.fetchLockedResource(value) ?? await this.ownerDocument.resources.fetchResourceAsync(value);
                 if (this.version !== version) {
                     return;
                 }
@@ -860,7 +1069,7 @@ export namespace BML {
                 if (isPNG || isMNG) {
                     const clutCss = window.getComputedStyle(this.node).getPropertyValue("--clut");
                     const clutUrl = clutCss == null ? null : parseCSSValue(clutCss);
-                    const fetchedClut = clutUrl == null ? null : (await this.ownerDocument.resources.fetchResourceAsync(clutUrl))?.data;
+                    const fetchedClut = clutUrl == null ? null : (this.ownerDocument.resources.fetchLockedResource(clutUrl) ?? await this.ownerDocument.resources.fetchResourceAsync(clutUrl))?.data;
                     if (this.version !== version) {
                         return;
                     }
@@ -924,6 +1133,9 @@ export namespace BML {
                         fetched.blobUrl.set("BT.709", imageUrl);
                     }
                     imageType = "image/jpeg";
+                } else if (aribType?.toLowerCase() === "image/gif") {
+                    imageType = "image/gif";
+                    imageUrl = { blobUrl: this.ownerDocument.resources.getCachedFileBlobUrl(fetched) };
                 } else {
                     this.delete();
                     return;
@@ -1143,6 +1355,85 @@ export namespace BML {
         }
         public focus(): void {
             focus(this, this.ownerDocument);
+        }
+    }
+
+    // Cプロファイル
+    export class HTMLImageElement extends HTMLElement {
+        protected node: globalThis.HTMLImageElement;
+        private version: number = 0;
+        constructor(node: globalThis.HTMLImageElement, ownerDocument: BMLDocument) {
+            super(node, ownerDocument);
+            this.node = node;
+        }
+        public get alt(): string {
+            return (this.node as globalThis.HTMLImageElement).alt;
+        }
+        public get src(): string {
+            return this.node.getAttribute("arib-src") ?? "";
+        }
+        public set src(value: string) {
+            (async () => {
+                if (value == null) {
+                    this.node.src = "";
+                    this.node.removeAttribute("arib-src");
+                    return;
+                }
+                this.node.setAttribute("arib-src", value);
+                if (value == "") {
+                    this.node.src = "";
+                    return;
+                }
+                this.version = this.version + 1;
+                const version: number = this.version;
+                const fetched = this.ownerDocument.resources.fetchLockedResource(value) ?? await this.ownerDocument.resources.fetchResourceAsync(value);
+                if (this.version !== version) {
+                    return;
+                }
+                if (!fetched) {
+                    this.node.src = "";
+                    return;
+                }
+                const isGIF = fetched.data[0] === 0x47 && fetched.data[1] === 0x49 && fetched.data[2] === 0x46;
+                const isJPEG = fetched.data[0] === 0xff && fetched.data[1] === 0xd8 && fetched.data[2] === 0xff && fetched.data[3] === 0xe0;
+                if (!isGIF && !isJPEG) {
+                    console.error("unknown media", value);
+                    return;
+                }
+                let imageUrl: CachedFileMetadata | undefined;
+                if (isJPEG) {
+                    imageUrl = fetched.blobUrl.get("BT.709");
+                    if (imageUrl == null) {
+                        try {
+                            const bt601 = await globalThis.createImageBitmap(new Blob([fetched.data]));
+                            imageUrl = await convertJPEG(bt601);
+                            if (this.version !== version) {
+                                return;
+                            }
+                        } catch {
+                            this.node.src = "";
+                            return;
+                        }
+                        fetched.blobUrl.set("BT.709", imageUrl);
+                    }
+                } else if (isGIF) {
+                    imageUrl = { blobUrl: this.ownerDocument.resources.getCachedFileBlobUrl(fetched) };
+                } else {
+                    this.node.src = "";
+                    return;
+                }
+                if (imageUrl == null) {
+                    this.node.src = "";
+                    return;
+                }
+                this.node.src = imageUrl.blobUrl;
+            })();
+        }
+    }
+
+    export class BMLImageElement extends HTMLImageElement {
+        public get normalStyle(): BMLCSS2Properties {
+            return this.getNormalStyle();
         }
     }
 

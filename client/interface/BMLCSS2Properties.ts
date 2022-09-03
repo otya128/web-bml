@@ -1,5 +1,5 @@
-import { BMLBrowserEventTarget } from "../bml_browser";
-import { colorIndexToVar, varToColorIndex } from "../transpile_css";
+import { BMLBrowserEventTarget, KeyGroup } from "../bml_browser";
+import { colorIndexToVar, getFontSize, setFontSize, varToColorIndex } from "../transpile_css";
 
 type DOMString = string;
 
@@ -77,8 +77,15 @@ export class BMLCSS2Properties {
     public set visibility(value: DOMString) { this.declaration.setProperty("visibility", value); }
     public get fontFamily() { return this.declaration.getPropertyValue("font-family"); }
     public set fontFamily(value: DOMString) { this.declaration.setProperty("font-family", value); }
-    public get fontSize() { return this.declaration.getPropertyValue("font-size"); }
-    public set fontSize(value: DOMString) { this.declaration.setProperty("font-size", value); }
+    public get fontSize(): DOMString {
+        const fontSize = this.declaration.getPropertyValue("font-size");
+        // Cプロファイル
+        return getFontSize(fontSize);
+    }
+    public set fontSize(value: DOMString) {
+        // Cプロファイル
+        this.declaration.setProperty("font-size", setFontSize(String(value)));
+    }
     public get fontWeight() { return this.declaration.getPropertyValue("font-weight"); }
     public set fontWeight(value: DOMString) { this.declaration.setProperty("font-weight", value); }
     public get textAlign() { return this.declaration.getPropertyValue("text-align"); }
@@ -158,11 +165,44 @@ export class BMLCSS2Properties {
             // bodyにfocus/activeは運用されない
             this.eventTarget.dispatchEvent<"usedkeylistchanged">(new CustomEvent("usedkeylistchanged", {
                 detail: {
-                    usedKeyList: new Set(value.split(" ").filter((x): x is "basic" | "numeric-tuning" | "data-button" => {
-                        return x === "basic" || x === "numeric-tuning" || x === "data-button";
+                    usedKeyList: new Set(value.split(" ").filter((x): x is KeyGroup => {
+                        return x === "basic" || x === "numeric-tuning" || x === "data-button" || x === "special-1" || x === "special-2";
                     }))
                 }
             }));
         }
+    }
+    // Cプロファイル
+    public get borderTopColor() { return this.declaration.getPropertyValue("border-top-color"); }
+    public set borderTopColor(value: DOMString) { this.declaration.setProperty("border-top-color", value); }
+    public get borderRightColor() { return this.declaration.getPropertyValue("border-right-color"); }
+    public set borderRightColor(value: DOMString) { this.declaration.setProperty("border-right-color", value); }
+    public get borderBottomColor() { return this.declaration.getPropertyValue("border-bottom-color"); }
+    public set borderBottomColor(value: DOMString) { this.declaration.setProperty("border-bottom-color", value); }
+    public get borderLeftColor() { return this.declaration.getPropertyValue("border-left-color"); }
+    public set borderLeftColor(value: DOMString) { this.declaration.setProperty("border-left-color", value); }
+    public get backgroundColor() { return this.declaration.getPropertyValue("--background-color").trim(); }
+    // Cプロファイルで<a>でフォーカスが当たった時背景色を文字色を入れ替えるために変数としても追加する
+    public set backgroundColor(value: DOMString) {
+        this.declaration.setProperty("--background-color", value);
+        this.declaration.setProperty("--background-color-inherit", value);
+        this.declaration.setProperty("background-color", value);
+    }
+    public get color() { return this.declaration.getPropertyValue("--color").trim(); }
+    public set color(value: DOMString) {
+        this.declaration.setProperty("--color", value);
+        this.declaration.setProperty("color", value);
+    }
+    public get WapMarqueeStyle() {
+        return this.declaration.getPropertyValue("---wap-marquee-style").trim();
+    }
+    public get WapMarqueeLoop() {
+        return this.declaration.getPropertyValue("---wap-marquee-loop").trim();
+    }
+    public get WapMarqueeSpeed() {
+        return this.declaration.getPropertyValue("---wap-marquee-speed").trim();
+    }
+    public get WapInputFormat() {
+        return this.declaration.getPropertyValue("---wap-input-format").trim();
     }
 }

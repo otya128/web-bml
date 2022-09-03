@@ -144,7 +144,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
 
     tsStream.on("pmt", (pid: any, data: any) => {
         // 多重化されている
-        if (pidToProgramNumber.size >= 2) {
+        if (pidToProgramNumber.size !== 1) {
             if (pidToProgramNumber.get(pid) !== (serviceId ?? programNumber)) {
                 return;
             }
@@ -159,6 +159,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             const pid = stream.elementary_PID;
             let bxmlInfo: AdditionalAribBXMLInfo | undefined;
             let componentId: number | undefined;
+            let data_component_id: number | undefined;
             for (const esInfo of stream.ES_info) {
                 if (esInfo.descriptor_tag == 0x52) { // Stream identifier descriptor ストリーム識別記述子
                     // PID => component_tagの対応
@@ -166,7 +167,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                     componentId = component_tag;
                 } else if (esInfo.descriptor_tag == 0xfd) { // Data component descriptor データ符号化方式記述子
                     let additional_data_component_info: Buffer = esInfo.additional_data_component_info;
-                    let data_component_id: number = esInfo.data_component_id;
+                    data_component_id = esInfo.data_component_id as number;
                     // FIXME!!!!!!!!
                     // aribtsの実装がおかしくてdata_component_idを8ビットとして読んでる
                     if (esInfo.additional_data_component_info.length + 1 === esInfo.descriptor_length) {
@@ -192,6 +193,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                 pid,
                 bxmlInfo,
                 streamType: stream.stream_type,
+                dataComponentId: data_component_id,
             };
             ptc.set(pid, componentPMT);
             ctp.set(componentPMT.componentId, componentPMT);

@@ -2,6 +2,7 @@
 // 比較もEUC-JPベースでやる必要はある
 import { unicodeToJISMap } from "./unicode_to_jis_map";
 import { jisToUnicodeMap } from "./jis_to_unicode_map";
+import { decodeShiftJIS, encodeShiftJIS } from "./shift_jis";
 export const originalCharCodeAt = String.prototype.charCodeAt;
 export const originalFromCharCode = String.fromCharCode;
 
@@ -31,5 +32,28 @@ export function eucJPFromCharCode(...codes: number[]): string {
             }
         }
         return [code];
+    }));
+}
+
+export function shiftJISCharCodeAt(this: string, index: number): number {
+    const orig = originalCharCodeAt.call(this, index);
+    if (Number.isNaN(orig)) {
+        return orig;
+    }
+    const result = encodeShiftJIS(originalFromCharCode(orig));
+    return ((result[1] ?? 0) << 8) | result[0];
+}
+
+export function shiftJISFromCharCode(...codes: number[]): string {
+    return originalFromCharCode(...codes.flatMap(code => {
+        const code2 = (code >> 8) & 0xff;
+        const code1 = code & 0xff;
+        if (code2 !== 0) {
+            return [decodeShiftJIS(new Uint8Array([code1, code2])).charCodeAt(0)];
+        } else if (code >= 0x80) {
+            return [decodeShiftJIS(new Uint8Array([code])).charCodeAt(0)];
+        } else {
+            return [code];
+        }
     }));
 }

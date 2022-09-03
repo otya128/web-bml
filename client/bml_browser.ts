@@ -8,8 +8,6 @@ import { Interpreter } from "./interpreter/interpreter";
 import { JSInterpreter } from "./interpreter/js_interpreter";
 import { NVRAM } from "./nvram";
 import { Resources } from "./resource";
-// @ts-ignore
-import defaultCSS from "../public/default.css";
 
 export interface AudioNodeProvider {
     getAudioDestinationNode(): AudioNode;
@@ -84,6 +82,8 @@ export type InputApplicationLaunchOptions = {
     // 以前入力されていた文字
     value: string,
     inputMode: "text" | "password",
+    // 複数行
+    multiline: boolean,
     // 文字入力が完了した際に呼ぶコールバック
     callback: (value: string) => void,
 };
@@ -108,9 +108,15 @@ export interface Reg {
     setReg(index: number, value: string): void;
 }
 
+export type KeyGroup = "basic" | "data-button" | "numeric-tuning" | "other-tuning"
+    | "special-1" | "special-2" // Cプロファイル
+    ;
+
+export type Profile = "C" | "A" | "BS" | "CS" | "";
+
 interface BMLBrowserEventMap {
     // 読み込まれたとき
-    "load": CustomEvent<{ resolution: { width: number, height: number }, displayAspectRatio: { numerator: number, denominator: number } }>;
+    "load": CustomEvent<{ resolution: { width: number, height: number }, displayAspectRatio: { numerator: number, denominator: number }, profile: Profile }>;
     // invisibleが設定されているときtrue
     "invisible": CustomEvent<boolean>;
     /**
@@ -118,7 +124,7 @@ interface BMLBrowserEventMap {
      * invisibleがtrueである場合渡される矩形に関わらず全面に表示する必要がある
      */
     "videochanged": CustomEvent<{ clientRect: { left: number, top: number, right: number, bottom: number }, boundingRect: DOMRect }>;
-    "usedkeylistchanged": CustomEvent<{ usedKeyList: Set<"basic" | "data-button" | "numeric-tuning"> }>;
+    "usedkeylistchanged": CustomEvent<{ usedKeyList: Set<KeyGroup> }>;
     "audiostreamchanged": CustomEvent<{ componentId: number, channelId?: number }>;
 }
 
@@ -187,7 +193,7 @@ export class BMLBrowser {
     private eventDispatcher: EventDispatcher;
     public readonly broadcasterDatabase: BroadcasterDatabase;
     public readonly content: Content;
-    private bmlDomDocument: BML.BMLDocument;
+    private readonly bmlDocument: BML.BMLDocument;
     private indicator?: Indicator;
     private eventTarget: BMLBrowserEventTarget = new EventTarget();
     private fonts: FontFace[] = [];
@@ -198,35 +204,31 @@ export class BMLBrowser {
         this.mediaElement = options.mediaElement;
         this.indicator = options.indicator;
         this.shadowRoot = options.containerElement.attachShadow({ mode: "closed" });
-        const uaStyle = document.createElement("style");
-        uaStyle.textContent = defaultCSS;
-        this.shadowRoot.appendChild(uaStyle);
         this.documentElement = document.createElement("html");
         if (options.tabIndex != null) {
             this.documentElement.tabIndex = options.tabIndex;
         }
         this.shadowRoot.appendChild(this.documentElement);
-        this.resources = new Resources(this.indicator, options.ip ?? {});
-        this.broadcasterDatabase = new BroadcasterDatabase(this.resources, (options.storagePrefix ?? "") + (options.broadcasterDatabasePrefix ?? ""));
-        this.broadcasterDatabase.openDatabase();
-        this.nvram = new NVRAM(this.resources, this.broadcasterDatabase, (options.storagePrefix ?? "") + (options.nvramPrefix ?? "nvram_"));
-        this.epg = options.epg ?? {};
-        this.interpreter = new JSInterpreter();
-        this.eventQueue = new EventQueue(this.interpreter);
         let audioNodeProvider = options.audioNodeProvider;
         if (audioNodeProvider == null) {
             this.defaultAudioNodeProvider = new DefaultAudioNodeProvider();
             audioNodeProvider = this.defaultAudioNodeProvider;
         }
-        this.bmlDomDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioNodeProvider, options.inputApplication, options.setMainAudioStreamCallback);
-        this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDomDocument, this.resources);
-        this.content = new Content(this.bmlDomDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false, options.inputApplication);
-        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioNodeProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg);
-
+        this.epg = options.epg ?? {};
+        this.interpreter = new JSInterpreter();
+        this.eventQueue = new EventQueue(this.interpreter);
+        this.resources = new Resources(this.indicator, options.ip ?? {});
+        this.broadcasterDatabase = new BroadcasterDatabase(this.resources, (options.storagePrefix ?? "") + (options.broadcasterDatabasePrefix ?? ""));
+        this.broadcasterDatabase.openDatabase();
+        this.nvram = new NVRAM(this.resources, this.broadcasterDatabase, (options.storagePrefix ?? "") + (options.nvramPrefix ?? "nvram_"));
+        this.bmlDocument = new BML.BMLDocument(this.documentElement, this.interpreter, this.eventQueue, this.resources, this.eventTarget, audioNodeProvider, options.inputApplication, options.setMainAudioStreamCallback);
+        this.eventDispatcher = new EventDispatcher(this.eventQueue, this.bmlDocument, this.resources);
         this.eventQueue.dispatchBlur = this.eventDispatcher.dispatchBlur.bind(this.eventDispatcher);
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
         this.eventQueue.dispatchChange = this.eventDispatcher.dispatchChange.bind(this.eventDispatcher);
+        this.content = new Content(this.bmlDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false, options.inputApplication);
+        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioNodeProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg);
         this.interpreter.setupEnvironment(this.browserAPI, this.resources, this.content, this.epg);
         if (options.fonts?.roundGothic) {
             this.fonts.push(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));

@@ -2,11 +2,14 @@
 import { parseBinaryStructure, readBinaryFields, writeBinaryFields } from "./binary_table";
 import { BroadcasterDatabase } from "./broadcaster_database";
 import { Resources } from "./resource";
+import { getTextDecoder, getTextEncoder } from "./text";
 
 type NvramAccessId =
     "broadcaster_id" | // 事業者ごと(BSとCS)
     "original_network_id" | // ネットワークごと(地上波とCS)
-    "affiliation_id"; // 系列ごと(地上波)
+    "affiliation_id" | // 系列ごと(地上波)
+    "affiliation_id;original_network_id" // 系列+ネットワークごと(地上波Cプロファイル)
+    ;
 
 type NvramPermission = "" | "r" | "rw";
 
@@ -100,6 +103,23 @@ const nvramAreas: NvramArea[] = [
         permissions: {
             "GR": "rw",
             "BS": "r",
+            "CS": "",
+        },
+        isSecure: false,
+    },
+    // 地上デジタルテレビジョンCプロファイル放送事業者系列領域
+    {
+        broadcastType: "GR",
+        prefixId: null,
+        prefix: "Cprogroup",
+        startBlock: 0,
+        lastBlock: 31,
+        size: 64,
+        isFixed: true,
+        accessId: ["affiliation_id;original_network_id"],
+        permissions: {
+            "GR": "rw",
+            "BS": "",
             "CS": "",
         },
         isSecure: false,
@@ -264,7 +284,7 @@ export class NVRAM {
     }
 
     private findNvramArea(url: string, broadcasterInfo: BroadcasterInfo): [AccessInfo, NvramArea] | null {
-        const match = url.match(/^nvrams?:\/\/((?<affiliationId>[0-9a-fA-F]{2});)?(?<prefix>.+)\/(?<block>\d+)$/);
+        const match = url.match(/^nvrams?:\/\/((?<affiliationId>[0-9a-fA-F]{2});)?((?<originalNetworkId>[0-9a-fA-F]{4});)?(?<prefix>.+)\/(?<block>\d+)$/);
         if (!match?.groups) {
             return null;
         }
@@ -273,13 +293,17 @@ export class NVRAM {
         if (!Number.isFinite(affiliationId)) {
             affiliationId = null;
         }
+        let originalNetworkId: number | null = parseInt(match?.groups.originalNetworkId, 16);
+        if (!Number.isFinite(originalNetworkId)) {
+            originalNetworkId = null;
+        }
         const prefix = match?.groups.prefix;
         const block = parseInt(match?.groups.block) ?? -1;
         for (const area of nvramAreas) {
             if (prefix === area.prefix && area.isSecure === isSecure) {
                 if (area.startBlock <= block && area.lastBlock >= block) {
                     return [
-                        { block, affiliationId, originalNetworkId: broadcasterInfo.originalNetworkId, broadcasterId: broadcasterInfo.broadcasterId, broadcastType: broadcasterInfo.broadcastType },
+                        { block, affiliationId, originalNetworkId, broadcasterId: broadcasterInfo.broadcasterId, broadcastType: broadcasterInfo.broadcastType },
                         area
                     ];
                 }
@@ -295,7 +319,10 @@ export class NVRAM {
                 if (broadcasterInfo.affiliationId == null) {
                     console.error("affiliationId == null!");
                     params.append("affiliation_id", String(accessInfo.affiliationId));
-                } else if (broadcasterInfo.affiliationId.includes(accessInfo.affiliationId!)) {
+                } else if (accessInfo.affiliationId == null) {
+                    console.error("affiliationId == null!", accessInfo);
+                    return null;
+                } else if (broadcasterInfo.affiliationId.includes(accessInfo.affiliationId)) {
                     params.append("affiliation_id", String(accessInfo.affiliationId));
                 } else {
                     console.error("permission denied (affiliationId)", broadcasterInfo.affiliationId, accessInfo.affiliationId);
@@ -309,12 +336,47 @@ export class NVRAM {
                     params.append("broadcaster_id", String(accessInfo.broadcasterId));
                 }
             } else if (a === "original_network_id") {
-                if (accessInfo.originalNetworkId == null) {
+                if (broadcasterInfo.originalNetworkId == null) {
                     console.error("originalNetworkId == null!");
                     params.append("original_network_id", "null");
                 } else {
-                    params.append("original_network_id", String(accessInfo.originalNetworkId));
+                    params.append("original_network_id", String(broadcasterInfo.originalNetworkId));
                 }
+            } else if (a === "affiliation_id;original_network_id") {
+                if (accessInfo.affiliationId == null || accessInfo.originalNetworkId == null) {
+                    console.error("invalid", accessInfo);
+                    return null;
+                }
+                if (accessInfo.originalNetworkId >= 0x0000 && accessInfo.originalNetworkId <= 0x0003) {
+                    // 系列内共通領域
+                } else {
+                    if (broadcasterInfo.originalNetworkId == null) {
+                        console.error("originalNetworkId == null!");
+                        params.append("original_network_id", String(accessInfo.originalNetworkId));
+                    } else if (accessInfo.originalNetworkId == null) {
+                        console.error("originalNetworkId == null!", accessInfo);
+                        return null;
+                    } else if (broadcasterInfo.originalNetworkId === accessInfo.originalNetworkId) {
+                        params.append("original_network_id", String(accessInfo.originalNetworkId));
+                    } else {
+                        console.error("permission denied (original_network_id)", broadcasterInfo.originalNetworkId, accessInfo.originalNetworkId);
+                        return null;
+                    }
+                    if (broadcasterInfo.affiliationId == null) {
+                        console.error("affiliationId == null!");
+                        params.append("affiliation_id", String(accessInfo.affiliationId));
+                    } else if (accessInfo.affiliationId == null) {
+                        console.error("affiliationId == null!", accessInfo);
+                        return null;
+                    } else if (broadcasterInfo.affiliationId.includes(accessInfo.affiliationId)) {
+                        params.append("affiliation_id", String(accessInfo.affiliationId));
+                    } else {
+                        console.error("permission denied (affiliationId)", broadcasterInfo.affiliationId, accessInfo.affiliationId);
+                        return null;
+                    }
+                }
+            } else {
+                ((_: never) => { })(a);
             }
         }
         params.append("prefix", nvramArea.prefix);
@@ -464,7 +526,7 @@ export class NVRAM {
         if (!a) {
             return null;
         }
-        let [result, _] = readBinaryFields(a, fields);
+        let [result, _] = readBinaryFields(a, fields, getTextDecoder(this.resources.profile));
         return result;
     }
 
@@ -480,7 +542,7 @@ export class NVRAM {
             console.error("writePersistentArray: fields.length > data.length");
             return NaN;
         }
-        let bin = writeBinaryFields(data, fields);
+        let bin = writeBinaryFields(data, fields, getTextEncoder(this.resources.profile));
         return this.writeNVRAM(filename, bin, force ?? false);
     }
 
@@ -499,7 +561,7 @@ export class NVRAM {
         let update: string | undefined;
         let serviceIdList: number[] = [];
         while (off < data.length) {
-            const [result, readBits] = readBinaryFields(data.subarray(off), structure);
+            const [result, readBits] = readBinaryFields(data.subarray(off), structure, getTextDecoder(this.resources.profile));
             if (off === 0) {
                 update = result[0] as string;
             }
@@ -543,7 +605,7 @@ export class NVRAM {
         if (!a) {
             return null;
         }
-        let [result, _] = readBinaryFields(a, fields);
+        let [result, _] = readBinaryFields(a, fields, getTextDecoder(this.resources.profile));
         return result;
     }
 
@@ -559,7 +621,7 @@ export class NVRAM {
             console.error("writePersistentArrayWithAccessCheck: fields.length > data.length");
             return NaN;
         }
-        let bin = writeBinaryFields(data, fields);
+        let bin = writeBinaryFields(data, fields, getTextEncoder(this.resources.profile));
         return this.writeNVRAM(filename, bin, false);
     }
 

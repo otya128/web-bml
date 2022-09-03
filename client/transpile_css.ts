@@ -21,6 +21,12 @@ const bmlCssProperties: Set<string> = new Set([
     "resolution",
     "display-aspect-ratio",
     "grayscale-color-index",
+    // WAP(Cプロファイル)
+    "-wap-marquee-style",
+    "-wap-marquee-loop",
+    "-wap-marquee-dir",
+    "-wap-marquee-speed",
+    "-wap-input-format",
 ]);
 
 export function parseCSSValue(value: string): string | null {
@@ -56,6 +62,28 @@ export function varToColorIndex(colorIndexVar: string | null | undefined): strin
     }
     const match = /var\(--clut-color-(?<index>\d+)\)/.exec(colorIndexVar);
     return match?.groups?.index ?? colorIndexVar;
+}
+
+export function setFontSize(value: string): string {
+    const v = value.trim().toLowerCase();
+    // Cプロファイル
+    if (v === "small" || v === "medium" || v === "large") {
+        return `var(--${v})`
+    }
+    return value;
+}
+
+export function getFontSize(value: string): string {
+    // Cプロファイル
+    switch (value) {
+        case "var(--small)":
+            return "small";
+        case "var(--medium)":
+            return "medium";
+        case "var(--large)":
+            return "large";
+    }
+    return value;
 }
 
 async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<undefined | string | (css.Comment | css.Declaration)[]> {
@@ -122,10 +150,10 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                 property: "--" + origProperty,
                 value: origValue,
             }, {
-                type: "declaration",
-                property: "--" + origProperty + "2",
-                value: decl.value,
-            }];
+                    type: "declaration",
+                    property: "--" + origProperty + "2",
+                    value: decl.value,
+                }];
         } else if (decl.property) {
             const sub = colorIndexRules.get(decl.property);
             if (sub) {
@@ -142,6 +170,37 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                     property: "--" + sub,
                     value: decl.value,
                 }];
+            } else if (decl.property === "font-size") {
+                if (decl.value != null) {
+                    decl.value = setFontSize(decl.value);
+                }
+            } else if (decl.property === "color" || decl.property === "background-color") {
+                // Cプロファイルで<a>でフォーカスが当たった時背景色を文字色を入れ替えるため(-inherit)と#xxxxxxがrgb(x, x, x)になって微妙なので変数としても追加する
+                if (decl.value?.trim() !== "transparent") {
+                    return [decl, {
+                        type: "declaration",
+                        property: "--" + decl.property,
+                        value: decl.value,
+                    }, {
+                        type: "declaration",
+                        property: "--" + decl.property + "-inherit",
+                        value: decl.value,
+                    }];
+                }
+                return [decl, {
+                    type: "declaration",
+                    property: "--" + decl.property,
+                    value: decl.value,
+                }];
+            } else if (decl.property === "display") {
+                if (decl.value === "-wap-marquee") {
+                    decl.value = "block";
+                    return [decl, {
+                        type: "declaration",
+                        property: "--display",
+                        value: "-wap-marquee",
+                    }];
+                }
             }
         }
     }

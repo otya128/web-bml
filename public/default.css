@@ -1,12 +1,3 @@
-arib-style {
-    display: none;
-}
-
-arib-script {
-    display: none;
-}
-
-
 /* STD-B24 Annex A Default Style Sheet */
 /* margin */
 div, p, input, object {margin: 0 !important}
@@ -196,7 +187,6 @@ span, a { letter-spacing : inherit !important }
     margin-inline-end: 0;
 }
 p {
-    white-space: break-spaces !important;
     line-break: anywhere !important;
 }
 body {
@@ -216,6 +206,14 @@ object[type="image/X-arib-png"] {
     visibility: hidden !important;
 }
 
+arib-style {
+    display: none;
+}
+
+arib-script {
+    display: none;
+}
+
 body[arib-loading] { display: none !important; }
 
 :where(html, bml) {
@@ -226,6 +224,8 @@ html {
     position: absolute;
     top: 0px;
     left: 0px;
+    /* タブは空白一文字分 (STD-B24 第二分冊(2/2) 付属2 5.3.2 表5-12) */
+    tab-size: 1;
 }
 
 /*
@@ -274,4 +274,8 @@ arib-text, arib-cdata {
     line-height: inherit !important;
     visibility: unset !important;
     border: none !important;
+}
+
+p, input {
+    white-space: break-spaces !important;
 }

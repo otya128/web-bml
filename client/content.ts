@@ -1,6 +1,5 @@
 import css from "css";
-import { Resources, CachedFile } from "./resource";
-import { decodeEUCJP } from "./euc_jp";
+import { Resources, CachedFile, Profile } from "./resource";
 import { defaultCLUT } from "./default_clut";
 import { readCLUT } from "./clut";
 import { transpileCSS } from "./transpile_css";
@@ -10,8 +9,13 @@ import { bmlToXHTMLFXP } from "./bml_to_xhtml";
 import { NPTReference, ResponseMessage } from "../server/ws_api";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { Interpreter } from "./interpreter/interpreter";
-import { BMLBrowserEventTarget, Indicator, InputApplication } from "./bml_browser";
+import { BMLBrowserEventTarget, Indicator, InputApplication, KeyGroup, Profile as BMLBrowserProfile } from "./bml_browser";
 import { convertJPEG } from "./arib_jpeg";
+import { getTextDecoder } from "./text";
+// @ts-ignore
+import defaultCSS from "../public/default.css";
+// @ts-ignore
+import defaultCProfileCSS from "../public/default_c.css";
 
 export enum AribKeyCode {
     Up = 1,
@@ -41,9 +45,13 @@ export enum AribKeyCode {
     DataButton1 = 25, // E
     DataButton2 = 26, // F
     Bookmark = 100,
+    // Cプロファイル
+    TVLink = 100,
+    // Cプロファイル *
+    Star = 101,
+    // Cプロファイル #
+    Hash = 102,
 }
-
-type KeyGroup = "basic" | "data-button" | "numeric-tuning" | "other-tuning";
 
 // TR-B14 第二分冊 5.3.1 表5-5参照
 const keyCodeToKeyGroup = new Map<AribKeyCode, KeyGroup>([
@@ -71,6 +79,25 @@ const keyCodeToKeyGroup = new Map<AribKeyCode, KeyGroup>([
     [AribKeyCode.Digit10, "numeric-tuning"],
     [AribKeyCode.Digit11, "numeric-tuning"],
     [AribKeyCode.Digit12, "numeric-tuning"],
+]);
+
+// TR-B14 第三分冊 7.3.1 表7-2参照
+const keyCodeToKeyGroupCProfile = new Map<AribKeyCode, KeyGroup>([
+    [AribKeyCode.Enter, "basic"],
+    [AribKeyCode.Back, "basic"],
+    [AribKeyCode.Digit0, "numeric-tuning"],
+    [AribKeyCode.Digit1, "numeric-tuning"],
+    [AribKeyCode.Digit2, "numeric-tuning"],
+    [AribKeyCode.Digit3, "numeric-tuning"],
+    [AribKeyCode.Digit4, "numeric-tuning"],
+    [AribKeyCode.Digit5, "numeric-tuning"],
+    [AribKeyCode.Digit6, "numeric-tuning"],
+    [AribKeyCode.Digit7, "numeric-tuning"],
+    [AribKeyCode.Digit8, "numeric-tuning"],
+    [AribKeyCode.Digit9, "numeric-tuning"],
+    [AribKeyCode.Star, "special-1"],
+    [AribKeyCode.Hash, "special-1"],
+    [AribKeyCode.TVLink, "special-2"],
 ]);
 
 const keyCodeToAccessKey = new Map<AribKeyCode, string>([
@@ -165,6 +192,10 @@ type NPT = {
     scaleNumerator: number,
 };
 
+export type LaunchDocumentOptions = {
+    withLink?: boolean,
+};
+
 export class Content {
     private documentElement: HTMLElement;
     private resources: Resources;
@@ -178,11 +209,9 @@ export class Content {
     private fonts: FontFace[] = [];
     private readonly videoPlaneModeEnabled: boolean;
     private loaded = false;
-    // trueであれば厳密なテキストのレンダリングを有効にする
-    // letter-spacingなどの挙動の差異をどうにかする
-    private strictTextRenderingEnabled = true;
     private readonly inputApplication?: InputApplication;
     private npt?: NPT;
+    private uaStyle?: HTMLStyleElement;
     public constructor(
         bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
@@ -349,6 +378,10 @@ export class Content {
         });
     }
 
+    private decodeText(input: Uint8Array): string {
+        return getTextDecoder(this.resources.profile)(input);
+    }
+
     private _currentDateMode: number = 0;
     public set currentDateMode(timeMode: number) {
         this._currentDateMode = timeMode;
@@ -455,9 +488,14 @@ export class Content {
     }
 
     private async loadDocumentToDOM(data: string): Promise<void> {
+        if (this.uaStyle == null) {
+            this.uaStyle = document.createElement("style");
+            this.uaStyle.textContent = this.resources.profile === Profile.TrProfileC ? defaultCProfileCSS : defaultCSS;
+            this.documentElement.parentNode?.prepend(this.uaStyle);
+        }
         const xhtmlDocument = new DOMParser().parseFromString(`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja"></html>`, "application/xhtml+xml");
         const documentElement = xhtmlDocument.createElement("html");
-        documentElement.innerHTML = bmlToXHTMLFXP(data);
+        documentElement.innerHTML = bmlToXHTMLFXP(data, this.resources.profile === Profile.TrProfileC);
         const p = Array.from(this.documentElement.childNodes).filter(x => x.nodeName.toLowerCase() === "body" || x.nodeName.toLowerCase() === "head");
         const videoElementNew = documentElement.querySelector("[arib-type=\"video/X-arib-mpeg2\"]");
         const prevBody = this.getBody();
@@ -471,7 +509,7 @@ export class Content {
                     const newStyle = document.createElement("style");
                     const res = await this.resources.fetchResourceAsync(href);
                     if (res != null) {
-                        newStyle.textContent = await transpileCSS(decodeEUCJP(res.data), { inline: false, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
+                        newStyle.textContent = await transpileCSS(this.decodeText(res.data), { inline: false, clutReader: this.getCLUT.bind(this), convertUrl: this.convertCSSUrl.bind(this) });
                         style.parentElement?.appendChild(newStyle);
                     }
                 }
@@ -495,24 +533,20 @@ export class Content {
         if (videoElementNew != null) {
             videoElementNew.appendChild(this.videoContainer);
         }
-        if (this.strictTextRenderingEnabled) {
-            const t: Element[] = [];
-            this.replaceTextCDATA(newBody, t);
-            for (const e of t) {
-                const elem = document.createElement(e.nodeType === Node.TEXT_NODE ? "arib-text" : "arib-cdata");
-                elem.textContent = e.textContent;
-                e.replaceWith(elem);
-            }
-        }
         newBody.removeAttribute("arib-loading");
         for (const n of p) {
             n.remove();
         }
-        if (this.strictTextRenderingEnabled) {
-            newBody.querySelectorAll("arib-text, arib-cdata").forEach(elem => {
-                const cd = BML.nodeToBMLNode(elem, this.bmlDocument) as unknown as BML.CharacterData;
-                cd.internalReflow();
-            });
+        const t: Element[] = [];
+        this.replaceTextCDATA(newBody, t);
+        let observe = false;
+        for (const e of t) {
+            const cd = BML.nodeToBMLNode(e, this.bmlDocument) as unknown as BML.CharacterData;
+            if (cd.internalReflow()) {
+                observe = true;
+            }
+        }
+        if (observe) {
             const observer = new MutationObserver((recs) => {
                 for (const rec of recs) {
                     (rec.target as Element).querySelectorAll("arib-text, arib-cdata").forEach(elem => {
@@ -600,6 +634,55 @@ export class Content {
         await this.launchStartup();
     }
 
+    private isFocusable(element: HTMLElement): boolean {
+        if (!BML.isFocusable(element)) {
+            return false;
+        }
+        if (this.resources.profile === Profile.TrProfileC) {
+            // STD-B24 第二分冊(2/2) 付属4 5.1.6
+            const focusable = element.nodeName.toLowerCase() === "a" || element.nodeName.toLowerCase() === "input" || element.nodeName.toLowerCase() === "textarea" || element.hasAttribute("onclick") || element.hasAttribute("onfocus") || element.hasAttribute("onblur") || element.hasAttribute("onkeydown") || element.hasAttribute("onkeyup");
+            if (!focusable) {
+                return false;
+            }
+            const { width, height } = element.getBoundingClientRect();
+            if (width === 0 || height === 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private focusFirstNavIndex() {
+        for (let i = 0; ; i++) {
+            const element = this.findNavIndex(i);
+            if (element == null) {
+                break;
+            }
+            if (this.isFocusable(element)) {
+                this.focusHelper(element);
+                break;
+            }
+        }
+    }
+
+    // Cプロファイルでは受信機が適切にナビゲーションを行う (STD-B24 第二分冊 (2/2) 5.1.6 フォーカスの運用)
+    // nav-indexを使って再現する
+    private shimCProfileNavigation() {
+        if (this.resources.profile !== Profile.TrProfileC) {
+            return;
+        }
+        this.documentElement.querySelectorAll("a, input, textarea, [onclick], [onfocus], [onblur], [onkeydown], [onkeyup]").forEach((element, i) => {
+            const htmlElement = element as HTMLElement;
+            htmlElement.style.setProperty("--nav-index", `${i}`);
+            if (i !== 0) {
+                htmlElement.style.setProperty("--nav-up", `${i - 1}`);
+                htmlElement.style.setProperty("--nav-left", `${i - 1}`);
+            }
+            htmlElement.style.setProperty("--nav-down", `${i + 1}`);
+            htmlElement.style.setProperty("--nav-right", `${i + 1}`);
+        });
+    }
+
     private async loadDocument(file: CachedFile, documentName: string): Promise<boolean> {
         await this.unloadDocument();
         this._context = { from: this.resources.activeDocument, to: documentName };
@@ -612,7 +695,7 @@ export class Content {
         }
         this.resources.activeDocument = documentName;
         await requestAnimationFrameAsync();
-        await this.loadDocumentToDOM(decodeEUCJP(file.data));
+        await this.loadDocumentToDOM(this.decodeText(file.data));
         this.loadObjects();
         this.eventQueue.reset();
         this.unloadAllDRCS();
@@ -633,8 +716,34 @@ export class Content {
             } else {
                 [width, height] = [720, 480];
             }
+        } else if (resolution === "240x480") {
+            [width, height] = [240, 480];
+            aspectNum = 1;
+            aspectDen = 2;
         }
-        this.bmlEventTarget.dispatchEvent<"load">(new CustomEvent("load", { detail: { resolution: { width, height }, displayAspectRatio: { numerator: aspectNum, denominator: aspectDen } } }));
+
+        function mapProfile(profile: Profile | undefined): BMLBrowserProfile {
+            switch (profile) {
+                case Profile.TrProfileA:
+                    return "A";
+                case Profile.TrProfileC:
+                    return "C";
+                case Profile.BS:
+                    return "BS";
+                case Profile.CS:
+                    return "CS";
+                default:
+                    return "";
+            }
+        }
+
+        this.bmlEventTarget.dispatchEvent<"load">(new CustomEvent("load", {
+            detail: {
+                resolution: { width, height },
+                displayAspectRatio: { numerator: aspectNum, denominator: aspectDen },
+                profile: mapProfile(this.resources.profile),
+            }
+        }));
         body.style.maxWidth = width + "px";
         body.style.minWidth = width + "px";
         body.style.maxHeight = height + "px";
@@ -643,8 +752,8 @@ export class Content {
         const usedKeyList = bodyStyle.getPropertyValue("--used-key-list");
         this.bmlEventTarget.dispatchEvent<"usedkeylistchanged">(new CustomEvent("usedkeylistchanged", {
             detail: {
-                usedKeyList: new Set(usedKeyList.split(" ").filter((x): x is "basic" | "numeric-tuning" | "data-button" => {
-                    return x === "basic" || x === "numeric-tuning" || x === "data-button";
+                usedKeyList: new Set(usedKeyList.split(" ").filter((x): x is KeyGroup => {
+                    return x === "basic" || x === "numeric-tuning" || x === "data-button" || x === "special-1" || x === "special-2";
                 }))
             }
         }));
@@ -654,13 +763,18 @@ export class Content {
         let exit = false;
         let scriptCount = 0;
         try {
-            this.focusHelper(this.findNavIndex(0));
+            if (this.resources.profile === Profile.TrProfileC) {
+                this.shimCProfileNavigation();
+                this.focusFirstNavIndex();
+            } else {
+                this.focusHelper(this.findNavIndex(0));
+            }
             for (const x of Array.from(this.documentElement.querySelectorAll("arib-script"))) {
                 const src = x.getAttribute("src");
                 if (src) {
                     const res = await this.resources.fetchResourceAsync(src);
                     if (res !== null) {
-                        if (exit = await this.interpreter.addScript(decodeEUCJP(res.data), src)) {
+                        if (exit = await this.interpreter.addScript(this.decodeText(res.data), src)) {
                             return true;
                         }
                     }
@@ -748,8 +862,8 @@ export class Content {
         });
     }
 
-    public launchDocument(documentName: string) {
-        this.launchDocumentAsync(documentName);
+    public launchDocument(documentName: string, options?: LaunchDocumentOptions) {
+        this.launchDocumentAsync(documentName, options);
         return NaN;
     }
 
@@ -768,7 +882,8 @@ export class Content {
         return false;
     }
 
-    private async launchDocumentAsync(documentName: string) {
+    private async launchDocumentAsync(documentName: string, options?: LaunchDocumentOptions) {
+        const withLink = options?.withLink ?? false;
         console.log("%claunchDocument", "font-size: 4em", documentName);
         this.eventQueue.discard();
         const { component, module, filename } = this.resources.parseURL(documentName);
@@ -777,7 +892,7 @@ export class Content {
         let normalizedDocument: string;
         if (!Number.isInteger(componentId) || !Number.isInteger(moduleId)) {
             const isInternet = documentName.startsWith("http://") || documentName.startsWith("https://");
-            if (isInternet && !this.resources.isInternetContent) {
+            if (isInternet && (!this.resources.isInternetContent || (this.resources.profile === Profile.TrProfileC && withLink))) {
                 // 放送コンテンツ->通信コンテンツへの遷移
                 this.resources.setBaseURIDirectory(documentName);
                 normalizedDocument = documentName;
@@ -793,6 +908,7 @@ export class Content {
                 await this.exitDocument();
                 return NaN;
             }
+            this.resources.invalidateRemoteCache(documentName);
         } else if (filename != null) {
             normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}/${filename}`;
         } else {
@@ -833,7 +949,18 @@ export class Content {
             isAccessKey: false,
         };
         this.keyProcessStatus = keyProcessStatus;
-        let focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
+        let focusElement = this.bmlDocument.currentFocus?.["node"];
+        if (this.resources.profile === Profile.TrProfileC) {
+            if (k == AribKeyCode.Left || k == AribKeyCode.Right || k == AribKeyCode.Up || k == AribKeyCode.Down) {
+                if (focusElement == null) {
+                    this.focusFirstNavIndex();
+                } else {
+                    this.focusNextNavIndex(k, focusElement);
+                }
+                this.eventQueue.processEventQueue();
+                return;
+            }
+        }
         if (!focusElement) {
             return;
         }
@@ -858,7 +985,7 @@ export class Content {
         if (usedKeyList.length && usedKeyList[0] === "none") {
             return;
         }
-        const keyGroup = keyCodeToKeyGroup.get(k);
+        const keyGroup = (this.resources.profile === Profile.TrProfileC ? keyCodeToKeyGroupCProfile : keyCodeToKeyGroup).get(k);
         if (keyGroup == null) {
             return;
         }
@@ -869,17 +996,18 @@ export class Content {
         } else if (!usedKeyList.some(x => x === keyGroup)) {
             return;
         }
-        focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
+        focusElement = this.bmlDocument.currentFocus?.["node"];
         if (!focusElement) {
             return;
         }
         const onkeydown = focusElement.getAttribute("onkeydown");
+        const target = focusElement;
         this.eventQueue.queueAsyncEvent(async () => {
             if (onkeydown) {
                 this.eventDispatcher.setCurrentIntrinsicEvent({
                     keyCode: k as number,
                     type: "keydown",
-                    target: focusElement,
+                    target,
                 });
                 let exit = false;
                 try {
@@ -898,7 +1026,7 @@ export class Content {
             const accessKey = keyCodeToAccessKey.get(k);
             if (accessKey != null) {
                 const elem = this.documentElement.querySelector(`[accesskey="${accessKey}"]`) as HTMLElement;
-                if (elem != null && BML.isFocusable(elem)) {
+                if (elem != null && this.isFocusable(elem)) {
                     this.focusHelper(elem);
                     console.warn("accesskey is half implemented.");
                     // [6] 疑似的にkeyup割り込み事象が発生 keyCode = アクセスキー
@@ -947,35 +1075,10 @@ export class Content {
                     keyProcessStatus.isAccessKey = true;
                 }
             }
-            focusElement = this.bmlDocument.currentFocus && this.bmlDocument.currentFocus["node"];
+            focusElement = this.bmlDocument.currentFocus?.["node"];
             if (focusElement) {
                 // [4] A'に対してnavigation関連特性を適用
-                let nextFocus = "";
-                let nextFocusStyle = window.getComputedStyle(focusElement);
-                while (true) {
-                    if (k == AribKeyCode.Left) {
-                        nextFocus = nextFocusStyle.getPropertyValue("--nav-left");
-                    } else if (k == AribKeyCode.Right) {
-                        nextFocus = nextFocusStyle.getPropertyValue("--nav-right");
-                    } else if (k == AribKeyCode.Up) {
-                        nextFocus = nextFocusStyle.getPropertyValue("--nav-up");
-                    } else if (k == AribKeyCode.Down) {
-                        nextFocus = nextFocusStyle.getPropertyValue("--nav-down");
-                    }
-                    const nextFocusIndex = parseInt(nextFocus);
-                    if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
-                        const next = this.findNavIndex(nextFocusIndex);
-                        if (next != null) {
-                            nextFocusStyle = window.getComputedStyle(next);
-                            // 非表示要素であれば飛ばされる (STD-B24 第二分冊 (1/2 第二編) 5.4.13.3参照)
-                            if (!BML.isFocusable(next)) {
-                                continue;
-                            }
-                            this.focusHelper(next);
-                        }
-                    }
-                    break;
-                }
+                this.focusNextNavIndex(k, focusElement);
             }
             const currentFocus = this.bmlDocument.currentFocus;
             if (k == AribKeyCode.Enter && currentFocus) {
@@ -986,6 +1089,17 @@ export class Content {
                     const inputMode = focusElement.getAttribute("inputmode");
                     if (inputMode === "indirect") {
                         this.bmlDocument.currentFocus.internalLaunchInputApplication();
+                    } else if (this.resources.profile === Profile.TrProfileC) {
+                        this.bmlDocument.currentFocus.internalLaunchInputApplication();
+                    }
+                }
+                if (currentFocus instanceof BML.BMLAnchorElement && currentFocus.href != "") {
+                    if (!currentFocus.href.startsWith("#")) {
+                        if (this.launchDocument(currentFocus.href)) {
+                            return true;
+                        }
+                    } else {
+                        this.focusFragment(currentFocus.href);
                     }
                 }
             }
@@ -993,6 +1107,60 @@ export class Content {
             return false;
         });
         this.eventQueue.processEventQueue();
+    }
+
+    private focusNextNavIndex(k: AribKeyCode, focusElement: HTMLElement) {
+        let nextFocus = "";
+        let nextFocusStyle = window.getComputedStyle(focusElement);
+        while (true) {
+            if (k == AribKeyCode.Left) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-left");
+            } else if (k == AribKeyCode.Right) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-right");
+            } else if (k == AribKeyCode.Up) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-up");
+            } else if (k == AribKeyCode.Down) {
+                nextFocus = nextFocusStyle.getPropertyValue("--nav-down");
+            }
+            const nextFocusIndex = parseInt(nextFocus);
+            if (Number.isFinite(nextFocusIndex) && nextFocusIndex >= 0 && nextFocusIndex <= 32767) {
+                const next = this.findNavIndex(nextFocusIndex);
+                if (next != null) {
+                    nextFocusStyle = window.getComputedStyle(next);
+                    // 非表示要素であれば飛ばされる (STD-B24 第二分冊 (1/2 第二編) 5.4.13.3参照)
+                    if (!this.isFocusable(next)) {
+                        continue;
+                    }
+                    this.focusHelper(next);
+                }
+            }
+            break;
+        }
+    }
+
+    public focusFragment(fragment: string): void {
+        if (fragment.startsWith("#")) {
+            fragment = fragment.substring(1);
+        }
+        const fragmentElement = this.bmlDocument.getElementById(fragment)?.["node"];
+        if (fragmentElement == null) {
+            return;
+        }
+        if (this.isFocusable(fragmentElement)) {
+            this.focusHelper(fragmentElement);
+        } else {
+            // 直接fragmentにフォーカスを当てられなければ後方のフォーカスを当てられる要素に、それでも見つからなければ前方の要素
+            const elements = [...this.documentElement.querySelectorAll("*")];
+            const fragmentElementIndex = elements.indexOf(fragmentElement);
+            for (const element of elements.slice(fragmentElementIndex + 1).concat(elements.slice(0, fragmentElementIndex).reverse())) {
+                if (element instanceof HTMLElement) {
+                    if (this.isFocusable(element)) {
+                        this.focusHelper(element);
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     public processKeyUp(k: AribKeyCode) {
@@ -1101,6 +1269,12 @@ export class Content {
             const adata = obj.getAttribute("arib-data");
             BML.nodeToBMLNode(obj, this.bmlDocument).data = adata!;
         });
+        if (this.resources.profile === Profile.TrProfileC) {
+            this.documentElement.querySelectorAll("img").forEach(obj => {
+                const asrc = obj.getAttribute("arib-src");
+                BML.nodeToBMLNode(obj, this.bmlDocument).src = asrc!;
+            });
+        }
     }
 
     pcrBase?: number;
@@ -1231,7 +1405,6 @@ export class Content {
                     return;
                 }
                 for (const event of msg.events) {
-                    // 即時イベントのみ実装
                     if (event.type === "nptEvent") {
                         const currentNPT = this.getNPT90kHz();
                         if (currentNPT == null || event.eventMessageNPT > currentNPT) {
@@ -1263,7 +1436,7 @@ export class Content {
                         continue;
                     }
                     beitem.internalMessageVersion.set(eventMessageId, eventMessageVersion);
-                    const privateData = decodeEUCJP(Uint8Array.from(event.privateDataByte));
+                    const privateData = this.decodeText(Uint8Array.from(event.privateDataByte));
                     console.log("EventMessageFired", eventMessageId, eventMessageVersion, privateData);
                     this.eventQueue.queueAsyncEvent(async () => {
                         this.eventDispatcher.setCurrentBeventEvent({

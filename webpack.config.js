@@ -18,7 +18,7 @@ module.exports = {
                 use: 'ts-loader',
             },
             {
-                test: /default\.css$/,
+                test: /.*\.css$/,
                 type: 'asset/source',
             }
         ],

@@ -3,7 +3,15 @@ import * as BT from "../binary_table";
 import { Interpreter } from "./interpreter";
 import { Content } from "../content";
 import { getTrace, getLog } from "../util/trace";
-import { Resources } from "../resource";
+import { Profile, Resources } from "../resource";
+import { BML } from "../interface/DOM";
+import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
+import { BrowserAPI } from "../browser";
+import * as bmlDate from "../date";
+import * as bmlNumber from "../number";
+import * as bmlString from "../string";
+import { EPG } from "../bml_browser";
+import { getTextDecoder } from "../text";
 
 const domTrace = getTrace("js-interpreter.dom");
 const eventTrace = getTrace("js-interpreter.event");
@@ -27,14 +35,6 @@ const LAUNCH_DOCUMENT_CALLED = {};
  * XMLDoc (Class.XMLDocが1であればサポート)
  * navigator (運用しない)
  */
-
-import { BML } from "../interface/DOM";
-import { BMLCSS2Properties } from "../interface/BMLCSS2Properties";
-import { BrowserAPI } from "../browser";
-import * as bmlDate from "../date";
-import * as bmlNumber from "../number";
-import * as bmlString from "../string";
-import { EPG } from "../bml_browser";
 
 function initNumber(interpreter: any, globalObject: any) {
     var thisInterpreter = interpreter;
@@ -88,9 +88,6 @@ function initString(interpreter: any, globalObject: any) {
     interpreter.setProperty(globalObject, 'String', interpreter.STRING,
         Interpreter.NONENUMERABLE_DESCRIPTOR);
 
-    // Static methods on String.
-    interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.eucJPFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
-
     // Instance methods on String.
     // Methods with exclusively primitive arguments.
     // toUpperCase/toLowerCaseは全角英字では動かずASCIIの範囲のみかも
@@ -100,7 +97,6 @@ function initString(interpreter: any, globalObject: any) {
             String.prototype[functions[i] as any]);
     }
 
-    interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.eucJPCharCodeAt);
     wrapper = function split(this: string, separator: string) {
         var string = String(this);
         var jsList = string.split(separator);
@@ -224,6 +220,8 @@ export class JSInterpreter implements Interpreter {
         interpreter.setProperty(globalObject, "BMLInputElement", this.domClassToPseudo(interpreter, BML.BMLInputElement));
         interpreter.setProperty(globalObject, "HTMLObjectElement", this.domClassToPseudo(interpreter, BML.HTMLObjectElement));
         interpreter.setProperty(globalObject, "BMLObjectElement", this.domClassToPseudo(interpreter, BML.BMLObjectElement));
+        interpreter.setProperty(globalObject, "HTMLImageElement", this.domClassToPseudo(interpreter, BML.HTMLImageElement)); // Cプロファイル
+        interpreter.setProperty(globalObject, "BMLImageElement", this.domClassToPseudo(interpreter, BML.BMLImageElement)); // Cプロファイル
         interpreter.setProperty(globalObject, "BMLSpanElement", this.domClassToPseudo(interpreter, BML.BMLSpanElement));
         interpreter.setProperty(globalObject, "HTMLBodyElement", this.domClassToPseudo(interpreter, BML.HTMLBodyElement));
         interpreter.setProperty(globalObject, "BMLBodyElement", this.domClassToPseudo(interpreter, BML.BMLBodyElement));
@@ -247,8 +245,19 @@ export class JSInterpreter implements Interpreter {
 
     public reset() {
         const content = this.content;
+        const epg = this.epg;
+        const resources = this.resources;
         function launchDocument(callback: (result: any, promiseValue: any) => void, documentName: string, transitionStyle: string | undefined): void {
             browserLog("launchDocument", documentName, transitionStyle);
+            if (documentName.startsWith("#")) {
+                // Cプロファイル TR-B14 第三分冊
+                // 8.2.3.4 #fragment運用における受信機動作およびコンテンツガイドライン
+                // "#top"の場合リロードされないことが望ましい
+                // "startup.bml#top"の場合リロードが行われることが望ましい
+                content.focusFragment(documentName);
+                callback(0, undefined);
+                return;
+            }
             const r = content.launchDocument(String(documentName));
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }
@@ -259,8 +268,29 @@ export class JSInterpreter implements Interpreter {
             callback(r, LAUNCH_DOCUMENT_CALLED);
         }
 
-        const epg = this.epg;
-        const resources = this.resources;
+        function X_DPA_launchDocWithLink(callback: (result: any, promiseValue: any) => void, documentName: string, transitionStyle: string | undefined): void {
+            console.log("%X_DPA_launchDocWithLink", "font-size: 4em", documentName);
+            if (resources.profile !== Profile.TrProfileC) {
+                callback(NaN, LAUNCH_DOCUMENT_CALLED);
+                return;
+            }
+            // 絶対URIを使用すること
+            // TR-B14 第三分冊 8.3.10.2
+            if (!documentName.startsWith("http://") && documentName.startsWith("https://")) {
+                callback(NaN, LAUNCH_DOCUMENT_CALLED);
+                return;
+            }
+            if (!resources.isInternetContent) {
+                // 放送受信状態で使われた場合失敗動作となる
+                // エラーメッセージを表示すべき (8.3.11.4)
+                content.quitDocument();
+                callback(NaN, LAUNCH_DOCUMENT_CALLED);
+                return;
+            }
+            const r = content.launchDocument(documentName, { withLink: true });
+            callback(r, LAUNCH_DOCUMENT_CALLED);
+        }
+
         function epgTune(callback: (result: any, promiseValue: any) => void, service_ref: string): void {
             browserLog("%cepgTune", "font-size: 4em", service_ref);
             const { originalNetworkId, transportStreamId, serviceId } = resources.parseServiceReference(service_ref);
@@ -316,6 +346,7 @@ export class JSInterpreter implements Interpreter {
             }
             interpreter.setProperty(pseudoBrowser, "launchDocument", interpreter.createAsyncFunction(launchDocument));
             interpreter.setProperty(pseudoBrowser, "reloadActiveDocument", interpreter.createAsyncFunction(reloadActiveDocument));
+            interpreter.setProperty(pseudoBrowser, "X_DPA_launchDocWithLink", interpreter.createAsyncFunction(X_DPA_launchDocWithLink));
             interpreter.setProperty(pseudoBrowser, "epgTune", interpreter.createAsyncFunction(epgTune));
             interpreter.setProperty(pseudoBrowser, "readPersistentArray", interpreter.createNativeFunction(function readPersistentArray(filename: string, structure: string): any[] | null {
                 return interpreter.arrayNativeToPseudo(browser.readPersistentArray(filename, structure));
@@ -343,7 +374,7 @@ export class JSInterpreter implements Interpreter {
                     }
                     browserLog("new BinaryTable", table_ref);
                     let buffer: Uint8Array = res.data;
-                    this.instance = new BT.BinaryTable(buffer, structure);
+                    this.instance = new BT.BinaryTable(buffer, structure, getTextDecoder(resources.profile));
                     callback(this, undefined);
                 });
             });
@@ -472,17 +503,24 @@ export class JSInterpreter implements Interpreter {
             }
             initDate(interpreter, globalObject);
             initString(interpreter, globalObject);
+            if (resources.profile === Profile.TrProfileC) {
+                interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.shiftJISFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
+                interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.shiftJISCharCodeAt);
+            } else {
+                interpreter.setProperty(interpreter.STRING, "fromCharCode", interpreter.createNativeFunction(bmlString.eucJPFromCharCode, false), Interpreter.NONENUMERABLE_DESCRIPTOR);
+                interpreter.setNativeFunctionPrototype(interpreter.STRING, "charCodeAt", bmlString.eucJPCharCodeAt);
+            }
             initNumber(interpreter, globalObject);
         });
         this.resetStack();
     }
 
-    _isExecuting: boolean;
+    private _isExecuting: boolean;
     // lazyinit
-    browserAPI: BrowserAPI = null!;
-    resources: Resources = null!;
-    content: Content = null!;
-    epg: EPG = null!;
+    private browserAPI: BrowserAPI = null!;
+    private resources: Resources = null!;
+    private content: Content = null!;
+    private epg: EPG = null!;
     public constructor() {
         this._isExecuting = false;
     }

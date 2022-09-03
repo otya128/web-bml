@@ -1,3 +1,4 @@
+import { parseMediaTypeFromString } from "../server/entity_parser";
 import { ComponentPMT, MediaType, ModuleListEntry, ProgramInfoMessage, ResponseMessage } from "../server/ws_api";
 import { Indicator, IP } from "./bml_browser";
 
@@ -151,6 +152,13 @@ class CacheMap {
     }
 }
 
+export enum Profile {
+    BS = 0x0007,
+    CS = 0x000b,
+    TrProfileA = 0x000c,
+    TrProfileC = 0x000d,
+}
+
 export class Resources {
     private readonly indicator?: Indicator;
     private readonly eventTarget: ResourcesEventTarget = new EventTarget();
@@ -163,6 +171,12 @@ export class Resources {
     public constructor(indicator: Indicator | undefined, ip: IP) {
         this.indicator = indicator;
         this.ip = ip;
+    }
+
+    private _profile?: Profile;
+
+    public get profile(): Profile | undefined {
+        return this._profile;
     }
 
     private _activeDocument: null | string = null;
@@ -506,6 +520,9 @@ export class Resources {
             const prevComponents = this.pmtComponents;
             // 0x0d: データカルーセル
             this.pmtComponents = new Map(msg.components.filter(x => x.streamType === 0x0d).map(x => [x.componentId, x]));
+            if (prevComponents.size === 0) {
+                this._profile = this.pmtComponents.get(0x40)?.dataComponentId ?? this.pmtComponents.get(0x80)?.dataComponentId;
+            }
             for (const [componentId, creqs] of this.componentRequests) {
                 if (this.pmtComponents.has(componentId)) {
                     continue;
@@ -704,9 +721,17 @@ export class Resources {
             }
             return null;
         }
+        const contentType = headers.get("content-type");
+        let mediaType: MediaType = { originalSubtype: "", originalType: "", parameters: [], subtype: "", type: "" };
+        if (contentType != null) {
+            const result = parseMediaTypeFromString(contentType);
+            if (result.mediaType != null) {
+                mediaType = result.mediaType;
+            }
+        }
         const file: RemoteCachedFile = {
             contentLocation: null,
-            contentType: { originalSubtype: "", originalType: "", parameters: [], subtype: "", type: "" },
+            contentType: mediaType,
             data: response,
             blobUrl: new Map<any, CachedFileMetadata>(),
             cacheControl: headers.get("Cache-Control")?.toLowerCase()
@@ -718,6 +743,14 @@ export class Resources {
             }
         }
         return file;
+    }
+
+    public invalidateRemoteCache(url: string): void {
+        if (this.ip.get == null || this.activeDocument == null || this.baseURIDirectory == null) {
+            return;
+        }
+        const full = this.activeDocument.startsWith("http://") || this.activeDocument.startsWith("https://") ? new URL(url, this.activeDocument).toString() : url;
+        this.cachedRemoteResources.delete(full);
     }
 
     public fetchResourceAsync(url: string, requestType?: "lockModuleOnMemory" | "lockModuleOnMemoryEx"): Promise<CachedFile | null> {
@@ -846,9 +879,8 @@ export class Resources {
         // this.cachedComponents.clear();
     }
 
-    // Cプロファイルだと0x80
     public get startupComponentId(): number {
-        return 0x40;
+        return this._profile === Profile.TrProfileC ? 0x80 : 0x40;
     }
 
     public get startupModuleId(): number {
