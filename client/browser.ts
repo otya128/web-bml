@@ -1241,7 +1241,7 @@ export class BrowserAPI {
                 // const mode = String(Ex_info[1]);
                 // const fullscreen = String(Ex_info[2]) === "1";
                 return NaN;
-            } else if (appName === "BOokmarkList") {
+            } else if (appName === "BookmarkList") {
                 return NaN;
             }
             return NaN;
