@@ -221,32 +221,38 @@ export namespace BML {
     // impl
     export class CharacterData extends Node {
         protected node: globalThis.CharacterData;
-        protected textNode: globalThis.HTMLElement;
-        protected parentBlock: globalThis.HTMLElement;
-        protected root: ShadowRoot;
-        protected textNodeInRoot?: globalThis.CharacterData;
-        protected textData: string;
-        protected marquee?: globalThis.HTMLElement;
+        private readonly flowData?: {
+            readonly textNode: globalThis.HTMLElement,
+            readonly parentBlock: globalThis.HTMLElement,
+            readonly root: ShadowRoot,
+            textData: string,
+            textNodeInRoot?: globalThis.CharacterData,
+            marquee?: globalThis.HTMLElement,
+        };
         constructor(node: globalThis.CharacterData, ownerDocument: BMLDocument) {
             super(node, ownerDocument);
-            // strictTextRenderingが有効の場合
-            if (node.nodeName.toLowerCase() === "arib-text" || node.nodeName.toLowerCase() === "arib-cdata") {
-                this.textNode = node as unknown as globalThis.HTMLElement;
-                this.textData = this.textNode.textContent ?? "";
-                this.textNode.replaceChildren();
-                this.root = this.textNode.attachShadow({ mode: "closed" });
-                this.parentBlock = this.getParentBlock()!;
-            } else {
-                this.textNode = undefined!;
-                this.root = undefined!;
-                this.textData = undefined!;
-                this.parentBlock = undefined!;
+            const computedStyle = window.getComputedStyle(this.getParentBlock(node)!);
+            const display = computedStyle.getPropertyValue("--display").trim();
+            if (display === "-wap-marquee" || (computedStyle.letterSpacing !== "normal" && computedStyle.letterSpacing !== "0px")) {
+                let textNode;
+                if (node instanceof globalThis.CDATASection) {
+                    textNode = document.createElement("arib-cdata");
+                } else {
+                    textNode = document.createElement("arib-text");
+                }
+                const textData = node.textContent ?? "";
+                node.replaceWith(textNode);
+                const root = textNode.attachShadow({ mode: "closed" });
+                const parentBlock = this.getParentBlock(textNode)!;
+                this.flowData = { textNode, parentBlock, root, textData };
+                ownerDocument.internalBMLNodeInstanceMap.set(textNode, this);
+                ownerDocument.internalBMLNodeInstanceMap.delete(node);
             }
             this.node = node;
         }
 
-        private getParentBlock() {
-            let parent: globalThis.HTMLElement | null = this.textNode.parentElement;
+        private getParentBlock(node: globalThis.Node) {
+            let parent: globalThis.HTMLElement | null = node.parentElement;
             while (parent != null) {
                 if (window.getComputedStyle(parent).display !== "inline") {
                     return parent;
@@ -297,38 +303,42 @@ export namespace BML {
         }
 
         private flowText(text: string) {
-            const nextElement = this.textNode.nextElementSibling;
-            const computedStyle = window.getComputedStyle(this.textNode);
-            if (computedStyle.whiteSpace === "normal") {
+            const flowData = this.flowData;
+            if (flowData == null) {
+                return;
+            }
+            const nextElement = flowData.textNode.nextElementSibling;
+            const computedStyle = window.getComputedStyle(flowData.textNode);
+            if (flowData.textNode.nodeName.toLowerCase() === "arib-text") {
                 text = text.replace(/[ \n\r\t]+/g, " ");
             }
             const display = computedStyle.getPropertyValue("--display").trim();
             // Cプロファイル
             const wapMarquee = display === "-wap-marquee";
             if (computedStyle.letterSpacing === "normal" || computedStyle.letterSpacing === "0px") {
-                if (this.textNodeInRoot == null) {
+                if (flowData.textNodeInRoot == null) {
                     // shadow DOMの中なので外の* {}のようなCSSは適用されない一方プロパティは継承される
-                    this.textNodeInRoot = document.createTextNode(text);
+                    flowData.textNodeInRoot = document.createTextNode(text);
                     if (wapMarquee) {
-                        this.marquee = this.createMarquee(computedStyle);
-                        this.marquee.replaceChildren(this.textNodeInRoot);
-                        this.root.replaceChildren(this.marquee);
+                        flowData.marquee = this.createMarquee(computedStyle);
+                        flowData.marquee.replaceChildren(flowData.textNodeInRoot);
+                        flowData.root.replaceChildren(flowData.marquee);
                     } else {
-                        this.root.replaceChildren(this.textNodeInRoot);
+                        flowData.root.replaceChildren(flowData.textNodeInRoot);
                     }
                 } else if (wapMarquee) {
-                    this.marquee = this.createMarquee(computedStyle);
-                    this.marquee.replaceChildren(this.textNodeInRoot);
-                    this.root.replaceChildren(this.marquee);
+                    flowData.marquee = this.createMarquee(computedStyle);
+                    flowData.marquee.replaceChildren(flowData.textNodeInRoot);
+                    flowData.root.replaceChildren(flowData.marquee);
                 }
                 return;
             }
-            if (this.textNodeInRoot != null) {
-                this.textNodeInRoot = undefined;
+            if (flowData.textNodeInRoot != null) {
+                flowData.textNodeInRoot = undefined;
             }
-            const left = this.textNode.clientLeft;
-            const top = this.textNode.clientTop;
-            const parent = this.parentBlock;
+            const left = flowData.textNode.clientLeft;
+            const top = flowData.textNode.clientTop;
+            const parent = flowData.parentBlock;
             const width = parent.clientWidth;
             let fontSize = Number.parseInt(computedStyle.fontSize);
             if (Number.isNaN(fontSize)) {
@@ -379,31 +389,35 @@ export namespace BML {
                 x += fontWidth;
             }
             if (wapMarquee) {
-                this.marquee = this.createMarquee(computedStyle);
+                flowData.marquee = this.createMarquee(computedStyle);
                 // Firefoxだとmarqueeのなかに要素を追加する前にrootに追加してしまうとスクロールがおかしくなる
-                this.marquee.replaceChildren(...children);
-                this.root.replaceChildren(this.marquee);
+                flowData.marquee.replaceChildren(...children);
+                flowData.root.replaceChildren(flowData.marquee);
             } else {
-                this.root.replaceChildren(...children);
+                flowData.root.replaceChildren(...children);
             }
         }
 
-        public internalReflow() {
+        public internalReflow(): boolean {
+            if (this.flowData == null) {
+                return false;
+            }
             this.flowText(this.data);
+            return true;
         }
 
         public get data(): string {
-            if (this.textNode) {
-                return this.textData;
+            if (this.flowData == null) {
+                return this.node.data;
             }
-            return this.node.data;
+            return this.flowData.textData;
         }
         public set data(value: string) {
             value = String(value);
-            if (this.textNode) {
-                this.textData = value;
-                if (this.textNodeInRoot != null) {
-                    this.textNodeInRoot.data = value;
+            if (this.flowData != null) {
+                this.flowData.textData = value;
+                if (this.flowData.textNodeInRoot != null) {
+                    this.flowData.textNodeInRoot.data = value;
                 } else {
                     this.flowText(value);
                 }
@@ -412,7 +426,7 @@ export namespace BML {
             this.node.data = value;
         }
         public get length(): number {
-            return this.node.length;
+            return this.data.length;
         }
     }
 

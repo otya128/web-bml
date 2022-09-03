@@ -209,9 +209,6 @@ export class Content {
     private fonts: FontFace[] = [];
     private readonly videoPlaneModeEnabled: boolean;
     private loaded = false;
-    // trueであれば厳密なテキストのレンダリングを有効にする
-    // letter-spacingなどの挙動の差異をどうにかする
-    private strictTextRenderingEnabled = true;
     private readonly inputApplication?: InputApplication;
     private npt?: NPT;
     private uaStyle?: HTMLStyleElement;
@@ -536,24 +533,20 @@ export class Content {
         if (videoElementNew != null) {
             videoElementNew.appendChild(this.videoContainer);
         }
-        if (this.strictTextRenderingEnabled) {
-            const t: Element[] = [];
-            this.replaceTextCDATA(newBody, t);
-            for (const e of t) {
-                const elem = document.createElement(e.nodeType === Node.TEXT_NODE ? "arib-text" : "arib-cdata");
-                elem.textContent = e.textContent;
-                e.replaceWith(elem);
-            }
-        }
         newBody.removeAttribute("arib-loading");
         for (const n of p) {
             n.remove();
         }
-        if (this.strictTextRenderingEnabled) {
-            newBody.querySelectorAll("arib-text, arib-cdata").forEach(elem => {
-                const cd = BML.nodeToBMLNode(elem, this.bmlDocument) as unknown as BML.CharacterData;
-                cd.internalReflow();
-            });
+        const t: Element[] = [];
+        this.replaceTextCDATA(newBody, t);
+        let observe = false;
+        for (const e of t) {
+            const cd = BML.nodeToBMLNode(e, this.bmlDocument) as unknown as BML.CharacterData;
+            if (cd.internalReflow()) {
+                observe = true;
+            }
+        }
+        if (observe) {
             const observer = new MutationObserver((recs) => {
                 for (const rec of recs) {
                     (rec.target as Element).querySelectorAll("arib-text, arib-cdata").forEach(elem => {
@@ -743,7 +736,7 @@ export class Content {
                     return "";
             }
         }
-    
+
         this.bmlEventTarget.dispatchEvent<"load">(new CustomEvent("load", {
             detail: {
                 resolution: { width, height },
