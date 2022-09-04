@@ -120,6 +120,10 @@ export namespace BML {
             return BMLDivElement;
         } else if (node instanceof globalThis.HTMLHtmlElement) {
             return BMLBmlElement;
+        } else if (node instanceof globalThis.HTMLTextAreaElement) {
+            return BMLTextAreaElement;
+        } else if (node instanceof globalThis.HTMLFormElement) {
+            return BMLFormElement;
         } else if (node instanceof globalThis.HTMLElement) {
             console.error(node);
             return HTMLElement;
