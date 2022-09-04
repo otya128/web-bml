@@ -477,7 +477,7 @@ const cproAPIGroup = new Map([
     ["Xdpa.SchInfo", 0],
     ["Xdpa.ComBrowserUA", 1],
     ["Xdpa.AddressBook", 0],
-    ["Xdpa.launchWithL", 0],
+    ["Xdpa.launchWithL", 1],
     ["Xdpa.chkAV", 0],
     ["Xdpa.getIRDID", 1],
     ["Xdpa.CproBM", 0],
