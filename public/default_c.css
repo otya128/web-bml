@@ -124,11 +124,13 @@ arib-cdata {
     white-space: break-spaces !important;
 }
 
-a[web-bml-state="focus"], a[web-bml-state="active"] {
+:where(a[web-bml-state="focus"], a[web-bml-state="active"]) {
     /* background-color: var(--color) !important;
     color: var(--background-color-inherit) !important; */
-    background-color: blue !important;
-    color: white !important;
+    background-color: blue;
+    color: white;
+    outline: 1px blue dotted;
+    outline-offset: -1px;
 }
 
 :where(p) {
