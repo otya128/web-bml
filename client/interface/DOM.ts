@@ -233,6 +233,10 @@ export namespace BML {
         };
         constructor(node: globalThis.CharacterData, ownerDocument: BMLDocument) {
             super(node, ownerDocument);
+            if (node.parentElement != null) {
+                node.parentElement.style.fontSize = "var(--font-size)";
+                node.parentElement.style.lineHeight = "var(--line-height)";
+            }
             const computedStyle = window.getComputedStyle(this.getParentBlock(node)!);
             const display = computedStyle.getPropertyValue("--display").trim();
             if (display === "-wap-marquee" || (computedStyle.letterSpacing !== "normal" && computedStyle.letterSpacing !== "0px")) {

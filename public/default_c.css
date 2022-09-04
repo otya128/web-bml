@@ -18,7 +18,7 @@ br, span, a { position: static !important }
 /* z-index */ 
 body, div, p, pre, br, span, a, form, input, textarea, object, img { z-index: auto !important }
 /* line-height */ 
-br, span, a { line-height: inherit !important }
+/* br, span, a { line-height: inherit !important } */
 /* visibility */ 
 body { visibility: visible !important }
 span, a { visibility: inherit !important }
@@ -76,6 +76,8 @@ body[arib-loading] { display: none !important; }
 
 :where(html, bml) {
     line-height: 1; /* Firefox */
+    --line-height: 1;
+    --line-height-raw: normal;
 }
 
 html {
@@ -88,7 +90,8 @@ html {
     --large: 30px;
     /* タブは空白一文字分 (TR-B14 第三分冊 7.7.3 注4) */
     tab-size: 1;
-    font-size: var(--medium);
+    --font-size: var(--medium);
+    --font-size-raw: medium;
 }
 
 /* 継承しない拡張特性の初期値 */

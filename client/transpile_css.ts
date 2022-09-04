@@ -73,15 +73,11 @@ export function setFontSize(value: string): string {
     return value;
 }
 
-export function getFontSize(value: string): string {
-    // Cプロファイル
-    switch (value) {
-        case "var(--small)":
-            return "small";
-        case "var(--medium)":
-            return "medium";
-        case "var(--large)":
-            return "large";
+export function setLineHeight(value: string): string {
+    const v = value.trim().toLowerCase();
+    // ブラウザではnormalは大体1.2
+    if (v === "normal") {
+        return "1";
     }
     return value;
 }
@@ -171,10 +167,41 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                     value: decl.value,
                 }];
             } else if (decl.property === "font-size") {
-                if (decl.value != null) {
-                    decl.value = setFontSize(decl.value);
+                // FIXME: inheritで上書きできない
+                // <style>p { font-size: 16px; } span { font-size: 24px; }</style> <p><span style="font-size: inherit;"> <= font-sizeは16pxであるべき
+                if (decl.value?.trim()?.toLowerCase() === "inherit") {
+                    return [];
                 }
+                return [{
+                    type: "declaration",
+                    property: "--" + decl.property,
+                    value: decl.value != null ? setFontSize(decl.value) : decl.value,
+                }, {
+                    type: "declaration",
+                    property: "--" + decl.property + "-raw",
+                    value: decl.value,
+                }];
+            } else if (decl.property === "line-height") {
+                if (decl.value?.trim()?.toLowerCase() === "inherit") {
+                    return [];
+                }
+                return [{
+                    type: "declaration",
+                    property: "--" + decl.property,
+                    value: decl.value != null ? setLineHeight(decl.value) : decl.value,
+                }, {
+                    type: "declaration",
+                    property: "--" + decl.property + "-inherit",
+                    value: decl.value != null ? setLineHeight(decl.value) : decl.value,
+                }, {
+                    type: "declaration",
+                    property: "--" + decl.property + "-raw",
+                    value: decl.value,
+                }];
             } else if (decl.property === "color" || decl.property === "background-color") {
+                if (decl.value?.trim()?.toLowerCase() === "inherit") {
+                    return;
+                }
                 // Cプロファイルで<a>でフォーカスが当たった時背景色を文字色を入れ替えるため(-inherit)と#xxxxxxがrgb(x, x, x)になって微妙なので変数としても追加する
                 if (decl.value?.trim() !== "transparent") {
                     return [decl, {

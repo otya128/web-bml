@@ -18,7 +18,7 @@ br, span, a { position : static !important }
 /* z-index */
 div, p, br, span, a, input, object, body { z-index : auto !important }
 /* line-height */
-br, span, a { line-height : inherit !important }
+/* br, span, a { line-height : inherit !important } */
 /* visibility */
 body { visibility : visible !important }
 span, a { visibility : inherit !important }
@@ -27,8 +27,8 @@ p, div, input, object { overflow : hidden !important }
 /* background-repeat */
 body { background-repeat : repeat !important }
 /* text */
-:where(p, input) { font-family: "丸ゴシック"; font-size: 24px; }
-:where(span, a) { font-family: inherit; font-size: inherit; }
+:where(p, input) { font-family: "丸ゴシック"; --font-size: 24px; --font-size-raw: 24px; }
+:where(span, a) { font-family: inherit; }
 :where(p, input) { text-align: left; }
 /* letter-spacing */
 span, a { letter-spacing : inherit !important }
@@ -218,6 +218,8 @@ body[arib-loading] { display: none !important; }
 
 :where(html, bml) {
     line-height: 1; /* Firefox */
+    --line-height: 1;
+    --line-height-raw: normal;
 }
 
 html {
