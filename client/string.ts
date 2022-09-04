@@ -41,7 +41,10 @@ export function shiftJISCharCodeAt(this: string, index: number): number {
         return orig;
     }
     const result = encodeShiftJIS(originalFromCharCode(orig));
-    return ((result[1] ?? 0) << 8) | result[0];
+    if (result.length >= 2) {
+        return (result[0] << 8) | result[1];
+    }
+    return result[0];
 }
 
 export function shiftJISFromCharCode(...codes: number[]): string {
