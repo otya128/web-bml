@@ -178,6 +178,7 @@ export type BMLBrowserOptions = {
     ureg?: Reg;
     greg?: Reg;
     setMainAudioStreamCallback?: (componentId: number, channelId?: number) => boolean;
+    X_DPA_startResidentApp?: (appName: string, showAV: number, returnURI: string, Ex_info: string[]) => number;
 };
 
 export class BMLBrowser {
@@ -228,7 +229,7 @@ export class BMLBrowser {
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
         this.eventQueue.dispatchChange = this.eventDispatcher.dispatchChange.bind(this.eventDispatcher);
         this.content = new Content(this.bmlDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false, options.inputApplication);
-        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioNodeProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg);
+        this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioNodeProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg, options.X_DPA_startResidentApp);
         this.interpreter.setupEnvironment(this.browserAPI, this.resources, this.content, this.epg);
         if (options.fonts?.roundGothic) {
             this.fonts.push(new FontFace(bmlBrowserFontNames.roundGothic, options.fonts?.roundGothic.source, options.fonts?.roundGothic.descriptors));

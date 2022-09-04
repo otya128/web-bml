@@ -543,6 +543,7 @@ export class BrowserAPI {
     private readonly indicator?: Indicator;
     private readonly ureg: Reg;
     private readonly greg: Reg;
+    private readonly X_DPA_startResidentApp?: (appName: string, showAV: number, returnURI: string, Ex_info: string[]) => number;
 
     constructor(
         resources: resource.Resources,
@@ -556,6 +557,7 @@ export class BrowserAPI {
         indicator: Indicator | undefined,
         ureg: Reg | undefined,
         greg: Reg | undefined,
+        X_DPA_startResidentApp: ((appName: string, showAV: number, returnURI: string, Ex_info: string[]) => number) | undefined,
     ) {
         this.resources = resources;
         this.eventQueue = eventQueue;
@@ -574,6 +576,7 @@ export class BrowserAPI {
             getReg: (index) => this.browser.Greg[index],
             setReg: (index, value) => this.browser.Greg[index] = value,
         };
+        this.X_DPA_startResidentApp = X_DPA_startResidentApp;
     }
 
     asyncBrowser: AsyncBrowser = {
@@ -1229,6 +1232,9 @@ export class BrowserAPI {
             return [
                 [
                     // メーカーID
+                    // 2D: KDDI
+                    // 2E: J-PHONE
+                    // 2F: NTT DoCoMo
                     "00",
                     // User-Agent
                     ""
@@ -1236,6 +1242,13 @@ export class BrowserAPI {
             ];
         },
         X_DPA_startResidentApp: (appName: string, showAV: number, returnURI: string, ...Ex_info: string[]): number => {
+            appName = String(appName);
+            showAV = Number(showAV);
+            returnURI = String(returnURI);
+            Ex_info = Ex_info.map(x => String(x));
+            if (this.X_DPA_startResidentApp != null) {
+                return this.X_DPA_startResidentApp(appName, showAV, returnURI, Ex_info);
+            }
             if (appName === "ComBrowser") {
                 const uri = String(Ex_info[0]);
                 // const mode = String(Ex_info[1]);
