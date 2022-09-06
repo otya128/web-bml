@@ -128,7 +128,7 @@ arib-cdata {
     /* background-color: var(--color) !important;
     color: var(--background-color-inherit) !important; */
     background-color: blue;
-    color: white;
+    color: white !important;
     outline: 1px blue dotted;
     outline-offset: -1px;
 }
