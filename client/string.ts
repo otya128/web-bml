@@ -52,7 +52,7 @@ export function shiftJISFromCharCode(...codes: number[]): string {
         const code2 = (code >> 8) & 0xff;
         const code1 = code & 0xff;
         if (code2 !== 0) {
-            return [decodeShiftJIS(new Uint8Array([code1, code2])).charCodeAt(0)];
+            return [decodeShiftJIS(new Uint8Array([code2, code1])).charCodeAt(0)];
         } else if (code >= 0x80) {
             return [decodeShiftJIS(new Uint8Array([code])).charCodeAt(0)];
         } else {
