@@ -1,5 +1,25 @@
 import css from 'css';
 
+// STD-B24 第二分冊(2/2) 4.4.13 length の運用
+// STD-B24 第二分冊(2/2) 4.5.12 length の運用
+// TR-B14 第三分冊 7.8.11 lengthの運用
+// > lengthはピクセル単位の整数値の指定のみとし、"100px"などのように指定する。但し0px の場合"0"と書いても良いが、DOM の返り値は、"0px"と返す。
+// 実際にはQuirksな挙動をする必要があるらしい
+const quirksProperties: Set<string> = new Set([
+    "padding-top",
+    "padding-right",
+    "padding-bottom",
+    "padding-left",
+    "border-width",
+    "left",
+    "top",
+    "width",
+    "height",
+    "line-height",
+    "font-size",
+    "letter-spacing",
+]);
+
 const colorIndexRules: Map<string, string> = new Map(Object.entries({
     "color-index": "color",
     "background-color-index": "background-color",
@@ -125,6 +145,12 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
         }
     } else if (node.type == "declaration") {
         const decl = node as css.Declaration;
+        if (decl.property != null && decl.value != null && quirksProperties.has(decl.property.toLowerCase())) {
+            const notPx = Number(decl.value);
+            if (notPx !== 0 && !Number.isNaN(notPx)) {
+                decl.value = notPx + "px";
+            }
+        }
         if (decl.property === "clut") {
             decl.property = "--" + decl.property;
             if (decl.value) {
