@@ -349,6 +349,8 @@ export class NVRAM {
                 }
                 if (accessInfo.originalNetworkId >= 0x0000 && accessInfo.originalNetworkId <= 0x0003) {
                     // 系列内共通領域
+                    params.append("original_network_id", String(accessInfo.originalNetworkId));
+                    params.append("affiliation_id", String(accessInfo.affiliationId));
                 } else {
                     if (broadcasterInfo.originalNetworkId == null) {
                         console.error("originalNetworkId == null!");
