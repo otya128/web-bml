@@ -961,9 +961,6 @@ export class Content {
                 return;
             }
         }
-        if (!focusElement) {
-            return;
-        }
         if (focusElement instanceof HTMLInputElement) {
             const inputMode = focusElement.getAttribute("inputmode");
             if (inputMode !== "direct" && inputMode !== "indirect") {
@@ -980,7 +977,11 @@ export class Content {
                 }
             }
         }
-        const computedStyle = window.getComputedStyle(this.getBody()!);
+        const body = this.getBody();
+        if (body == null) {
+            return;
+        }
+        const computedStyle = window.getComputedStyle(body);
         const usedKeyList = computedStyle.getPropertyValue("--used-key-list").split(" ").filter(x => x.length);
         if (usedKeyList.length && usedKeyList[0] === "none") {
             return;
@@ -997,13 +998,10 @@ export class Content {
             return;
         }
         focusElement = this.bmlDocument.currentFocus?.["node"];
-        if (!focusElement) {
-            return;
-        }
-        const onkeydown = focusElement.getAttribute("onkeydown");
+        const onkeydown = focusElement?.getAttribute("onkeydown");
         const target = focusElement;
         this.eventQueue.queueAsyncEvent(async () => {
-            if (onkeydown) {
+            if (target != null && onkeydown != null) {
                 this.eventDispatcher.setCurrentIntrinsicEvent({
                     keyCode: k as number,
                     type: "keydown",
