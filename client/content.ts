@@ -900,12 +900,13 @@ export class Content {
                 // 通信コンテンツ->通信コンテンツへの遷移
                 if (!this.resources.checkBaseURIDirectory(documentName)) {
                     console.error("base URI directory violation");
-                    await this.exitDocument();
+                    await this.quitDocument();
                     return NaN;
                 }
                 normalizedDocument = new URL(documentName, this.resources.activeDocument).toString();
             } else {
-                await this.exitDocument();
+                console.error("failed to fetch document", documentName);
+                await this.quitDocument();
                 return NaN;
             }
             this.resources.invalidateRemoteCache(documentName);
@@ -918,7 +919,7 @@ export class Content {
         const res = await this.resources.fetchResourceAsync(documentName);
         if (res == null) {
             console.error("NOT FOUND");
-            await this.exitDocument();
+            await this.quitDocument();
             return NaN;
         }
         const ad = this.resources.activeDocument;
@@ -998,10 +999,10 @@ export class Content {
             return;
         }
         focusElement = this.bmlDocument.currentFocus?.["node"];
-        const onkeydown = focusElement?.getAttribute("onkeydown");
         const target = focusElement;
         this.eventQueue.queueAsyncEvent(async () => {
-            if (target != null && onkeydown != null) {
+            const onkeydown = target?.getAttribute("onkeydown");
+            if (target != null && onkeydown) {
                 this.eventDispatcher.setCurrentIntrinsicEvent({
                     keyCode: k as number,
                     type: "keydown",
