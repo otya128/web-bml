@@ -24,7 +24,8 @@ export class BMLCSSStyleDeclaration {
     }
 
     public getPropertyValue(property: string): string {
-        return this.declarationMap.get(property) ?? this.baseDeclarationMap.get(property) ?? this.computedPropertyGetter(property);
+        const value = this.declarationMap.get(property) ?? this.baseDeclarationMap.get(property);
+        return value == null || value.toLowerCase().trim() === "inherit" ? this.computedPropertyGetter(property) : value;
     }
 }
 
