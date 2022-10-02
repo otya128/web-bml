@@ -498,10 +498,10 @@ export class Resources {
                     if (!component.modules.has(moduleId)) {
                         // DIIに存在しない
                         for (const mreq of mreqs) {
-                            console.warn("async fetch done (failed)", moduleAndComponentToString(msg.componentId, moduleId));
+                            console.warn("async fetch done (failed) DII", moduleAndComponentToString(msg.componentId, moduleId));
                             mreq.resolve(null);
                         }
-                        mreqs.length = 0;
+                        creqs.moduleRequests.delete(moduleId);
                     }
                 }
                 this.setReceivingStatus();
@@ -530,10 +530,10 @@ export class Resources {
                 for (const [moduleId, mreqs] of creqs.moduleRequests) {
                     // PMTに存在しない
                     for (const mreq of mreqs) {
-                        console.warn("async fetch done (failed)", moduleAndComponentToString(componentId, moduleId));
+                        console.warn("async fetch done (failed) PMT", moduleAndComponentToString(componentId, moduleId));
                         mreq.resolve(null);
                     }
-                    mreqs.length = 0;
+                    creqs.moduleRequests.delete(moduleId);
                 }
             }
             this.setReceivingStatus();
