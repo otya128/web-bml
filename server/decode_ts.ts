@@ -352,7 +352,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
         if (ids == null) {
             return;
         }
-        if (ids.onid !== data.original_network_id || ids.sid !== ids.sid) {
+        if (ids.onid !== data.original_network_id || data.service_id !== ids.sid) {
             return;
         }
         if (data.current_next_indicator === 0) {
