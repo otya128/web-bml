@@ -179,6 +179,11 @@ export type BMLBrowserOptions = {
     greg?: Reg;
     setMainAudioStreamCallback?: (componentId: number, channelId?: number) => boolean;
     X_DPA_startResidentApp?: (appName: string, showAV: number, returnURI: string, Ex_info: string[]) => number;
+    /**
+     * エラーメッセージを表示
+     * 未指定の時は<dialog>とshowModalが使われる
+     */
+    showErrorMessage?: (title: string, message: string, code?: string) => void;
 };
 
 export class BMLBrowser {
@@ -228,7 +233,20 @@ export class BMLBrowser {
         this.eventQueue.dispatchClick = this.eventDispatcher.dispatchClick.bind(this.eventDispatcher);
         this.eventQueue.dispatchFocus = this.eventDispatcher.dispatchFocus.bind(this.eventDispatcher);
         this.eventQueue.dispatchChange = this.eventDispatcher.dispatchChange.bind(this.eventDispatcher);
-        this.content = new Content(this.bmlDocument, this.documentElement, this.resources, this.eventQueue, this.eventDispatcher, this.interpreter, this.mediaElement, this.eventTarget, this.indicator, options.videoPlaneModeEnabled ?? false, options.inputApplication);
+        this.content = new Content(
+            this.bmlDocument,
+            this.documentElement,
+            this.resources,
+            this.eventQueue,
+            this.eventDispatcher,
+            this.interpreter,
+            this.mediaElement,
+            this.eventTarget,
+            this.indicator,
+            options.videoPlaneModeEnabled ?? false,
+            options.inputApplication,
+            options.showErrorMessage
+        );
         this.browserAPI = new BrowserAPI(this.resources, this.eventQueue, this.eventDispatcher, this.content, this.nvram, this.interpreter, audioNodeProvider, options.ip ?? {}, this.indicator, options.ureg, options.greg, options.X_DPA_startResidentApp);
         this.interpreter.setupEnvironment(this.browserAPI, this.resources, this.content, this.epg);
         if (options.fonts?.roundGothic) {

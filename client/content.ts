@@ -212,6 +212,7 @@ export class Content {
     private readonly inputApplication?: InputApplication;
     private npt?: NPT;
     private uaStyle?: HTMLStyleElement;
+    private readonly showErrorMessage: (title: string, message: string, code?: string) => void;
     public constructor(
         bmlDocument: BML.BMLDocument,
         documentElement: HTMLElement,
@@ -224,6 +225,7 @@ export class Content {
         indicator: Indicator | undefined,
         videoPlaneModeEnabled: boolean,
         inputApplication: InputApplication | undefined,
+        showErrorMessage: ((title: string, message: string, code?: string) => void) | undefined,
     ) {
         this.bmlDocument = bmlDocument;
         this.documentElement = documentElement;
@@ -236,6 +238,7 @@ export class Content {
         this.indicator = indicator;
         this.videoPlaneModeEnabled = videoPlaneModeEnabled;
         this.inputApplication = inputApplication;
+        this.showErrorMessage = showErrorMessage ?? this.defaultShowErrorMessage.bind(this);
 
         this.documentElement.addEventListener("keydown", (event) => {
             if (event.altKey || event.ctrlKey || event.metaKey) {
@@ -634,6 +637,13 @@ export class Content {
         await this.launchStartup();
     }
 
+    // 5.14.12.2 受信機の動作失敗時のガイドライン
+    // 8.3.11.4 受信機の動作失敗時のガイドライン
+    public fail(title: string, message: string, code?: string): Promise<void> {
+        this.showErrorMessage(title, message, code);
+        return this.quitDocument();
+    }
+
     private isFocusable(element: HTMLElement): boolean {
         if (!BML.isFocusable(element)) {
             return false;
@@ -899,8 +909,12 @@ export class Content {
             } else if (this.resources.activeDocument != null && this.resources.isInternetContent) {
                 // 通信コンテンツ->通信コンテンツへの遷移
                 if (!this.resources.checkBaseURIDirectory(documentName)) {
+                    // A 5.14.7 通信コンテンツのスコープのマッピング リンク状態特有の通信コンテンツの制約 ※2
+                    // > 受信機が非リンクを搭載していない場合、再選局相当の動作を行なう、または、遷移を行わずにリンク状態を継続する
+                    // C 8.3.11.4 受信機の動作失敗時のガイドライン
+                    // > ベースURIディレクトリに合致しないURIが指定された場合は、データ放送ブラウザは失敗動作とし、受信機はエラーメッセージを表示する
                     console.error("base URI directory violation");
-                    await this.quitDocument();
+                    await this.fail("エラー", "ベースURIディレクトリエラー", "E402");
                     return NaN;
                 }
                 normalizedDocument = new URL(documentName, this.resources.activeDocument).toString();
@@ -918,6 +932,9 @@ export class Content {
         this.indicator?.setUrl(normalizedDocument.replace(/(?<=^https?:\/\/)[^/]+/, "…"), true);
         const res = await this.resources.fetchResourceAsync(documentName);
         if (res == null) {
+            if (normalizedDocument.startsWith("http")) {
+                this.fail("ネットワークエラー", "文書の取得に失敗しました", "E400");
+            }
             console.error("NOT FOUND");
             await this.quitDocument();
             return NaN;
@@ -1474,5 +1491,31 @@ export class Content {
             return undefined;
         }
         return (BML.nodeToBMLNode(body, this.bmlDocument) as BML.BMLBodyElement).invisible;
+    }
+
+    private defaultShowErrorMessage(title: string, message: string, code?: string): void {
+        const errorDialog = document.createElement("div");
+        this.documentElement.parentNode?.append(errorDialog);
+        const dialogRoot = errorDialog.attachShadow({ mode: "closed" });
+        const dialog = document.createElement("dialog");
+        dialogRoot.appendChild(dialog);
+        const titleElement = document.createElement("h3");
+        const messageElement = document.createElement("p");
+        titleElement.textContent = title;
+        if (code != null) {
+            messageElement.textContent = `${message} (${code})`;
+        } else {
+            messageElement.textContent = message;
+        }
+        titleElement.style.whiteSpace = "pre-wrap";
+        messageElement.style.whiteSpace = "pre-wrap";
+        titleElement.style.overflowWrap = "break-word";
+        messageElement.style.overflowWrap = "break-word";
+        dialog.append(titleElement, messageElement);
+        dialog.showModal();
+        window.setTimeout(() => {
+            dialog.close();
+            errorDialog.remove();
+        }, 5000);
     }
 }
