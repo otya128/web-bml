@@ -246,7 +246,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[], encod
                     sizeBits += field.length * 8;
                 } else if (field.unit === BinaryTableUnit.Variable) {
                     sizeBits += field.length * 8;
-                    let encoded = new Uint8Array(encodeText(data[i]));
+                    let encoded = new Uint8Array(encodeText(String(data[i])));
                     sizeBits += encoded.length * 8;
                 } else {
                     throw new Error("string must be byte or variable");
@@ -325,7 +325,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[], encod
                 if ((posBits & 7) !== 0) {
                     throw new Error("string must be byte aligned");
                 }
-                const encoded = encodeText(data[i]);
+                const encoded = encodeText(String(data[i]));
                 if (field.unit === BinaryTableUnit.Byte) {
                     if (encoded.length === field.length) {
                         buffer.set(encoded, posBits >> 3);
