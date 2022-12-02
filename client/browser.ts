@@ -1178,6 +1178,12 @@ export class BrowserAPI {
         getBrowserVersion(): string[] {
             return ["BMLHTML", "BMLHTML", "001", "000"];
         },
+        getTuningLinkageSource(): string {
+            return "";
+        },
+        getTuningLinkageType(): number {
+            return -1;
+        },
         getIRDID(type: number): string | null {
             console.log("getIRDID", type);
             if (type === 5) {
