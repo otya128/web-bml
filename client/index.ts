@@ -8,6 +8,7 @@ import { VideoPlayer } from "./player/video_player";
 import { RemoteControl } from "./remote_controller_client";
 import { keyCodeToAribKey } from "./content";
 import { OverlayInputApplication } from "./overlay_input";
+import { WebmVideoPlayer } from "./player/webm";
 
 function getParametersFromUrl(urlString: string): Param | {} {
     const url = new URL(urlString);
@@ -199,6 +200,9 @@ function onMessage(msg: ResponseMessage) {
             case "mp4":
                 player = new MP4VideoPlayer(videoElement, ccContainer);
                 break;
+            case "webm":
+                player = new WebmVideoPlayer(videoElement, ccContainer);
+                break;
             case "hls":
                 player = new HLSVideoPlayer(videoElement, ccContainer);
                 break;
@@ -215,6 +219,10 @@ function onMessage(msg: ResponseMessage) {
         player.play();
         videoElement.style.display = "";
         remoteControl.player = player;
+    } else if (msg.type === "pes") {
+        if (player instanceof WebmVideoPlayer) {
+            player.push(msg.streamId, Uint8Array.from(msg.data), msg.pts);
+        }
     }
 }
 

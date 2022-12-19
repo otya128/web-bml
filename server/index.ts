@@ -56,6 +56,28 @@ const args = [
     "pipe:1",
 ];
 
+const webmArgs = [
+    "-dual_mono_mode", "main",
+    "-i", "pipe:0",
+    "-sn",
+    "-threads", "0",
+    "-c:a", "libvorbis",
+    "-ar", "48000",
+    "-b:a", "192k",
+    "-ac", "2",
+    "-c:v", "libvpx-vp9",
+    "-vf", "yadif,scale=-2:720",
+    "-b:v", "3000k",
+    "-y",
+    "-analyzeduration", "10M",
+    "-probesize", "32M",
+    "-f", "webm",
+    "-cpu-used", "8",
+    "-deadline", "realtime",
+    "-copyts",
+    "pipe:1",
+];
+
 const mpegtsArgs = [
     "-re",
     "-dual_mono_mode", "main",
@@ -378,7 +400,7 @@ function addProgramIdArgument(args: string[], serviceId?: number): string[] {
     return newArgs;
 }
 
-router.get("/streams/:id.mp4", async (ctx) => {
+router.get(/^\/streams\/(?<id>[^\/]+)\.(?<ext>mp4|webm)$/, async (ctx) => {
     const dbs = streams.get(ctx.params.id);
     if (dbs == null) {
         return;
@@ -387,11 +409,11 @@ router.get("/streams/:id.mp4", async (ctx) => {
         closeDataBroadcastingLiveStream(dbs);
     }
     const { tsStream, readStream } = dbs;
-    ctx.set("Content-Type", "video/mp4");
+    ctx.set("Content-Type", "video/" + ctx.params.ext);
     ctx.status = 200;
 
     tsStream.unpipe();
-    dbs.liveStream = new LiveStream(ffmpeg, addProgramIdArgument(args, dbs.serviceId), dbs.tsStream);
+    dbs.liveStream = new LiveStream(ffmpeg, addProgramIdArgument(ctx.params.ext === "webm" ? webmArgs : args, dbs.serviceId), dbs.tsStream);
     const ls = dbs.liveStream;
     dbs.liveStream.encoderProcess.on("error", (err) => {
         console.error("encoder proc err", err);
@@ -638,7 +660,7 @@ router.get('/api/ws', async (ctx) => {
     const id = randomUUID();
 
     readStream.pause();
-    const tsStream = decodeTS({ sendCallback: (msg) => ws.send(JSON.stringify(msg)), serviceId });
+    const tsStream = decodeTS({ sendCallback: (msg) => ws.send(JSON.stringify(msg)), serviceId, parsePES: true });
     readStream.pipe(tsStream);
 
     const dbs: DataBroadcastingStream = {
