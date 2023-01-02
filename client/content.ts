@@ -779,6 +779,7 @@ export class Content {
             } else {
                 this.focusHelper(this.findNavIndex(0));
             }
+            this.eventDispatcher.resetCurrentEvent();
             for (const x of Array.from(this.documentElement.querySelectorAll("arib-script"))) {
                 const src = x.getAttribute("src");
                 if (src) {
@@ -812,8 +813,7 @@ export class Content {
                 const bmlBeitem = BML.nodeToBMLNode(beitem, this.bmlDocument) as BML.BMLBeitemElement;
                 bmlBeitem.subscribe = bmlBeitem.subscribe;
             }
-        }
-        finally {
+        } finally {
             if (!exit) {
                 this.eventQueue.unlockSyncEventQueue();
             }

@@ -1742,7 +1742,7 @@ export namespace BML {
                 if (await this.ownerDocument.eventQueue.executeEventHandler(onoccur)) {
                     return true;
                 }
-                this.ownerDocument._currentEvent = null;
+                this.ownerDocument._currentEvent = new BMLEvent({ type: undefined, target: null });;
                 return false;
             });
             this.ownerDocument.eventQueue.processEventQueue();
@@ -1866,7 +1866,7 @@ export namespace BML {
     }
 
     interface BMLEventData {
-        type: string;
+        type: string | undefined;
         target: HTMLElement | null;
     }
 
@@ -1898,7 +1898,7 @@ export namespace BML {
         constructor(data: BMLEventData) {
             this._data = { ...data };
         }
-        public get type(): DOMString { return this._data.type; }
+        public get type(): DOMString | undefined { return this._data.type; }
         public get target(): HTMLElement | null { return this._data.target; }
     }
 

@@ -101,8 +101,9 @@ export class EventDispatcher {
         this.bmlDocument._currentEvent = new BML.BMLBeventEvent(c);
     }
 
+    // setInterval/グローバルコードのとき (STD-B24 第二分冊 (2/2) 第二編 付属2 表 4-16、STD-B24 第二分冊 (2/2) 第二編 付属4 表 4-12)
     public resetCurrentEvent() {
-        this.bmlDocument._currentEvent = null;
+        this.bmlDocument._currentEvent = new BML.BMLEvent({ type: undefined, target: null });
     }
 
     public dispatchModuleLockedEvent(module: string, isEx: boolean, status: number) {
@@ -213,7 +214,7 @@ export class EventDispatcher {
                 if (!selected && !unselected) {
                     continue;
                 }
-            } else {   
+            } else {
                 // 省略した場合商品企画 (TR-14)
                 selected = true;
             }
