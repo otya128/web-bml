@@ -1950,7 +1950,7 @@ export namespace BML {
         // public get registerId(): number { return this.registerId; }
         // public get serviceId(): string { return this.serviceId; }
         // public get eventId(): string { return this.eventId; }
-        public get peripheralRef(): string { return this.peripheralRef; }
+        public get peripheralRef(): string { return this._data.peripheralRef; }
         public get object(): BMLObjectElement | null { return this._data.object; }
         public get segmentId(): string | null { return this._data.segmentId; }
     }
