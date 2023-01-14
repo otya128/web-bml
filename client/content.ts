@@ -823,7 +823,7 @@ export class Content {
             return true;
         }
         console.debug("END PROC EVQ");
-        this.indicator?.setUrl(this.resources.activeDocument.replace(/(?<=^https?:\/\/)[^/]+/, "…"), false);
+        this.indicator?.setUrl(this.resources.activeDocument.replace(/(^https?:\/\/)[^/]+/, (_, g: string) => g + "…"), false);
         return false;
     }
 
@@ -929,7 +929,7 @@ export class Content {
         } else {
             normalizedDocument = `/${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`;
         }
-        this.indicator?.setUrl(normalizedDocument.replace(/(?<=^https?:\/\/)[^/]+/, "…"), true);
+        this.indicator?.setUrl(normalizedDocument.replace(/(^https?:\/\/)[^/]+/, (_, g: string) => g + "…"), true);
         const res = await this.resources.fetchResourceAsync(documentName);
         if (res == null) {
             if (normalizedDocument.startsWith("http")) {

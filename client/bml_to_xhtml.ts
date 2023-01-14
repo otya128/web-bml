@@ -62,7 +62,7 @@ export function bmlToXHTMLFXP(data: string, cProfile: boolean): string {
         const children = getXmlChildren(node);
         const nodeName = getXmlNodeName(node);
         for (let i = 0; i < children.length; i++) {
-            const c = children[i];
+            const c: { "#text": string } | {} = children[i];
             const prev = i > 0 ? getXmlNodeName(children[i - 1]) : "";
             const next = i + 1 < children.length ? getXmlNodeName(children[i + 1]) : "";
             // STD-B24 第二分冊(2/2) 第二編 付属2 5.3.2参照
@@ -83,15 +83,15 @@ export function bmlToXHTMLFXP(data: string, cProfile: boolean): string {
                     c["#text"] = c["#text"].replace(/^([ \t\n\r]+)/g, " ");
                     if ((next === "span" || next === "a" || next === "br") && nodeName === "p") {
                         c["#text"] = c["#text"].replace(/([ \t\n\r]+)$/g, " ");
-                        c["#text"] = c["#text"].replace(/(?<=[\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, "");
+                        c["#text"] = c["#text"].replace(/([\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, (_, group1: string) => group1);
                     }
                 } else if ((next === "span" || next === "a" || next === "br") && nodeName === "p") {
                     c["#text"] = c["#text"].replace(/([ \t\n\r]+)$/g, " ");
-                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|(?<=[\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, "");
+                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|([\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, (_, _group1, group2: string | undefined) => (group2 ?? ""));
                 } else {
                     // 制御符号は0x20, 0x0d, 0x0a, 0x09のみ
                     // 2バイト文字と2バイト文字との間の制御符号は削除する
-                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|([ \t\n\r]+)$|(?<=[\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, "");
+                    c["#text"] = c["#text"].replace(/^([ \t\n\r]+)|([ \t\n\r]+)$|([\u0100-\uffff])[ \t\n\r]+(?=[\u0100-\uffff])/g, (_, _group1, _group2, group3: string | undefined) => (group3 ?? ""));
                 }
                 // 制御符号のみの文字列に対してはテキストノードは生成しない
                 c["#text"] = c["#text"].replace(/^[ \t\n\r]$/, "");
