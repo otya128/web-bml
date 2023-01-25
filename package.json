@@ -10,7 +10,7 @@
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
     "crc-32": "^1.2.2",
-    "css": "^3.0.0",
+    "css": "git+https://github.com/otya128/reworkcss-css.git#b29fc79faf40c8164b20a74ca818c28fab19cf71",
     "dotenv": "^16.0.3",
     "fast-xml-parser": "^4.0.11",
     "hls.js": "^1.2.1",
