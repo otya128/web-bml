@@ -66,18 +66,18 @@ export class BMLCSS2Properties {
     public get borderWidth() { return this.declaration.getPropertyValue("border-width"); }
     public get borderStyle() { return this.declaration.getPropertyValue("border-style"); }
     public get left() { return this.declaration.getPropertyValue("left"); }
-    public set left(value: DOMString) { this.declaration.setProperty("left", value); }
+    public set left(value: DOMString) { this.declaration.setProperty("left", String(value)); }
     public get top() { return this.declaration.getPropertyValue("top"); }
-    public set top(value: DOMString) { this.declaration.setProperty("top", value); }
+    public set top(value: DOMString) { this.declaration.setProperty("top", String(value)); }
     public get width() { return this.declaration.getPropertyValue("width"); }
-    public set width(value: DOMString) { this.declaration.setProperty("width", value); }
+    public set width(value: DOMString) { this.declaration.setProperty("width", String(value)); }
     public get height() { return this.declaration.getPropertyValue("height"); }
-    public set height(value: DOMString) { this.declaration.setProperty("height", value); }
+    public set height(value: DOMString) { this.declaration.setProperty("height", String(value)); }
     public get lineHeight() { return this.declaration.getPropertyValue("--line-height-raw").trim(); }
     public get visibility() { return this.declaration.getPropertyValue("visibility"); }
-    public set visibility(value: DOMString) { this.declaration.setProperty("visibility", value); }
+    public set visibility(value: DOMString) { this.declaration.setProperty("visibility", String(value)); }
     public get fontFamily() { return this.declaration.getPropertyValue("font-family"); }
-    public set fontFamily(value: DOMString) { this.declaration.setProperty("font-family", value); }
+    public set fontFamily(value: DOMString) { this.declaration.setProperty("font-family", String(value)); }
     public get fontSize(): DOMString {
         const fontSize = this.declaration.getPropertyValue("--font-size-raw");
         return fontSize.trim();
@@ -87,50 +87,50 @@ export class BMLCSS2Properties {
         this.declaration.setProperty("--font-size", setFontSize(String(value)));
     }
     public get fontWeight() { return this.declaration.getPropertyValue("font-weight"); }
-    public set fontWeight(value: DOMString) { this.declaration.setProperty("font-weight", value); }
+    public set fontWeight(value: DOMString) { this.declaration.setProperty("font-weight", String(value)); }
     public get textAlign() { return this.declaration.getPropertyValue("text-align"); }
     public get letterSpacing() { return this.declaration.getPropertyValue("letter-spacing"); }
     public get borderTopColorIndex() {
         return this.getColorIndexVariable("border-top-color-index", "border-top-color");
     }
     public set borderTopColorIndex(value: DOMString) {
-        this.setColorIndexVariable("border-top-color-index", "border-top-color", value);
+        this.setColorIndexVariable("border-top-color-index", "border-top-color", String(value));
     }
     public get borderRightColorIndex() {
         return this.getColorIndexVariable("border-right-color-index", "border-right-color");
     }
     public set borderRightColorIndex(value: DOMString) {
-        this.setColorIndexVariable("border-right-color-index", "border-right-color", value);
+        this.setColorIndexVariable("border-right-color-index", "border-right-color", String(value));
     }
     public get borderLeftColorIndex() {
         return this.getColorIndexVariable("border-left-color-index", "border-left-color");
     }
     public set borderLeftColorIndex(value: DOMString) {
-        this.setColorIndexVariable("border-left-color-index", "border-left-color", value);
+        this.setColorIndexVariable("border-left-color-index", "border-left-color", String(value));
     }
     public get borderBottomColorIndex() {
         return this.getColorIndexVariable("border-bottom-color-index", "border-bottom-color");
     }
     public set borderBottomColorIndex(value: DOMString) {
-        this.setColorIndexVariable("border-bottom-color-index", "border-bottom-color", value);
+        this.setColorIndexVariable("border-bottom-color-index", "border-bottom-color", String(value));
     }
     public get backgroundColorIndex() {
         return this.getColorIndexVariable("background-color-index", "background-color");
     }
     public set backgroundColorIndex(value: DOMString) {
-        this.setColorIndexVariable("background-color-index", "background-color", value ?? "");
+        this.setColorIndexVariable("background-color-index", "background-color", String(value));
     }
     public get colorIndex() {
         return this.getColorIndexVariable("color-index", "color");
     }
     public set colorIndex(value: DOMString) {
-        this.setColorIndexVariable("color-index", "color", value);
+        this.setColorIndexVariable("color-index", "color", String(value));
     }
     public get grayscaleColorIndex() {
         return this.declaration.getPropertyValue("--grayscale-color-index").trim();
     }
     public set grayscaleColorIndex(value: DOMString) {
-        this.declaration.setProperty("--grayscale-color-index", value);
+        this.declaration.setProperty("--grayscale-color-index", String(value));
     }
     public get clut() {
         return this.declaration.getPropertyValue("--clut").trim();
@@ -160,6 +160,7 @@ export class BMLCSS2Properties {
         return this.declaration.getPropertyValue("--used-key-list").trim();
     }
     public set usedKeyList(value: DOMString) {
+        value = String(value);
         this.declaration.setProperty("--used-key-list", value);
         if (this.node instanceof HTMLBodyElement) {
             // bodyにfocus/activeは運用されない
@@ -174,22 +175,24 @@ export class BMLCSS2Properties {
     }
     // Cプロファイル
     public get borderTopColor() { return this.declaration.getPropertyValue("border-top-color"); }
-    public set borderTopColor(value: DOMString) { this.declaration.setProperty("border-top-color", value); }
+    public set borderTopColor(value: DOMString) { this.declaration.setProperty("border-top-color", String(value)); }
     public get borderRightColor() { return this.declaration.getPropertyValue("border-right-color"); }
-    public set borderRightColor(value: DOMString) { this.declaration.setProperty("border-right-color", value); }
+    public set borderRightColor(value: DOMString) { this.declaration.setProperty("border-right-color", String(value)); }
     public get borderBottomColor() { return this.declaration.getPropertyValue("border-bottom-color"); }
-    public set borderBottomColor(value: DOMString) { this.declaration.setProperty("border-bottom-color", value); }
+    public set borderBottomColor(value: DOMString) { this.declaration.setProperty("border-bottom-color", String(value)); }
     public get borderLeftColor() { return this.declaration.getPropertyValue("border-left-color"); }
-    public set borderLeftColor(value: DOMString) { this.declaration.setProperty("border-left-color", value); }
+    public set borderLeftColor(value: DOMString) { this.declaration.setProperty("border-left-color", String(value)); }
     public get backgroundColor() { return this.declaration.getPropertyValue("--background-color").trim(); }
     // Cプロファイルで<a>でフォーカスが当たった時背景色を文字色を入れ替えるために変数としても追加する
     public set backgroundColor(value: DOMString) {
+        value = String(value);
         this.declaration.setProperty("--background-color", value);
         this.declaration.setProperty("--background-color-inherit", value);
         this.declaration.setProperty("background-color", value);
     }
     public get color() { return this.declaration.getPropertyValue("--color").trim(); }
     public set color(value: DOMString) {
+        value = String(value);
         this.declaration.setProperty("--color", value);
         this.declaration.setProperty("color", value);
     }
