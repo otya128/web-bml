@@ -1,3 +1,5 @@
+export const defaultCSS = `
+
 /* STD-B24 Annex A Default Style Sheet */
 /* margin */
 div, p, input, object {margin: 0 !important}
@@ -297,3 +299,5 @@ html {
     height: unset !important;
     color-scheme: initial;
 }
+
+`;

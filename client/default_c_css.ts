@@ -1,47 +1,49 @@
-/* margin */ 
+export const defaultCProfileCSS = `
+
+/* margin */
 div, p, pre, form, input, textarea, object, img { margin: 0 !important }
-/* padding */ 
+/* padding */
 div, form, object, img { padding-top: 0 !important; padding-right: 0 !important; padding-bottom: 0 !important; padding-left: 0 !important }
-/* border */ 
+/* border */
 :where(div, p, pre, form, input, textarea) { border-width: 0; border-top-color: transparent; border-right-color: transparent; border-bottom-color: transparent; border-left-color: transparent; }
 object, img { border-width: 0 !important; border-style: none !important }
-/* display */ 
+/* display */
 /* html, */head, title, meta, script, link, bevent, beitem { display: none !important }
 body, div, pre, form, input, textarea, object, img { display: block !important }
 :where(p) { display: block }
 br, span, a { display: inline !important }
-/* position */ 
+/* position */
 div, p, pre, form, input, textarea, object, img { position: absolute !important }
 br, span, a { position: static !important }
-/* top, left, width, height */ 
+/* top, left, width, height */
 :where(div, p, pre, form, input, textarea, object, img) { top: 0; left: 0; width: 0; height: 0 }
-/* z-index */ 
+/* z-index */
 body, div, p, pre, br, span, a, form, input, textarea, object, img { z-index: auto !important }
-/* line-height */ 
+/* line-height */
 /* br, span, a { line-height: inherit !important } */
-/* visibility */ 
+/* visibility */
 body { visibility: visible !important }
 span, a { visibility: inherit !important }
-/* overflow */ 
+/* overflow */
 div, p, pre, form, input, textarea, object, img { overflow: hidden !important }
-/* color */ 
+/* color */
 :where(p, pre, input, textarea) { color: black; --color: black; }
 :where(span, a) { color: inherit }
-/* background-color */ 
+/* background-color */
 object, img { background-color: transparent !important; --background-color: transparent !important; --background-color-inherit: transparent !important; }
 :where(body) { background-color: white; --background-color: white; --background-color-inherit: white; }
-/* background-repeat */ 
+/* background-repeat */
 body { background-repeat: repeat !important }
-/* font-family */ 
+/* font-family */
 p, pre, span, a, input, textarea { font-family: "丸ゴシック" !important }
-/* text-align */ 
+/* text-align */
 :where(p, input, textarea) { text-align: left }
-/* white-space */ 
+/* white-space */
 /* p, input { white-space: normal !important } */
 pre, textarea { white-space: pre !important }
-/* resolution */ 
+/* resolution */
 body { --resolution: 240x480 !important }
-/* marquee */ 
+/* marquee */
 :where(p) { ---wap-marquee-loop: 1; }
 p { ---wap-marquee-dir: rtl !important }
 
@@ -164,3 +166,5 @@ object[web-bml-state="focus"]>img, object[web-bml-state="active"]>img, img[web-b
     outline: 1px blue dotted;
     outline-offset: -1px;
 }
+
+`;
