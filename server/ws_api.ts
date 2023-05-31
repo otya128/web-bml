@@ -142,6 +142,7 @@ export type ProgramInfoMessage = {
     eventName: string | null,
     startTimeUnixMillis: number | null,
     durationSeconds: number | null,
+    indefiniteDuration: boolean | null,
     networkId: number | null,
 };
 
