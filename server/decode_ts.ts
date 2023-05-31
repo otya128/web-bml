@@ -371,7 +371,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
         const event = data.events[0];
         const duration = new TsDate(event.duration).decodeTime();
         const durationSeconds = duration[0] * 3600 + duration[1] * 60 + duration[2];
-        const indefiniteDuration = duration[0] === 0xff && duration[1] === 0xff && duration[2] === 0xff;
+        const indefiniteDuration = event.duration[0] === 0xff && event.duration[1] === 0xff && event.duration[2] === 0xff;
         const startTime =  new TsDate(event.start_time).decode();
         const eventId: number = event.event_id;
         const descriptors: any[] = event.descriptors;
