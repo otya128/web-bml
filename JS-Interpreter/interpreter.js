@@ -984,6 +984,12 @@ Interpreter.prototype.initBoolean = function(globalObject) {
     }
   };
   this.BOOLEAN = this.createNativeFunction(wrapper, true);
+  this.setNativeFunctionPrototype(this.BOOLEAN, 'toString', function toString() {
+    return this.data.toString();
+  });
+  this.setNativeFunctionPrototype(this.BOOLEAN, 'valueOf', function valueOf() {
+    return this.data.valueOf();
+  });
   this.setProperty(globalObject, 'Boolean', this.BOOLEAN,
       Interpreter.NONENUMERABLE_DESCRIPTOR);
 };
