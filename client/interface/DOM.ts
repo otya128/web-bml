@@ -954,9 +954,6 @@ export namespace BML {
     // 画像の大きさは固定
     function fixImageSize(resolution: string, width: number, height: number, type: string): { width?: number, height?: number } {
         type = type.toLowerCase();
-        // 表5-4参照
-        //const scaleNumerator = [256, 192, 160, 128, 96, 80, 64, 48, 32];
-        //const scaleDenominator = 128;
         const is720x480 = resolution.trim() === "720x480";
         if (type === "image/jpeg") {
             if (is720x480) {
@@ -965,7 +962,9 @@ export namespace BML {
                 }
                 return { width, height };
             }
-            if (width === 960 && height === 540) {
+            // 960x540座標系のときは1/2にスケーリング
+            // ただし表示サイズが960x540であり、画像サイズも960x540の場合はそのまま
+            if (displayWidth === "960px" && displayHeight === "540px" && width === 960 && height === 540) {
                 return { width, height };
             }
             return { width: Math.floor(width / 2), height: Math.floor(height / 2) };
@@ -1098,7 +1097,19 @@ export namespace BML {
                         for (const blob of keyframes.blobs) {
                             fetched.blobUrl.set(blob, { blobUrl: blob });
                         }
-                        const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("resolution"), keyframes.width, keyframes.height, (aribType ?? this.type));
+                        this.node.style.maxWidth = "";
+                        this.node.style.minWidth = "";
+                        this.node.style.maxHeight = "";
+                        this.node.style.minHeight = "";
+                        const { width: displayWidth, height: displayHeight } = window.getComputedStyle(this.node);
+                        const { width, height } = fixImageSize(
+                            window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("resolution"),
+                            displayWidth,
+                            displayHeight,
+                            keyframes.width,
+                            keyframes.height,
+                            (aribType ?? this.type)
+                        );
                         if (width != null && height != null) {
                             this.node.style.maxWidth = width + "px";
                             this.node.style.minWidth = width + "px";
@@ -1154,7 +1165,19 @@ export namespace BML {
                 }
                 if (this.ownerDocument.resources.profile !== Profile.TrProfileC) {
                     if (imageUrl.width != null && imageUrl.height != null) {
-                        const { width, height } = fixImageSize(window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("--resolution"), imageUrl.width, imageUrl.height, (aribType ?? this.type));
+                        this.node.style.maxWidth = "";
+                        this.node.style.minWidth = "";
+                        this.node.style.maxHeight = "";
+                        this.node.style.minHeight = "";
+                        const { width: displayWidth, height: displayHeight } = window.getComputedStyle(this.node);
+                        const { width, height } = fixImageSize(
+                            window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("--resolution"),
+                            displayWidth,
+                            displayHeight,
+                            imageUrl.width,
+                            imageUrl.height,
+                            (aribType ?? this.type)
+                        );
                         if (width != null && height != null) {
                             this.node.style.maxWidth = width + "px";
                             this.node.style.minWidth = width + "px";
