@@ -30,6 +30,7 @@
   "scripts": {
     "start": "node build/index.js",
     "build": "webpack && tsc -p tsconfig.server.json",
+    "watch:client": "webpack -w",
     "dev": "ts-node server/index.ts"
   },
   "devDependencies": {
@@ -49,5 +50,6 @@
   "private": true,
   "workspaces": [
     "./node-aribts"
-  ]
+  ],
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
