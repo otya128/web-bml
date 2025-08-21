@@ -952,7 +952,11 @@ export namespace BML {
 
     // STD B-24 第二分冊 (2/2) 第二編 付属2 表5-3参照
     // 画像の大きさは固定
-    function fixImageSize(resolution: string, width: number, height: number, type: string): { width?: number, height?: number } {
+    function fixImageSize(resolution: string, displayWidth: string, displayHeight: string, width: number, height: number, type: string): { width?: number, height?: number } {
+        // 非表示のとき
+        if (displayWidth === "0px" || displayHeight === "0px") {
+            return { width: 0, height: 0 };
+        }
         type = type.toLowerCase();
         const is720x480 = resolution.trim() === "720x480";
         if (type === "image/jpeg") {
