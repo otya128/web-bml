@@ -211,7 +211,8 @@ router.get(/^\/api\/get\/(?<url>https?:\/\/.+)$/, async ctx => {
         const key = ctx.req.rawHeaders[i];
         const value = ctx.req.rawHeaders[i + 1];
         if (allowedRequestHeaders.has(key.toLowerCase())) {
-            opts.headers![key] = value;
+            // @ts-expect-error
+            opts.headers[key] = value;
         }
     }
     const res = await new Promise<http.IncomingMessage>((resolve, reject) => {

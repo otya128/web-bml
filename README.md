@@ -26,9 +26,9 @@ Mirakurunからの放送、EPGStationからの録画または引数に与えた�
 ### 実行方法
 
 ```sh
-yarn workspace @chinachu/aribts build
-yarn build
-yarn start [input.ts]
+npm -w @chinachu/aribts run build
+npm run build
+npm run start [input.ts]
 ```
 
 localhost:23234
