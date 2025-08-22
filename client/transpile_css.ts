@@ -213,6 +213,12 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                         property: "background-size",
                         value: `calc(${converted.width}px * var(--still-picture-plane-scale, 1)) calc(${converted.height}px * var(--still-picture-plane-scale, 1))`,
                     });
+                    // videoPlaneModeEnabled用
+                    decls.push({
+                        type: "declaration",
+                        property: "--background-size",
+                        value: `calc(${converted.width}px * var(--still-picture-plane-scale, 1)) calc(${converted.height}px * var(--still-picture-plane-scale, 1))`,
+                    });
                 }
             }
             return decls;
