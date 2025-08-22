@@ -191,17 +191,17 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
                     property: "--" + origProperty,
                     value: origValue,
                 },
-                {
-                    type: "declaration",
-                    property: "--" + origProperty + "2",
-                    value: decl.value,
-                }
             ];
             if (converted?.width != null && converted?.height != null) {
                 decls.push({
                     type: "declaration",
+                    property: `--${origProperty}2`,
+                    value: `url(${converted.blobUrl})`,
+                });
+                decls.push({
+                    type: "declaration",
                     property: origProperty,
-                    value: "url(" + converted.blobUrl + ")",
+                    value: `url(${converted.blobUrl})`,
                 });
                 // TR-B15 第一分冊 スケーリング/TR-B14 第二分冊 スケーリング
                 // 960x540の解像度のとき、文字図形プレーンは960x540なのに対し、静止画プレーンは1920x1080なのでbackground-sizeは画像解像度の半分にする必要がある
