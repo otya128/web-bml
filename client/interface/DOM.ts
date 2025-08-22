@@ -392,6 +392,7 @@ export namespace BML {
                             char.style.color = "transparent";
                         }
                         children.push(char);
+                        // @ts-expect-error
                         prev = match.index + match[0].length;
                     }
                     flowData.root.replaceChildren(...children);
