@@ -37,6 +37,9 @@ span, a { letter-spacing : inherit !important }
 /* p, input { white-space : normal !important } */
 /* background-color-index */
 :where(body) {
+    --resolution: 960x540;
+    /* 960x540の解像度のときは静止画プレーンの幅と高さは文字図形プレーンの半分 */
+    --still-picture-plane-scale: 0.5;
     --clut-color-0: rgba(0, 0, 0, 1);
     --clut-color-1: rgba(255, 0, 0, 1);
     --clut-color-2: rgba(0, 255, 0, 1);

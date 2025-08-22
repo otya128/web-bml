@@ -1,5 +1,5 @@
 import css from "css";
-import { Resources, CachedFile, Profile } from "./resource";
+import { Resources, CachedFile, Profile, CachedFileMetadata } from "./resource";
 import { defaultCLUT } from "./default_clut";
 import { readCLUT } from "./clut";
 import { transpileCSS } from "./transpile_css";
@@ -1264,20 +1264,25 @@ export class Content {
         return this.clutToDecls(clut);
     }
 
-    private async convertCSSUrl(url: string): Promise<string> {
+    private async convertCSSUrl(url: string): Promise<CachedFileMetadata | undefined> {
         const res = await this.resources.fetchResourceAsync(url);
         if (!res) {
-            return url;
+            return undefined;
         }
         // background-imageはJPEGのみ運用される (STD-B24 第二分冊(2/2) 付属2 4.4.6)
         let bt709 = res.blobUrl.get("BT.709");
         if (bt709 != null) {
-            return bt709.blobUrl;
+            return bt709;
         }
-        const bt601 = await globalThis.createImageBitmap(new Blob([res.data]));
-        bt709 = await convertJPEG(bt601);
-        res.blobUrl.set("BT.709", bt709);
-        return bt709.blobUrl;
+        try {
+            const bt601 = await globalThis.createImageBitmap(new Blob([res.data]));
+            bt709 = await convertJPEG(bt601);
+            res.blobUrl.set("BT.709", bt709);
+            return bt709;
+        } catch (e) {
+            console.error("failed to decode image", url, e);
+            return undefined;
+        }
     }
 
     private loadObjects() {

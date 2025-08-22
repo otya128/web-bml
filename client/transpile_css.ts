@@ -61,7 +61,7 @@ export function parseCSSValue(value: string): string | null {
 export type CSSTranspileOptions = {
     inline: boolean,
     clutReader: (cssValue: string) => Promise<css.Declaration[]>,
-    convertUrl?: (url: string) => Promise<string>,
+    convertUrl?: (url: string) => Promise<{ blobUrl: string, width?: number, height?: number } | undefined>,
 };
 
 export function colorIndexToVar(colorIndex: string | null | undefined): string | null | undefined {
@@ -162,20 +162,60 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
             }
             return decl.value;
         } else if (decl.property && bmlCssProperties.has(decl.property)) {
-            decl.property = "--" + decl.property;
+            if (decl.property === "resolution" && decl.value === "720x480") {
+                // 720x480の解像度のときは静止画プレーンの幅と高さは文字図形プレーンと等しい
+                // 960x540の解像度のときは静止画プレーンの幅と高さは文字図形プレーンの半分
+                const decls = [
+                    {
+                        type: "declaration",
+                        property: "--" + decl.property,
+                        value: decl.value,
+                    },
+                    {
+                        type: "declaration",
+                        property: "--still-picture-plane-scale",
+                        value: "1",
+                    },
+                ];
+                return decls;
+            } else {
+                decl.property = "--" + decl.property;
+            }
         } else if (opts.convertUrl && decl.property === "background-image" && decl.value) {
             const origProperty = decl.property;
             const origValue = decl.value;
-            decl.value = "url(" + await opts.convertUrl(parseCSSValue(origValue) ?? origValue) + ")";
-            return [decl, {
-                type: "declaration",
-                property: "--" + origProperty,
-                value: origValue,
-            }, {
+            const converted = await opts.convertUrl(parseCSSValue(origValue) ?? origValue);
+            const decls = [
+                {
+                    type: "declaration",
+                    property: "--" + origProperty,
+                    value: origValue,
+                },
+                {
                     type: "declaration",
                     property: "--" + origProperty + "2",
                     value: decl.value,
-                }];
+                }
+            ];
+            if (converted?.width != null && converted?.height != null) {
+                decls.push({
+                    type: "declaration",
+                    property: origProperty,
+                    value: "url(" + converted.blobUrl + ")",
+                });
+                // TR-B15 第一分冊 スケーリング/TR-B14 第二分冊 スケーリング
+                // 960x540の解像度のとき、文字図形プレーンは960x540なのに対し、静止画プレーンは1920x1080なのでbackground-sizeは画像解像度の半分にする必要がある
+                // ただし、例外として960x540の解像度で960x540のJPEGを背景に指定する場合だけ静止画プレーンにも全面に表示されるのでbackground-sizeが画像解像度と同じで良い
+                // スケール率が--still-picture-plane-scaleに設定されているのでそれを使う
+                if (converted.width !== 960 || converted.height !== 540) {
+                    decls.push({
+                        type: "declaration",
+                        property: "background-size",
+                        value: `calc(${converted.width}px * var(--still-picture-plane-scale, 1)) calc(${converted.height}px * var(--still-picture-plane-scale, 1))`,
+                    });
+                }
+            }
+            return decls;
         } else if (decl.property) {
             const sub = colorIndexRules.get(decl.property);
             if (sub) {
