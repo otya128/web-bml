@@ -26,6 +26,7 @@ Mirakurunからの放送、EPGStationからの録画または引数に与えた�
 ### 実行方法
 
 ```sh
+npm i
 npm -w @chinachu/aribts run build
 npm run build
 npm run start [input.ts]
