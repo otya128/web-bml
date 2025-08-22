@@ -365,7 +365,6 @@ export namespace BML {
                     const children: globalThis.Node[] = [];
                     let prev = 0;
                     for (const match of text.matchAll(/[\uec00-\uecbb]/g)) {
-                        console.log(text.matchAll(/[\uec00-\uecbb]/g));
                         const prevText = text.substring(prev, match.index);
                         if (prevText !== "") {
                             const char = document.createElement("span");
