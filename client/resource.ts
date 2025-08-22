@@ -463,7 +463,7 @@ export class Resources {
                 for (const cb of callbacks) {
                     if (cb.filename == null) {
                         console.warn("async fetch done", str);
-                        cb.resolve(null);
+                        cb.resolve(cachedModule.files.get(null) ?? null);
                     } else {
                         const file = cachedModule.files.get(cb.filename);
                         console.warn("async fetch done", str, cb.filename);
