@@ -267,13 +267,10 @@ export namespace BML {
             }
             const computedStyle = window.getComputedStyle(this.getParentBlock(node)!);
             const display = computedStyle.getPropertyValue("--display").trim();
-            const drcs = false;//hasDRCS(node.textContent ?? "");
+            const drcs = hasDRCS(node.textContent ?? "");
             this.node = node;
             if (drcs || display === "-wap-marquee" || (computedStyle.letterSpacing !== "normal" && computedStyle.letterSpacing !== "0px")) {
                 this.internalAddFlowData(drcs);
-            }
-            if (hasDRCS(node.textContent ?? "")) {
-                console.log(this);
             }
         }
 
