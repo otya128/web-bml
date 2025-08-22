@@ -361,6 +361,7 @@ export namespace BML {
             if (computedStyle.letterSpacing === "normal" || computedStyle.letterSpacing === "0px") {
                 if (hasDRCS(text)) {
                     // Cプロファイルでは外字は使われないためwapMarqueeは考慮しない
+                    flowData.textNodeInRoot = undefined;
                     const children: globalThis.Node[] = [];
                     let prev = 0;
                     for (const match of text.matchAll(/[\uec00-\uecbb]/g)) {
@@ -392,10 +393,15 @@ export namespace BML {
                         // @ts-expect-error
                         prev = match.index + match[0].length;
                     }
+                    const prevText = text.substring(prev);
+                    if (prevText !== "") {
+                        const char = document.createElement("span");
+                        char.textContent = prevText;
+                        children.push(char);
+                    }
                     flowData.root.replaceChildren(...children);
                     return;
-                }
-                if (flowData.textNodeInRoot == null) {
+                } else if (flowData.textNodeInRoot == null) {
                     // shadow DOMの中なので外の* {}のようなCSSは適用されない一方プロパティは継承される
                     flowData.textNodeInRoot = document.createTextNode(text);
                     if (wapMarquee) {
@@ -409,6 +415,9 @@ export namespace BML {
                     flowData.marquee = this.createMarquee(computedStyle);
                     flowData.marquee.replaceChildren(flowData.textNodeInRoot);
                     flowData.root.replaceChildren(flowData.marquee);
+                    flowData.textNodeInRoot.data = text;
+                } else {
+                    flowData.textNodeInRoot.data = text;
                 }
                 return;
             }
