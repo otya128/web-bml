@@ -284,3 +284,8 @@ arib-text, arib-cdata {
 p, input {
     white-space: break-spaces !important;
 }
+
+html {
+    width: unset !important;
+    height: unset !important;
+}
