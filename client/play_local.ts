@@ -124,7 +124,9 @@ async function delayAsync(msec: number): Promise<void> {
 
 async function openReadableStream(stream: ReadableStream<Uint8Array>) {
     const reader = stream.getReader();
-    const tsStream = decodeTS({ sendCallback: onMessage, parsePES: true });
+    const params = new URLSearchParams(location.search);
+    const serviceId = Number.parseInt(params.get("demultiplexServiceId") ?? "");
+    const tsStream = decodeTS({ sendCallback: onMessage, parsePES: true, serviceId: isNaN(serviceId) ? undefined : serviceId });
     tsStream.on("data", () => { });
     while (true) {
         const r = await reader.read();
