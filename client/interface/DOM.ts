@@ -489,11 +489,11 @@ export namespace BML {
         }
 
         public internalReflow(): boolean {
-            if (this.flowData == null || this.flowData.drcs) {
+            if (this.flowData == null) {
                 return false;
             }
             this.flowText(this.data);
-            return true;
+            return !this.flowData.drcs;
         }
 
         public get data(): string {
