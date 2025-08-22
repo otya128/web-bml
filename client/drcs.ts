@@ -12,14 +12,15 @@ function readBits(posBits: number, bits: number, buffer: Buffer): number {
     return value;
 }
 
-type DRCSGlyph = {
+export type DRCSGlyph = {
+    fontId: FontId,
     width: number,
     height: number,
     depth: number,
     bitmap: number[],
 };
 
-type DRCSGlyphs = {
+export type DRCSGlyphs = {
     ku: number,
     ten: number,
     glyphs: DRCSGlyph[],
@@ -707,7 +708,7 @@ function writeSVG(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
 }
 
 // 以下のフォントサイズのみが運用される (STD-B24 第二分冊 第二編 付属3 4.1.2参照)
-enum FontId {
+export enum FontId {
     RoundGothic = 1, // 丸ゴシック
     SquareGothic = 2, // 角ゴシック
     BoldRoundGothic = 3, // 太丸ゴシック
@@ -752,7 +753,7 @@ export function loadDRCS(drcs: Buffer, filterId?: number): DRCSGlyphs[] {
                 let posBits = off * 8;
                 const bitmap = new Array(width * height);
                 if (filterId == null || (fontId as number) === filterId) {
-                    glyphs.glyphs.push({ width, height, depth: depth + 2, bitmap });
+                    glyphs.glyphs.push({ fontId, width, height, depth: depth + 2, bitmap });
                 }
                 for (let y = 0; y < height; y++) {
                     for (let x = 0; x < width; x++) {

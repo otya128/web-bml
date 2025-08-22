@@ -12,6 +12,7 @@ import { Interpreter } from "./interpreter/interpreter";
 import { BMLBrowserEventTarget, Indicator, InputApplication, KeyGroup, Profile as BMLBrowserProfile } from "./bml_browser";
 import { convertJPEG } from "./arib_jpeg";
 import { getTextDecoder } from "./text";
+import { DRCSGlyphs } from "./drcs";
 // @ts-ignore
 import defaultCSS from "../public/default.css";
 // @ts-ignore
@@ -581,6 +582,7 @@ export class Content {
     }
 
     public unloadAllDRCS() {
+        this.bmlDocument.internalUnloadAllDRCS();
         for (const font of this.fonts) {
             document.fonts.delete(font);
         }
@@ -1483,6 +1485,10 @@ export class Content {
                 this.eventQueue.processEventQueue();
             }
         }
+    }
+
+    public loadDRCS(glyphs: DRCSGlyphs[]) {
+        this.bmlDocument.internalLoadDRCS(glyphs);
     }
 
     public addDRCSFont(font: FontFace) {

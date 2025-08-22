@@ -586,6 +586,7 @@ export class BrowserAPI {
             if (res?.data == null) {
                 return NaN;
             }
+            this.content.loadDRCS(drcs.loadDRCS(Buffer.from(res.data)));
             for (const [id, fontFamily] of [
                 [1, "丸ゴシック"],
                 [2, "角ゴシック"],
