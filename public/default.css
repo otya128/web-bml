@@ -270,6 +270,10 @@ arib-bg {
     position: absolute !important;
     left: 0px !important;
     top: 0px !important;
+    right: 0px !important;
+    bottom: 0px !important;
+    padding: 0px !important;
+    margin: 0px !important;
 }
 
 arib-text, arib-cdata {
@@ -277,9 +281,11 @@ arib-text, arib-cdata {
     font: inherit !important;
     letter-spacing: inherit !important;
     text-align: inherit !important;
-    line-height: inherit !important;
     visibility: unset !important;
     border: none !important;
+    background: none !important;
+    padding: 0px !important;
+    margin: 0px !important;
 }
 
 p, input {
