@@ -22,7 +22,7 @@ import { romsoundData } from "./romsound_data";
 
 const sampleRate = 12000 * 2;
 
-function playBuffer(destination: AudioNode, buf: Float32Array, sampleRate: number) {
+function playBuffer(destination: AudioNode, buf: Float32Array<ArrayBuffer>, sampleRate: number) {
     const buffer = destination.context.createBuffer(1, buf.length, sampleRate)
     buffer.copyToChannel(buf, 0)
     const source = destination.context.createBufferSource();
@@ -36,7 +36,7 @@ function sine(sampleRate: number, i: number, freq: number) {
     return Math.sin(i / (sampleFreq / (Math.PI * 2)));
 }
 
-const romSoundCache = new Map<number, { buffer: Float32Array, sampleRate: number }>();
+const romSoundCache = new Map<number, { buffer: Float32Array<ArrayBuffer>, sampleRate: number }>();
 
 export function playRomSound(soundId: number, destination: AudioNode) {
     let cache = romSoundCache.get(soundId);
@@ -83,7 +83,7 @@ export function playRomSound(soundId: number, destination: AudioNode) {
 }
 
 // 選択音
-function generateSound5(sampleRate: number): Float32Array {
+function generateSound5(sampleRate: number): Float32Array<ArrayBuffer> {
     const buf = new Float32Array(sampleRate * 0.2), volume = 0.1;
     const len = sampleRate * 0.2;
     for (let i = 0; i < len; i++) {
@@ -103,7 +103,7 @@ function generateSound5(sampleRate: number): Float32Array {
 
 // 6は5の連続
 
-function repeatSound(buf: Float32Array, repeatCount: number, intervalSample: number): Float32Array {
+function repeatSound(buf: Float32Array, repeatCount: number, intervalSample: number): Float32Array<ArrayBuffer> {
     const repeated = new Float32Array(buf.length * repeatCount + intervalSample * (repeatCount - 1));
     for (let i = 0; i < repeatCount; i++) {
         repeated.set(buf, (buf.length + intervalSample) * i);
@@ -112,7 +112,7 @@ function repeatSound(buf: Float32Array, repeatCount: number, intervalSample: num
 }
 
 // 決定音
-function generateSound7(sampleRate: number): Float32Array {
+function generateSound7(sampleRate: number): Float32Array<ArrayBuffer> {
     const buf = new Float32Array(sampleRate * 0.2), volume = 0.1;
     for (let i = 0; i < sampleRate * 0.05; i++) {
         buf[i] += sine(sampleRate, i, 2100) * volume;
@@ -129,7 +129,7 @@ function generateSound7(sampleRate: number): Float32Array {
 // 8は7の連続
 
 // 選択音
-function generateSound9(sampleRate: number): Float32Array {
+function generateSound9(sampleRate: number): Float32Array<ArrayBuffer> {
     const buf = new Float32Array(sampleRate * 0.09), volume = 0.1;
     const len = sampleRate * 0.09;
     for (let i = 0; i < len; i++) {

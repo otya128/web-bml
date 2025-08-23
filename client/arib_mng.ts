@@ -41,7 +41,7 @@ type Frame = {
 
 export type MNGAnimation = { keyframes: Keyframe[], options: KeyframeAnimationOptions, width: number, height: number, blobs: string[] };
 
-export function aribMNGToCSSAnimation(mng: Buffer, clut: number[][]): MNGAnimation | null {
+export function aribMNGToCSSAnimation(mng: Buffer<ArrayBuffer>, clut: number[][]): MNGAnimation | null {
     const frames: Frame[] = [];
     const plte = preparePLTE(clut);
     const trns = prepareTRNS(clut);
@@ -62,7 +62,7 @@ export function aribMNGToCSSAnimation(mng: Buffer, clut: number[][]): MNGAnimati
         xLocation: 0,
         yLocation: 0,
     };
-    let ihdr: Buffer | undefined;
+    let ihdr: Buffer<ArrayBuffer> | undefined;
     let animationLength = 0;
     while (inOff < mng.byteLength) {
         let chunkLength = mng.readUInt32BE(inOff);

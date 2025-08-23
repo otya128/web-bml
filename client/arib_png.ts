@@ -1,7 +1,7 @@
 import CRC32 from "crc-32";
 import { Buffer } from "buffer";
 
-export function preparePLTE(clut: number[][]): Buffer {
+export function preparePLTE(clut: number[][]): Buffer<ArrayBuffer> {
     const plte = Buffer.alloc(4 /* PLTE */ + 4 /* size */ + clut.length * 3 + 4 /* CRC32 */);
     let off = 0;
     off = plte.writeUInt32BE(clut.length * 3, off);
@@ -15,7 +15,7 @@ export function preparePLTE(clut: number[][]): Buffer {
     return plte;
 }
 
-export function prepareTRNS(clut: number[][]): Buffer {
+export function prepareTRNS(clut: number[][]): Buffer<ArrayBuffer> {
     const trns = Buffer.alloc(4 /* PLTE */ + 4 /* size */ + clut.length + 4 /* CRC32 */);
     let off = 0;
     off = trns.writeUInt32BE(clut.length, off);
@@ -27,7 +27,7 @@ export function prepareTRNS(clut: number[][]): Buffer {
     return trns;
 }
 
-function replacePLTE(png: Buffer, plte: Buffer, trns: Buffer): Buffer {
+function replacePLTE(png: Buffer<ArrayBuffer>, plte: Buffer, trns: Buffer): Buffer<ArrayBuffer> {
     const output = Buffer.alloc(png.length + plte.length + trns.length);
     let inOff = 0, outOff = 0;
     // header
@@ -55,7 +55,7 @@ function replacePLTE(png: Buffer, plte: Buffer, trns: Buffer): Buffer {
     return output.subarray(0, outOff);
 }
 
-export function aribPNGToPNG(png: Buffer, clut: number[][]): { data: Buffer, width?: number, height?: number } {
+export function aribPNGToPNG(png: Buffer<ArrayBuffer>, clut: number[][]): { data: Buffer<ArrayBuffer>, width?: number, height?: number } {
     const plte = preparePLTE(clut);
     const trns = prepareTRNS(clut);
     const data = replacePLTE(png, plte, trns);

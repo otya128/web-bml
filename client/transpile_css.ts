@@ -165,7 +165,7 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
             if (decl.property === "resolution" && decl.value === "720x480") {
                 // 720x480の解像度のときは静止画プレーンの幅と高さは文字図形プレーンと等しい
                 // 960x540の解像度のときは静止画プレーンの幅と高さは文字図形プレーンの半分
-                const decls = [
+                const decls: css.Declaration[] = [
                     {
                         type: "declaration",
                         property: "--" + decl.property,
@@ -185,7 +185,7 @@ async function processRule(node: css.Node, opts: CSSTranspileOptions): Promise<u
             const origProperty = decl.property;
             const origValue = decl.value;
             const converted = await opts.convertUrl(parseCSSValue(origValue) ?? origValue);
-            const decls = [
+            const decls: css.Declaration[] = [
                 {
                     type: "declaration",
                     property: "--" + origProperty,

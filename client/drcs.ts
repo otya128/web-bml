@@ -27,7 +27,7 @@ export type DRCSGlyphs = {
 };
 
 export class BinaryWriter {
-    private buffer: Buffer;
+    private buffer: Buffer<ArrayBuffer>;
     private offset: number;
     private size: number;
     public constructor() {
@@ -142,7 +142,7 @@ export class BinaryWriter {
         this.size = Math.max(this.offset, this.size);
         return this.offset - value.length;
     }
-    public getBuffer(): Buffer {
+    public getBuffer(): Buffer<ArrayBuffer> {
         return this.buffer.subarray(0, this.size);
     }
     public subarray(start?: number | undefined, end?: number | undefined): Buffer {
@@ -175,7 +175,7 @@ function checksum(buffer: Buffer): number {
     return chksum;
 }
 
-export function toTTF(glyphs: DRCSGlyphs[]): { ttf: Buffer, unicodeCharacters: number[] } {
+export function toTTF(glyphs: DRCSGlyphs[]): { ttf: Buffer<ArrayBuffer>, unicodeCharacters: number[] } {
     const tables = [
         { name: "cmap", writer: writeCMAP, headerOffset: -1 },
         { name: "head", writer: writeHEAD, headerOffset: -1 },

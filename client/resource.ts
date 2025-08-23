@@ -36,7 +36,7 @@ export type CachedFileMetadata = {
 export type CachedFile = {
     contentLocation: string | null,
     contentType: MediaType,
-    data: Uint8Array,
+    data: Uint8Array<ArrayBuffer>,
     blobUrl: Map<any, CachedFileMetadata>,
 };
 

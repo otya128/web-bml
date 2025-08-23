@@ -389,7 +389,6 @@ export namespace BML {
                             char.style.color = "transparent";
                         }
                         children.push(char);
-                        // @ts-expect-error
                         prev = match.index + match[0].length;
                     }
                     const prevText = text.substring(prev);
@@ -1389,15 +1388,12 @@ export namespace BML {
                         const duration = Number(timing.duration);
                         const keyframes = this.effect.getKeyframes();
                         const keyframe = keyframes[Math.max(0, Math.min(value, keyframes.length - 1))];
-                        timing.delay = -(keyframe.computedOffset * duration);
-                        this.effect.updateTiming(timing);
+                        this.effect.updateTiming({ delay: -(keyframe.computedOffset * duration) });
                     }
                 }
             } else {
                 if (this.effect != null) {
-                    const timing = this.effect.getTiming();
-                    timing.delay = 0;
-                    this.effect.updateTiming(timing);
+                    this.effect.updateTiming({ delay: 0 });
                 }
                 this.node.setAttribute("streamposition", "0");
             }
@@ -1488,7 +1484,7 @@ export namespace BML {
                     // play=>pause どのフレームを表示するかは受信機依存 streampositionはそのフレームに設定される 繰り返し回数はリセット
                     this.animation.pause();
                     const duration = Number(this.effect.getTiming().duration);
-                    this.streamPosition = BMLObjectElement.offsetToFrame(this.effect.getKeyframes(), ((this.animation.currentTime! - this.animation.startTime!) % duration) / duration);
+                    this.streamPosition = BMLObjectElement.offsetToFrame(this.effect.getKeyframes(), ((Number(this.animation.currentTime!) - Number(this.animation.startTime!)) % duration) / duration);
                 } else if (prevStatus === "stop") {
                     // stop=>pause 0フレーム目が表示される
                     this.streamPosition = 0;
