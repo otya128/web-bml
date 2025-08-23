@@ -1249,7 +1249,7 @@ export class Content {
             const decl: css.Declaration = {
                 type: "declaration",
                 property: "--clut-color-" + i,
-                value: `rgba(${t[0]},${t[1]},${t[2]},${t[3] / 255})`,
+                value: `#${t[0].toString(16).padStart(2, "0")}${t[1].toString(16).padStart(2, "0")}${t[2].toString(16).padStart(2, "0")}${(t[3]).toString(16).padStart(2, "0")}`,
             };
             ret.push(decl);
             i++;
