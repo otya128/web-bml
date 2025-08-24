@@ -1314,11 +1314,11 @@ export namespace BML {
                 const width = imageWidth ?? imageUrl.width;
                 const height = imageHeight ?? imageUrl.height;
                 if (width != null && height != null) {
-                    img.width = width;
-                    img.height = height;
+                    img.style.width = width + "px";
+                    img.style.height = height + "px";
                 } else {
-                    img.removeAttribute("width");
-                    img.removeAttribute("height");
+                    img.style.width = "100%";
+                    img.style.height = "100%";
                 }
             })();
         }
