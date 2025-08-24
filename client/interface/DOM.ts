@@ -1329,6 +1329,14 @@ export namespace BML {
                         }
                     }
                 }
+                // Firefoxだとiframeで表示されてdata変えると挙動が変になったりするので直接img変える
+                if (this.node.contentDocument != null) {
+                    const img = this.node.contentDocument.querySelector("img");
+                    if (img != null) {
+                        img.src = imageUrl.blobUrl;
+                        return;
+                    }
+                }
                 this.node.type = imageType;
                 this.node.data = imageUrl.blobUrl;
             })();
