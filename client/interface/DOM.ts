@@ -1092,10 +1092,6 @@ export namespace BML {
     // STD B-24 第二分冊 (2/2) 第二編 付属2 表5-3参照
     // 画像の大きさは固定
     function fixImageSize(resolution: string, displayWidth: string, displayHeight: string, width: number, height: number, type: string): { width?: number, height?: number } {
-        // 非表示のとき
-        if (displayWidth === "0px" || displayHeight === "0px") {
-            return { width: 0, height: 0 };
-        }
         type = type.toLowerCase();
         const is720x480 = resolution.trim() === "720x480";
         if (type === "image/jpeg") {
@@ -1152,9 +1148,7 @@ export namespace BML {
                 this.effect = undefined;
                 this.animation = undefined;
             }
-            // Chromeではdataが未設定でtypeが設定されている場合枠線が表示されてしまうためtypeも消す
-            this.node.removeAttribute("type");
-            this.node.removeAttribute("data");
+            this.node.querySelector("img")?.remove();
         }
 
         protected updateAnimation() {
@@ -1215,7 +1209,8 @@ export namespace BML {
                 let imageUrl: CachedFileMetadata | undefined;
                 const isPNG = aribType?.toLowerCase() === "image/x-arib-png";
                 const isMNG = aribType?.toLowerCase() === "image/x-arib-mng";
-                let imageType: string | undefined;
+                let imageWidth: number | undefined;
+                let imageHeight: number | undefined;
                 if (isPNG || isMNG) {
                     const clutCss = window.getComputedStyle(this.node).getPropertyValue("--clut");
                     const clutUrl = clutCss == null ? null : parseCSSValue(clutCss);
@@ -1240,25 +1235,6 @@ export namespace BML {
                         for (const blob of keyframes.blobs) {
                             fetched.blobUrl.set(blob, { blobUrl: blob });
                         }
-                        this.node.style.maxWidth = "";
-                        this.node.style.minWidth = "";
-                        this.node.style.maxHeight = "";
-                        this.node.style.minHeight = "";
-                        const { width: displayWidth, height: displayHeight } = window.getComputedStyle(this.node);
-                        const { width, height } = fixImageSize(
-                            window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("resolution"),
-                            displayWidth,
-                            displayHeight,
-                            keyframes.width,
-                            keyframes.height,
-                            (aribType ?? this.type)
-                        );
-                        if (width != null && height != null) {
-                            this.node.style.maxWidth = width + "px";
-                            this.node.style.minWidth = width + "px";
-                            this.node.style.maxHeight = height + "px";
-                            this.node.style.minHeight = height + "px";
-                        }
                         // streamloopingは1固定で運用されるため考慮しない
                         // streamstatus=playのときstreampositionで指定されたフレームから再生開始
                         // streamstatus=stopのとき非表示 streampositionは0にリセットされる
@@ -1277,7 +1253,6 @@ export namespace BML {
                             imageUrl = { blobUrl: URL.createObjectURL(blob), width: png.width, height: png.height };
                             fetched.blobUrl.set(fetchedClut, imageUrl);
                         }
-                        imageType = "image/png";
                     }
                 } else if (aribType?.toLowerCase() === "image/jpeg") {
                     imageUrl = fetched.blobUrl.get("BT.709");
@@ -1294,9 +1269,7 @@ export namespace BML {
                         }
                         fetched.blobUrl.set("BT.709", imageUrl);
                     }
-                    imageType = "image/jpeg";
                 } else if (aribType?.toLowerCase() === "image/gif") {
-                    imageType = "image/gif";
                     imageUrl = { blobUrl: this.ownerDocument.resources.getCachedFileBlobUrl(fetched) };
                 } else {
                     this.delete();
@@ -1308,10 +1281,6 @@ export namespace BML {
                 }
                 if (this.ownerDocument.resources.profile !== Profile.TrProfileC) {
                     if (imageUrl.width != null && imageUrl.height != null) {
-                        this.node.style.maxWidth = "";
-                        this.node.style.minWidth = "";
-                        this.node.style.maxHeight = "";
-                        this.node.style.minHeight = "";
                         const { width: displayWidth, height: displayHeight } = window.getComputedStyle(this.node);
                         const { width, height } = fixImageSize(
                             window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("--resolution"),
@@ -1321,24 +1290,36 @@ export namespace BML {
                             imageUrl.height,
                             (aribType ?? this.type)
                         );
-                        if (width != null && height != null) {
-                            this.node.style.maxWidth = width + "px";
-                            this.node.style.minWidth = width + "px";
-                            this.node.style.maxHeight = height + "px";
-                            this.node.style.minHeight = height + "px";
-                        }
+                        imageWidth = width;
+                        imageHeight = height;
                     }
                 }
-                // Firefoxだとiframeで表示されてdata変えると挙動が変になったりするので直接img変える
-                if (this.node.contentDocument != null) {
-                    const img = this.node.contentDocument.querySelector("img");
-                    if (img != null) {
-                        img.src = imageUrl.blobUrl;
-                        return;
-                    }
+                let img = this.node.querySelector("img");
+                if (img == null) {
+                    img = new Image();
+                    this.node.appendChild(img);
+                    img.style.position = "absolute";
+                    img.style.left = "0px";
+                    img.style.top = "0px";
+                    img.style.right = "unset";
+                    img.style.bottom = "unset";
+                    img.style.margin = "0px";
+                    img.style.padding = "0px";
+                    img.style.borderWidth = "0px";
+                    img.style.background = "none";
+                    img.style.visibility = "inherit";
+                    img.style.display = "block";
                 }
-                this.node.type = imageType;
-                this.node.data = imageUrl.blobUrl;
+                img.src = imageUrl.blobUrl;
+                const width = imageWidth ?? imageUrl.width;
+                const height = imageHeight ?? imageUrl.height;
+                if (width != null && height != null) {
+                    img.width = width;
+                    img.height = height;
+                } else {
+                    img.removeAttribute("width");
+                    img.removeAttribute("height");
+                }
             })();
         }
         public get type() {
