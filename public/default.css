@@ -295,4 +295,5 @@ p, input {
 html {
     width: unset !important;
     height: unset !important;
+    color-scheme: initial;
 }
