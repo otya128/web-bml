@@ -1091,26 +1091,19 @@ export namespace BML {
 
     // STD B-24 第二分冊 (2/2) 第二編 付属2 表5-3参照
     // 画像の大きさは固定
-    function fixImageSize(resolution: string, displayWidth: string, displayHeight: string, width: number, height: number, type: string): { width?: number, height?: number } {
-        type = type.toLowerCase();
-        const is720x480 = resolution.trim() === "720x480";
-        if (type === "image/jpeg") {
-            if (is720x480) {
-                if (width % 2 != 0) {
-                    return { width: width - 1, height };
-                }
-                return { width, height };
+    function fixJPEGScaling(resolution: string, displayWidth: string, displayHeight: string, width: number, height: number): { width?: number, height?: number } {
+        if (resolution.trim() === "720x480") {
+            if (width % 2 != 0) {
+                return { width: width - 1, height };
             }
-            // 960x540座標系のときは1/2にスケーリング
-            // ただし表示サイズが960x540であり、画像サイズも960x540の場合はそのまま
-            if (displayWidth === "960px" && displayHeight === "540px" && width === 960 && height === 540) {
-                return { width, height };
-            }
-            return { width: Math.floor(width / 2), height: Math.floor(height / 2) };
-        } else if (type === "image/x-arib-png" || type === "image/x-arib-mng") {
             return { width, height };
         }
-        return {};
+        // 960x540座標系のときは1/2にスケーリング
+        // ただし表示サイズが960x540であり、画像サイズも960x540の場合はそのまま
+        if (displayWidth === "960px" && displayHeight === "540px" && width === 960 && height === 540) {
+            return { width, height };
+        }
+        return { width: Math.floor(width / 2), height: Math.floor(height / 2) };
     }
     // impl
     export class HTMLObjectElement extends HTMLElement {
@@ -1221,12 +1214,7 @@ export namespace BML {
                     if (isMNG) {
                         const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
                         const keyframes = aribMNGToCSSAnimation(Buffer.from(fetched.data), clut);
-                        this.node.removeAttribute("data");
-                        if (this.animation != null) {
-                            this.animation.cancel();
-                            this.animation = undefined;
-                            this.effect = undefined;
-                        }
+                        this.delete();
                         if (keyframes == null) {
                             return;
                         }
@@ -1280,16 +1268,10 @@ export namespace BML {
                     return;
                 }
                 if (this.ownerDocument.resources.profile !== Profile.TrProfileC) {
-                    if (imageUrl.width != null && imageUrl.height != null) {
+                    if (imageUrl.width != null && imageUrl.height != null && aribType?.toLowerCase() === "image/jpeg") {
+                        const resolution = window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("--resolution");
                         const { width: displayWidth, height: displayHeight } = window.getComputedStyle(this.node);
-                        const { width, height } = fixImageSize(
-                            window.getComputedStyle((bmlNodeToNode(this.ownerDocument.documentElement) as globalThis.HTMLElement).querySelector("body")!).getPropertyValue("--resolution"),
-                            displayWidth,
-                            displayHeight,
-                            imageUrl.width,
-                            imageUrl.height,
-                            (aribType ?? this.type)
-                        );
+                        const { width, height } = fixJPEGScaling(resolution, displayWidth, displayHeight, imageUrl.width, imageUrl.height);
                         imageWidth = width;
                         imageHeight = height;
                     }
