@@ -29,8 +29,8 @@
   },
   "scripts": {
     "start": "node build/index.js",
-    "build": "webpack && tsc -p tsconfig.server.json",
-    "watch:client": "webpack -w",
+    "build": "webpack --mode=production && tsc -p tsconfig.server.json",
+    "watch:client": "webpack --mode=development -w",
     "dev": "ts-node server/index.ts"
   },
   "devDependencies": {
