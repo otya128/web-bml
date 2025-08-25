@@ -539,7 +539,12 @@ export class JSInterpreter implements Interpreter {
     }
 
     public addScript(script: string, src?: string): Promise<boolean> {
-        this.interpreter.appendCode(script, src);
+        try {
+            this.interpreter.appendCode(script, src);
+        } catch (e) {
+            console.error("failed to append script", src, e);
+            return Promise.resolve(false);
+        }
         return this.runScript();
     }
 
@@ -557,22 +562,27 @@ export class JSInterpreter implements Interpreter {
             this._isExecuting = true;
             while (true) {
                 interpreterTrace("RUN SCRIPT", exeNum, prevContext, this.content.context);
-                const r = await this.interpreter.runAsync(500, () => {
-                    console.warn("script execution timeout");
-                    return new Promise((resolve) => {
-                        setTimeout(() => {
-                            resolve(true);
-                        }, 100);
+                try {
+                    const r = await this.interpreter.runAsync(500, () => {
+                        console.warn("script execution timeout");
+                        return new Promise((resolve) => {
+                            setTimeout(() => {
+                                resolve(true);
+                            }, 100);
+                        });
                     });
-                });
-                interpreterTrace("RETURN RUN SCRIPT", exeNum, r, prevContext, this.content.context);
-                if (r === true) {
-                    continue;
+                    interpreterTrace("RETURN RUN SCRIPT", exeNum, r, prevContext, this.content.context);
+                    if (r === true) {
+                        continue;
+                    }
+                    if (r === LAUNCH_DOCUMENT_CALLED) {
+                        interpreterTrace("browser.launchDocument called.");
+                        exit = true;
+                    }
+                } catch (e) {
+                    console.error("unhandled error", exeNum, prevContext, this.content.context, e);
                 }
-                if (r === LAUNCH_DOCUMENT_CALLED) {
-                    interpreterTrace("browser.launchDocument called.");
-                    exit = true;
-                } else if (this.content.context !== prevContext) {
+                if (this.content.context !== prevContext) {
                     console.error("context switched", this.content.context, prevContext);
                     exit = true;
                 }
