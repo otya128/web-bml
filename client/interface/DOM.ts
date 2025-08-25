@@ -375,7 +375,7 @@ export namespace BML {
                         char.textContent = match[0];
                         const drcs = this.ownerDocument.internalGetDRCS(computedStyle.fontFamily, fontSize, match[0]);
                         if (drcs != null) {
-                            let [gray1, gray2] = computedStyle.getPropertyValue("--grayscale-color-index").split(" ").map(v => parseInt(v));
+                            let [gray2, gray1] = computedStyle.getPropertyValue("--grayscale-color-index").split(" ").map(v => parseInt(v));
                             if (!Number.isSafeInteger(gray1) || gray1 < 0 || gray1 > 255) {
                                 gray1 = 8;
                             }
@@ -460,7 +460,7 @@ export namespace BML {
                 if (jis >= 0x7721 && jis <= 0x787e) {
                     const drcs = this.ownerDocument.internalGetDRCS(computedStyle.fontFamily, fontSize, c);
                     if (drcs != null) {
-                        let [gray1, gray2] = computedStyle.getPropertyValue("--grayscale-color-index").split(" ").map(v => parseInt(v));
+                        let [gray2, gray1] = computedStyle.getPropertyValue("--grayscale-color-index").split(" ").map(v => parseInt(v));
                         if (!Number.isSafeInteger(gray1) || gray1 < 0 || gray1 > 255) {
                             gray1 = 8;
                         }
