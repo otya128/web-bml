@@ -1295,6 +1295,9 @@ export class Content {
         if (this.resources.profile === Profile.TrProfileC) {
             this.documentElement.querySelectorAll("img").forEach(obj => {
                 const asrc = obj.getAttribute("arib-src");
+                if (!asrc) {
+                    return;
+                }
                 BML.nodeToBMLNode(obj, this.bmlDocument).src = asrc!;
             });
         }
