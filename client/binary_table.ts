@@ -1,13 +1,13 @@
 import { TextDecodeFunction, TextEncodeFunction } from "./text";
 import { decodeZipCode, ZipCode, zipCodeInclude } from "./zip_code";
 
-enum BinaryTableUnit {
+export enum BinaryTableUnit {
     Byte = "B",
     Bit = "b",
     Variable = "V",
 }
 
-enum BinaryTableType {
+export enum BinaryTableType {
     Boolean = "B",
     UnsignedInteger = "U",
     Integer = "I",
@@ -15,7 +15,7 @@ enum BinaryTableType {
     ZipCode = "Z",
     Pad = "P",
 }
-type BinaryTableField = {
+export type BinaryTableField = {
     unit: BinaryTableUnit,
     length: number,
     type: BinaryTableType,
@@ -444,7 +444,7 @@ export class BinaryTable {
         }
         const logic = args[args.length - 3] as boolean;
         const limitCount = args[args.length - 2] as number;
-        const resultArray = args[args.length - 1] as any[];
+        const resultArray = args[args.length - 1] as any[][];
         resultArray.length = 0;
         for (let i = startRow; i < this.rows.length; i++) {
             let results = new Array(args.length / 3 - 1);

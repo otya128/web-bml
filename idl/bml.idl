@@ -1,0 +1,185 @@
+interface BMLDocument : HTMLDocument {
+    readonly attribute BMLEvent currentEvent;
+    readonly attribute HTMLElement currentFocus;
+};
+
+interface BMLDivElement : HTMLDivElement {
+    readonly attribute DOMString accessKey;
+    readonly attribute BMLCSS2Properties normalStyle;
+    readonly attribute BMLCSS2Properties focusStyle;
+    readonly attribute BMLCSS2Properties activeStyle;
+    void      focus();
+    void      blur();
+};
+
+interface BMLSpanElement : HTMLElement {
+    readonly attribute DOMString accessKey;
+    readonly attribute BMLCSS2Properties normalStyle;
+    readonly attribute BMLCSS2Properties focusStyle;
+    readonly attribute BMLCSS2Properties activeStyle;
+    void focus();
+    void blur();
+};
+
+interface BMLParagraphElement : HTMLParagraphElement {
+    readonly attribute DOMString accessKey;
+    readonly attribute BMLCSS2Properties normalStyle;
+    readonly attribute BMLCSS2Properties focusStyle;
+    readonly attribute BMLCSS2Properties activeStyle;
+    void focus();
+    void blur();
+};
+
+interface BMLBRElement : HTMLBRElement {
+    readonly attribute BMLCSS2Properties normalStyle;
+};
+
+interface BMLAnchorElement : HTMLAnchorElement {
+    readonly attribute BMLCSS2Properties normalStyle;
+    readonly attribute BMLCSS2Properties focusStyle;
+    readonly attribute BMLCSS2Properties activeStyle;
+};
+
+interface BMLInputElement : HTMLInputElement {
+    readonly attribute BMLCSS2Properties normalStyle;
+    readonly attribute BMLCSS2Properties focusStyle;
+    readonly attribute BMLCSS2Properties activeStyle;
+};
+
+interface BMLObjectElement : HTMLObjectElement {
+    readonly attribute BMLCSS2Properties normalStyle;
+    readonly attribute BMLCSS2Properties focusStyle;
+    readonly attribute BMLCSS2Properties activeStyle;
+    attribute boolean remain;
+    attribute long streamPosition;
+    attribute DOMString streamStatus;
+    boolean setMainAudioStream(in DOMString audio_ref);
+    DOMString getMainAudioStream();
+    readonly attribute DOMString accessKey;
+    void focus();
+    void blur();
+};
+
+interface BMLBodyElement : HTMLBodyElement {
+    readonly attribute BMLCSS2Properties normalStyle;
+    attribute boolean invisible;
+};
+
+interface BMLBmlElement : HTMLHtmlElement {
+};
+
+interface BMLBeventElement : HTMLElement {
+};
+
+interface BMLBeitemElement : HTMLElement {
+    readonly attribute DOMString type;
+    attribute DOMString esRef;
+    attribute unsigned short messageId;
+    attribute unsigned short messageVersion;
+    readonly attribute unsigned short messageGroupId;
+    attribute DOMString moduleRef;
+    attribute unsigned short languageTag;
+    readonly attribute DOMString timeMode;
+    attribute DOMString timeValue;
+    attribute DOMString objectId;
+    attribute DOMString segmentId;
+    attribute boolean subscribe;
+};
+
+interface BMLEvent {
+    readonly attribute DOMString type;
+    readonly attribute HTMLElement target;
+};
+
+interface BMLIntrinsicEvent : BMLEvent {
+    readonly attribute unsigned long keyCode;
+};
+
+interface BMLBeventEvent : BMLEvent {
+    readonly attribute short status;
+    readonly attribute DOMString privateData;
+    readonly attribute DOMString esRef;
+    readonly attribute unsigned short messageId;
+    readonly attribute unsigned short messageVersion;
+    readonly attribute unsigned short messageGroupId;
+    readonly attribute DOMString moduleRef;
+    readonly attribute unsigned short languageTag;
+    readonly attribute BMLObjectElement object;
+};
+
+interface BMLCSS2Properties {
+    // CSS2準拠特性
+    // ボックスモデル
+    readonly attribute DOMString paddingTop; // padding-top
+    readonly attribute DOMString paddingRight; // padding-right
+    readonly attribute DOMString paddingBottom; // padding-bottom
+    readonly attribute DOMString paddingLeft; // padding-left
+    readonly attribute DOMString borderWidth; // border-width
+    readonly attribute DOMString borderStyle; // border-style
+    // 視覚整形モデル
+    attribute DOMString left; // left
+    attribute DOMString top; // top
+    attribute DOMString width; // width
+    attribute DOMString height; // height
+    readonly attribute DOMString lineHeight; // line-height
+    // その他の視覚効果
+    attribute DOMString visibility; // visibility
+    // 生成内容・自動番号振り・リスト
+    // ページ媒体
+    // 背景
+    // フォント
+    attribute DOMString fontFamily; // font-family
+    attribute DOMString fontSize; // font-size
+    attribute DOMString fontWeight; // font-weight
+    // テキスト
+    readonly attribute DOMString textAlign; // text-align
+    readonly attribute DOMString letterSpacing; // letter-spacing
+    // 表関係
+    // ユーザインタフェース
+    // 音声スタイルシート
+    // BML拡張特性
+    readonly attribute DOMString clut; // clut
+    attribute DOMString colorIndex; // color-index
+    attribute DOMString backgroundColorIndex; //background-color-index
+    attribute DOMString borderTopColorIndex; // border-top-color-index
+    attribute DOMString borderRightColorIndex; //border-right-color-index
+    attribute DOMString borderBottomColorIndex; //border-bottom-color-index
+    attribute DOMString borderLeftColorIndex; //border-left-color-index
+    readonly attribute DOMString resolution; // resolution
+    readonly attribute DOMString displayAspectRatio; // display-aspect-ratio
+    attribute DOMString grayscaleColorIndex; // grayscale-color-index
+    readonly attribute DOMString navIndex; // nav-index
+    readonly attribute DOMString navUp; // nav-up
+    readonly attribute DOMString navDown; // nav-down
+    readonly attribute DOMString navLeft; // nav-left
+    readonly attribute DOMString navRight; // nav-right
+    attribute DOMString usedKeyList; // used-key-list
+
+    // Cプロファイル
+    attribute DOMString borderTopColor; // border-top-color
+    attribute DOMString borderRightColor; // border-right-color
+    attribute DOMString borderBottomColor; // border-bottom-color
+    attribute DOMString borderLeftColor; // border-left-color
+    attribute DOMString backgroundColor; // background-color
+    attribute DOMString color; // color
+    readonly attribute DOMString WapMarqueeStyle; // wap-marquee-style
+    readonly attribute DOMString WapMarqueeLoop; // wap-marquee-loop
+    readonly attribute DOMString WapMarqueeSpeed; // wap-marquee-speed
+    readonly attribute DOMString WapInputFormat; // wap-input-format
+};
+
+interface BMLPreElement : HTMLPreElement {
+    readonly attribute BMLCSS2Properties normalStyle;
+};
+
+interface BMLFormElement : HTMLFormElement {
+    readonly attribute BMLCSS2Properties normalStyle;
+};
+
+interface BMLTextAreaElement : HTMLTextAreaElement {
+    readonly attribute BMLCSS2Properties normalStyle;
+};
+
+interface BMLImageElement : HTMLImageElement {
+    readonly attribute BMLCSS2Properties normalStyle;
+};

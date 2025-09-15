@@ -4,6 +4,7 @@ import { BrowserAPI } from "./browser";
 import { Content } from "./content";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { BML } from "./interface/DOM";
+import { ES2Interpreter } from "./interpreter/es2_interpreter";
 import { Interpreter } from "./interpreter/interpreter";
 import { JSInterpreter } from "./interpreter/js_interpreter";
 import { NVRAM } from "./nvram";
@@ -221,7 +222,7 @@ export class BMLBrowser {
             audioNodeProvider = this.defaultAudioNodeProvider;
         }
         this.epg = options.epg ?? {};
-        this.interpreter = new JSInterpreter();
+        this.interpreter = Boolean(localStorage.getItem((options.storagePrefix ?? "") + "use_js_interpreter")) ? new JSInterpreter() : new ES2Interpreter();
         this.eventQueue = new EventQueue(this.interpreter);
         this.resources = new Resources(this.indicator, options.ip ?? {});
         this.broadcasterDatabase = new BroadcasterDatabase(this.resources, (options.storagePrefix ?? "") + (options.broadcasterDatabasePrefix ?? ""));

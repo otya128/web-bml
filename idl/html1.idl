@@ -1,0 +1,91 @@
+interface HTMLDocument : Document {
+  Element                   getElementById(in DOMString elementId);
+};
+
+interface HTMLElement : Element {
+  readonly attribute  DOMString            id;
+  readonly attribute  DOMString            className;
+};
+
+interface HTMLHtmlElement : HTMLElement {
+};
+
+interface HTMLHeadElement : HTMLElement {
+};
+
+interface HTMLTitleElement : HTMLElement {
+  readonly attribute  DOMString            text;
+};
+
+interface HTMLMetaElement : HTMLElement {
+  readonly attribute  DOMString            content;
+  readonly attribute  DOMString            name;
+};
+
+interface HTMLStyleElement : HTMLElement {
+};
+
+interface HTMLBodyElement : HTMLElement {
+};
+
+interface HTMLInputElement : HTMLElement {
+  readonly attribute  DOMString            defaultValue;
+  readonly attribute  DOMString            accessKey;
+           attribute  boolean              disabled;
+  readonly attribute  long                 maxLength;
+           attribute  boolean              readOnly;
+  readonly attribute  DOMString            type;
+           attribute  DOMString            value;
+  void                      blur();
+  void                      focus();
+};
+
+interface HTMLDivElement : HTMLElement {
+};
+
+interface HTMLParagraphElement : HTMLElement {
+};
+
+interface HTMLBRElement : HTMLElement {
+};
+
+interface HTMLAnchorElement : HTMLElement {
+  readonly attribute  DOMString            accessKey;
+           attribute  DOMString            href;
+  void                      blur();
+  void                      focus();
+};
+
+interface HTMLObjectElement : HTMLElement {
+           attribute  DOMString            data;
+  readonly attribute  DOMString            type;
+};
+
+interface HTMLScriptElement : HTMLElement {
+};
+
+interface HTMLPreElement : HTMLElement {
+};
+
+interface HTMLFormElement : HTMLElement {
+           attribute  DOMString            action;
+  readonly attribute  DOMString            method;
+  void                      submit();
+};
+
+interface HTMLTextAreaElement : HTMLElement {
+  readonly attribute  DOMString            defaultValue;
+  readonly attribute  HTMLFormElement      form;
+  readonly attribute  DOMString            accessKey;
+  readonly attribute  DOMString            name;
+           attribute  boolean              readOnly;
+           attribute  DOMString            value;
+};
+
+interface HTMLImageElement : HTMLElement {
+  readonly attribute  DOMString            alt;
+           attribute  DOMString            src;
+};
+
+interface HTMLLinkElement : HTMLElement {
+};

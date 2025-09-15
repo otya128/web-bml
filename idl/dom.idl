@@ -1,0 +1,34 @@
+interface DOMImplementation {
+  boolean                   hasFeature(in DOMString feature, 
+                                       in DOMString version);
+};
+
+interface Document : Node {
+  readonly attribute  DOMImplementation    implementation;
+  readonly attribute  Element              documentElement;
+};
+
+interface Node {
+  readonly attribute  Node                 parentNode;
+  readonly attribute  Node                 firstChild;
+  readonly attribute  Node                 lastChild;
+  readonly attribute  Node                 previousSibling;
+  readonly attribute  Node                 nextSibling;
+};
+
+interface CharacterData : Node {
+           attribute  DOMString            data;
+                                 // raises(DOMException) on setting
+                                 // raises(DOMException) on retrieval
+  readonly attribute  unsigned long        length;
+};
+
+interface Element : Node {
+  readonly attribute  DOMString            tagName;
+};
+
+interface Text : CharacterData {
+};
+
+interface CDATASection : Text {
+};

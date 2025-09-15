@@ -1,5 +1,5 @@
 import { EventQueue } from "../event_queue";
-import { BMLCSS2Properties, BMLCSSStyleDeclaration } from "./BMLCSS2Properties";
+import { BMLCSS2Properties, BMLCSSStyleDeclaration, BMLCSS2Properties as BMLCSS2Properties_ } from "./BMLCSS2Properties";
 import { CachedFileMetadata, Profile, Resources } from "../resource";
 import { aribPNGToPNG } from "../arib_png";
 import { readCLUT } from "../clut";
@@ -38,6 +38,8 @@ export namespace BML {
     export function nodeToBMLNode(node: globalThis.HTMLParagraphElement, ownerDocument: BMLDocument): BMLParagraphElement;
     export function nodeToBMLNode(node: globalThis.HTMLDivElement, ownerDocument: BMLDocument): BMLDivElement;
     export function nodeToBMLNode(node: globalThis.HTMLHtmlElement, ownerDocument: BMLDocument): BMLBmlElement;
+    export function nodeToBMLNode(node: globalThis.HTMLPreElement, ownerDocument: BMLDocument): BMLPreElement;
+    export function nodeToBMLNode(node: globalThis.HTMLLinkElement, ownerDocument: BMLDocument): HTMLLinkElement;
     export function nodeToBMLNode(node: globalThis.HTMLElement, ownerDocument: BMLDocument): HTMLElement;
     export function nodeToBMLNode(node: globalThis.Element, ownerDocument: BMLDocument): Element;
     export function nodeToBMLNode(node: globalThis.CDATASection, ownerDocument: BMLDocument): CDATASection;
@@ -126,6 +128,10 @@ export namespace BML {
             return BMLTextAreaElement;
         } else if (node instanceof globalThis.HTMLFormElement) {
             return BMLFormElement;
+        } else if (node instanceof globalThis.HTMLPreElement) {
+            return BMLPreElement;
+        } else if (node instanceof globalThis.HTMLLinkElement) {
+            return HTMLLinkElement;
         } else if (node instanceof globalThis.HTMLElement) {
             console.error(node);
             return HTMLElement;
@@ -636,7 +642,7 @@ export namespace BML {
                 }
             }
             for (const node of this.node.querySelectorAll("arib-text, arib-cdata")) {
-                const cd = nodeToBMLNode(node, this.ownerDocument) as unknown as BML.CharacterData;
+                const cd = nodeToBMLNode(node, this.ownerDocument) as unknown as CharacterData;
                 if (hasDRCS(cd.data)) {
                     cd.internalReflow();
                 }
@@ -1727,6 +1733,23 @@ export namespace BML {
     }
 
     // impl
+    export class HTMLPreElement extends HTMLElement {
+
+    }
+
+    // impl
+    export class BMLPreElement extends HTMLPreElement {
+        public get normalStyle(): BMLCSS2Properties {
+            return this.getNormalStyle();
+        }
+    }
+
+    // impl
+    export class HTMLLinkElement extends HTMLElement {
+
+    }
+
+    // impl
     export class BMLBeventElement extends HTMLElement {
     }
 
@@ -2095,4 +2118,5 @@ export namespace BML {
             return feature.toUpperCase() === "BML" && version === "1.0";
         }
     }
+    export const BMLCSS2Properties = BMLCSS2Properties_;
 }
