@@ -284,6 +284,20 @@ export class Resources {
                 }
             }
         }
+        for (const [componentId, component] of this.componentRequests) {
+            for (const [moduleId, moduleReq] of component.moduleRequests) {
+                component.moduleRequests.set(moduleId, moduleReq.filter((r) => {
+                    // lockedByがundefinedならlockModuleOnMemoryとlockModuleOnMemoryExの両方をキャンセル
+                    // lockedByがlockModuleOnMemoryならlockModuleOnMemoryをキャンセル
+                    // lockedByがlockModuleOnMemoryExならlockModuleOnMemoryExをキャンセル
+                    if ((lockedBy == null && r.requestType != null) || (lockedBy != null && r.requestType === lockedBy)) {
+                        console.log(`${r.requestType} request was canceled due to unlockModules ${lockedBy ?? "lockModuleOnMemory+lockModuleOnMemoryEx"}`, moduleAndComponentToString(componentId, moduleId));
+                        return false;
+                    }
+                    return true;
+                }));
+            }
+        }
     }
 
     private revokeCachedFile(file: CachedFile): void {
@@ -315,20 +329,33 @@ export class Resources {
     }
 
     public unlockModule(componentId: number, moduleId: number, lockedBy: "lockModuleOnMemory" | "lockModuleOnMemoryEx"): boolean {
+        const moduleRequests = this.componentRequests.get(componentId)?.moduleRequests;
+        const moduleReq = moduleRequests?.get(moduleId);
+        let requestCanceled = false;
+        if (moduleRequests != null && moduleReq != null) {
+            moduleRequests.set(moduleId, moduleReq.filter((r) => {
+                if (r.requestType === lockedBy) {
+                    requestCanceled = true;
+                    console.log(`${lockedBy} request was canceled due to unlockModule`, moduleAndComponentToString(componentId, moduleId));
+                    return false;
+                }
+                return true;
+            }));
+        }
         const m = this.lockedComponents.get(componentId);
         if (m != null) {
             const lockedModule = m.modules.get(moduleId);
             if (lockedModule == null) {
-                return false;
+                return requestCanceled;
             }
             if (lockedModule.lockedBy !== lockedBy) {
-                return false;
+                return requestCanceled;
             }
             m.modules.delete(moduleId);
             this.revokeCachedModule(componentId, lockedModule);
             return true;
         }
-        return false;
+        return requestCanceled;
     }
 
     public componentExistsInDownloadInfo(componentId: number): boolean {
