@@ -1545,7 +1545,8 @@ export namespace BML {
                     return;
                 }
                 const isGIF = fetched.data[0] === 0x47 && fetched.data[1] === 0x49 && fetched.data[2] === 0x46;
-                const isJPEG = fetched.data[0] === 0xff && fetched.data[1] === 0xd8 && fetched.data[2] === 0xff && fetched.data[3] === 0xe0;
+                // SOIがあればJPEG APP0はないことがあるので見ない
+                const isJPEG = fetched.data[0] === 0xff && fetched.data[1] === 0xd8 && fetched.data[2] === 0xff;
                 if (!isGIF && !isJPEG) {
                     console.error("unknown media", value);
                     return;
