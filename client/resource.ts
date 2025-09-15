@@ -284,6 +284,7 @@ export class Resources {
                 }
             }
         }
+        let requestCanceled = false;
         for (const [componentId, component] of this.componentRequests) {
             for (const [moduleId, moduleReq] of component.moduleRequests) {
                 component.moduleRequests.set(moduleId, moduleReq.filter((r) => {
@@ -291,12 +292,16 @@ export class Resources {
                     // lockedByがlockModuleOnMemoryならlockModuleOnMemoryをキャンセル
                     // lockedByがlockModuleOnMemoryExならlockModuleOnMemoryExをキャンセル
                     if ((lockedBy == null && r.requestType != null) || (lockedBy != null && r.requestType === lockedBy)) {
+                        requestCanceled = true;
                         console.log(`${r.requestType} request was canceled due to unlockModules ${lockedBy ?? "lockModuleOnMemory+lockModuleOnMemoryEx"}`, moduleAndComponentToString(componentId, moduleId));
                         return false;
                     }
                     return true;
                 }));
             }
+        }
+        if (requestCanceled) {
+            this.setReceivingStatus();
         }
     }
 
@@ -341,6 +346,9 @@ export class Resources {
                 }
                 return true;
             }));
+            if (requestCanceled) {
+                this.setReceivingStatus();
+            }
         }
         const m = this.lockedComponents.get(componentId);
         if (m != null) {
