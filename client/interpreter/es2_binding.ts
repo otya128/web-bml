@@ -91,6 +91,16 @@ export function defineBuiltinBinding(context: Context, resources: Resources) {
             "fromCharCode"
         ),
     });
+    // 比較で使うcharCodeAtの定義
+    if (resources.profile === Profile.TrProfileC) {
+        context.realm.intrinsics.StringPrototypeCharCodeAt = function shiftJISCharCodeAt(str: string, pos: number) {
+            return bmlString.shiftJISCharCodeAt.call(str, pos);
+        }
+    } else {
+        context.realm.intrinsics.StringPrototypeCharCodeAt = function eucJPCharCodeAt(str: string, pos: number) {
+            return bmlString.eucJPCharCodeAt.call(str, pos);
+        }
+    }
     context.realm.intrinsics.StringPrototype.properties.set("charCodeAt", {
         readOnly: false,
         dontEnum: true,

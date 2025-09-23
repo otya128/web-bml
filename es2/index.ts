@@ -2114,7 +2114,7 @@ function parseLeftHandSideExpression(tokenizer: Tokenizer): LeftHandSideExpressi
                 expression: left,
                 argumentList: parseArgumentList(tokenizer),
                 start: left.start,
-                end: tokenizer.prevPosition,
+                end: tokenizer.current.end,
             };
             const token = tokenizer.current;
             if (token.type !== "punctuator" || token.value !== ")") {
@@ -2973,6 +2973,7 @@ type Intrinsics = {
     Math: InterpreterObject;
     Date: InterpreterObject;
     DatePrototype: InterpreterObject;
+    StringPrototypeCharCodeAt: (string: string, index: number) => number;
 };
 
 type Realm = {
@@ -3579,11 +3580,11 @@ function* arraySortCompare(
     }
     const result7 = yield* toString(ctx, x, caller);
     const result8 = yield* toString(ctx, y, caller);
-    if (result7 < result8) {
-        return -1; // l
+    if (compareString(ctx.realm.intrinsics, result7, result8)) {
+        return -1;
     }
-    if (result7 > result8) {
-        return 1; // l
+    if (compareString(ctx.realm.intrinsics, result8, result7)) {
+        return 1;
     }
     return 0;
 }
@@ -4636,6 +4637,9 @@ function createIntrinsics(): Intrinsics {
         Math: math,
         Date: date,
         DatePrototype: datePrototype,
+        StringPrototypeCharCodeAt(string, index) {
+            return string.charCodeAt(index);
+        },
     };
 }
 
@@ -4798,6 +4802,24 @@ function* evaluateList(ctx: Context, list: Expression[], caller: Caller): Genera
     return result;
 }
 
+function compareString(intrinsics: Intrinsics, primitiveLeft: string, primitiveRight: string): boolean | undefined {
+    if (primitiveLeft.startsWith(primitiveRight)) {
+        return false;
+    }
+    if (primitiveRight.startsWith(primitiveLeft)) {
+        return true;
+    }
+    for (let k = 0; k < Math.min(primitiveLeft.length, primitiveRight.length); k++) {
+        const m = intrinsics.StringPrototypeCharCodeAt(primitiveLeft, k);
+        const n = intrinsics.StringPrototypeCharCodeAt(primitiveRight, k);
+        if (m === n) {
+            continue;
+        }
+        return m < n;
+    }
+    throw new Error("unreachable");
+}
+
 function* compareValue(
     ctx: Context,
     leftValue: Value,
@@ -4833,21 +4855,7 @@ function* compareValue(
         }
         return numberLeft < numberRight;
     } else {
-        if (primitiveLeft.startsWith(primitiveRight)) {
-            return false;
-        }
-        if (primitiveRight.startsWith(primitiveLeft)) {
-            return true;
-        }
-        for (let k = 0; k < Math.min(primitiveLeft.length, primitiveRight.length); k++) {
-            const m = primitiveLeft.charCodeAt(k);
-            const n = primitiveRight.charCodeAt(k);
-            if (m === n) {
-                continue;
-            }
-            return m < n;
-        }
-        throw new Error("unreachable");
+        return compareString(ctx.realm.intrinsics, primitiveLeft, primitiveRight);
     }
 }
 
