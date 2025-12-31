@@ -1,5 +1,5 @@
 // THIS IS A GENERATED FILE. DO NOT EDIT DIRECTLY.
-import { Caller, Context, InterpreterObject, InterpreterTypeError, isPrimitive, newNativeFunction, newObject, toBoolean, toNumber, toString, Value } from "../../es2";
+import { Caller, Context, InterpreterObject, InterpreterTypeError, isPrimitive, newNativeFunction, newObject, toBoolean, toNumber, toString, Value, defaultPutProperty } from "../../es2";
 import { BML } from "../interface/DOM";
 
 export function define(context: Context, prototypes: Map<any, InterpreterObject>, map: WeakMap<any, InterpreterObject>) {
@@ -40,7 +40,7 @@ export function define(context: Context, prototypes: Map<any, InterpreterObject>
             case "nextSibling":
                 return; // readonly
         }
-        throw new InterpreterTypeError(`Node.prototype.${propertyName}: Unknown property`, ctx, caller);
+        defaultPutProperty(ctx, self, propertyName, value, caller);
     };
     $Node$prototype.internalProperties.put = $Node$put;
     $Node$prototype.properties.set("parentNode", {
@@ -1365,7 +1365,7 @@ export function define(context: Context, prototypes: Map<any, InterpreterObject>
             case "target":
                 return; // readonly
         }
-        throw new InterpreterTypeError(`BMLEvent.prototype.${propertyName}: Unknown property`, ctx, caller);
+        defaultPutProperty(ctx, self, propertyName, value, caller);
     };
     $BMLEvent$prototype.internalProperties.put = $BMLEvent$put;
     $BMLEvent$prototype.properties.set("type", {
@@ -1733,7 +1733,7 @@ export function define(context: Context, prototypes: Map<any, InterpreterObject>
             case "WapInputFormat":
                 return; // readonly
         }
-        throw new InterpreterTypeError(`BMLCSS2Properties.prototype.${propertyName}: Unknown property`, ctx, caller);
+        defaultPutProperty(ctx, self, propertyName, value, caller);
     };
     $BMLCSS2Properties$prototype.internalProperties.put = $BMLCSS2Properties$put;
     $BMLCSS2Properties$prototype.properties.set("paddingTop", {
@@ -2490,7 +2490,7 @@ export function define(context: Context, prototypes: Map<any, InterpreterObject>
         }
         switch (propertyName) {
         }
-        throw new InterpreterTypeError(`DOMImplementation.prototype.${propertyName}: Unknown property`, ctx, caller);
+        defaultPutProperty(ctx, self, propertyName, value, caller);
     };
     $DOMImplementation$prototype.internalProperties.put = $DOMImplementation$put;
     $DOMImplementation$prototype.properties.set("hasFeature", {

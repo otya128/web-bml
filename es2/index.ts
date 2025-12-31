@@ -2835,7 +2835,13 @@ function canPutProperty(ctx: Context, self: InterpreterObject, propertyName: str
     return canPutProperty(ctx, prototype, propertyName, caller);
 }
 
-function defaultPutProperty(ctx: Context, self: InterpreterObject, propertyName: string, value: Value, caller: Caller) {
+export function defaultPutProperty(
+    ctx: Context,
+    self: InterpreterObject,
+    propertyName: string,
+    value: Value,
+    caller: Caller
+) {
     if (!canPutProperty(ctx, self, propertyName, caller)) {
         return;
     }
