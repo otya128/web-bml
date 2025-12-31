@@ -394,6 +394,7 @@ export namespace BML {
                             char.style.backgroundRepeat = "no-repeat";
                             char.style.color = "transparent";
                             char.style.display = "inline-block";
+                            char.style.verticalAlign = "text-bottom";
                             char.style.width = `${drcs.width}px`;
                             char.style.height = `${drcs.height}px`;
                         }
