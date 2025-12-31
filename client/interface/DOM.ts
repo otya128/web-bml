@@ -750,6 +750,23 @@ export namespace BML {
             }
         }
 
+        private applyDRCSStyle(property: string) {
+            switch (property) {
+                case "--grayscale-color-index":
+                case "--color-index":
+                case "--color":
+                case "--font-size":
+                case "font-family":
+                    for (const node of this.node.querySelectorAll("arib-text, arib-cdata")) {
+                        const cd = nodeToBMLNode(node, this.ownerDocument) as unknown as CharacterData;
+                        if (hasDRCS(cd.data)) {
+                            cd.internalReflow();
+                        }
+                    }
+                    break;
+            }
+        }
+
         protected getNormalStyle(): BMLCSS2Properties {
             const normalComputedPropertyGetter = (property: string): string => {
                 const savedState = this.node.getAttribute("web-bml-state");
@@ -779,6 +796,7 @@ export namespace BML {
                 } else {
                     this.node.style.setProperty(property, value);
                 }
+                this.applyDRCSStyle(property);
             };
             const declaration = new BMLCSSStyleDeclaration(this.normalStyleMap, this.normalStyleMap, normalComputedPropertyGetter, normalPropertySetter);
             return new BMLCSS2Properties(declaration, this.node, this.ownerDocument.browserEventTarget);
@@ -800,6 +818,7 @@ export namespace BML {
                 const currentState = this.node.getAttribute("web-bml-state");
                 if (currentState === "focus") {
                     this.node.style.setProperty(property, value);
+                    this.applyDRCSStyle(property);
                 }
             };
             const declaration = new BMLCSSStyleDeclaration(this.normalStyleMap, this.focusStyleMap, focusComputedPropertyGetter, focusPropertySetter);
@@ -822,6 +841,7 @@ export namespace BML {
                 const currentState = this.node.getAttribute("web-bml-state");
                 if (currentState === "active") {
                     this.node.style.setProperty(property, value);
+                    this.applyDRCSStyle(property);
                 }
             };
             const declaration = new BMLCSSStyleDeclaration(this.normalStyleMap, this.activeStyleMap, activeComputedPropertyGetter, activePropertySetter);
