@@ -18,6 +18,9 @@ export function decodeEUCJP(input: Uint8Array): string {
             }
             if (input[i] < 0xa1 || input[i] > 0xfe) {
                 buffer += replacementCharacter;
+                if (input[i] < 0x80) {
+                    i--;
+                }
                 continue;
             }
             const ten = input[i] - 0xa0;

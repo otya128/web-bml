@@ -36,6 +36,9 @@ export function decodeShiftJIS(input: Uint8Array): string {
                 ten = input[i] - 0x9f + 1;
             } else {
                 buffer += replacementCharacter;
+                if (input[i] < 0x80) {
+                    i--;
+                }
                 continue;
             }
             const uni = jisToUnicodeMap[(ku - 1) * 94 + (ten - 1)];
