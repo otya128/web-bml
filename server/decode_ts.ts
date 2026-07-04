@@ -457,7 +457,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             }
         }
 
-        const broadcast_id_descriptor = services.filter((data: any) => data.descriptor_tag === 0x85);
+        const broadcast_id_descriptor = services.find((data: any) => data.descriptor_tag === 0x85);
         if (broadcast_id_descriptor) {
             originalNetworkId = broadcast_id_descriptor.original_network_id;
             transportStreamId = broadcast_id_descriptor.transport_stream_id;
