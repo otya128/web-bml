@@ -366,11 +366,15 @@ class Reader {
         this.prevLine = this.line;
         this.prevColumn = this.column;
         this.column++;
-        if (this.source.charAt(this.index) === "\n") {
+        const isCR = this.source.charAt(this.index) === "\r";
+        if (this.source.charAt(this.index) === "\n" || isCR) {
             this.column = 1;
             this.line++;
         }
         this.index++;
+        if (isCR && this.source.charAt(this.index) === "\n") {
+            this.index++;
+        }
         return this.source.charAt(this.index);
     }
     consume(count: number): void {
@@ -4438,9 +4442,9 @@ function createIntrinsics(): Intrinsics {
                         if (digitCode >= "0".charCodeAt(0) && digitCode <= "9".charCodeAt(0)) {
                             digit = digitCode - "0".charCodeAt(0);
                         } else if (digitCode >= "A".charCodeAt(0) && digitCode <= "Z".charCodeAt(0)) {
-                            digit = digitCode - "A".charCodeAt(0);
+                            digit = digitCode - "A".charCodeAt(0) + 10;
                         } else if (digitCode >= "a".charCodeAt(0) && digitCode <= "z".charCodeAt(0)) {
-                            digit = digitCode - "a".charCodeAt(0);
+                            digit = digitCode - "a".charCodeAt(0) + 10;
                         }
                         if (digit >= radix) {
                             break;
