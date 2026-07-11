@@ -384,6 +384,9 @@ class Reader {
     peek(count: number): string {
         return this.source.substring(this.index, this.index + count);
     }
+    peekNext(count: number): string {
+        return this.source.substring(this.index + 1, this.index + 1 + count);
+    }
     substring(start: Position, end: Position): string {
         return this.source.substring(start.index, end.index);
     }
@@ -409,8 +412,8 @@ export function* tokenize(source: string, sourceInfo?: SourceInfo): Generator<To
             continue;
         }
         if (char === ".") {
-            const chars = reader.peek(2)[1];
-            if (isDecimalDigit(chars ?? "")) {
+            const next = reader.peekNext(1);
+            if (isDecimalDigit(next)) {
                 yield parseDecimalLiteral(reader, start);
                 continue;
             }
@@ -420,15 +423,17 @@ export function* tokenize(source: string, sourceInfo?: SourceInfo): Generator<To
             continue;
         }
         if (char === "0") {
-            const char = reader.next();
-            if (char === "x" || char === "X") {
+            const next = reader.peekNext(1);
+            if (next === "x" || next === "X") {
+                reader.consume(1);
                 yield parseHexIntegerLiteral(reader, start);
-            } else if (isOctalDigit(char)) {
+            } else if (isOctalDigit(next)) {
                 yield parseOctalIntegerLiteral(reader, start);
             } else {
-                if (char === "." || isDecimalDigit(char) || isExponentIndicator(char)) {
+                if (next === "." || isExponentIndicator(next)) {
                     yield parseDecimalLiteral(reader, start);
                 } else {
+                    reader.consume(1);
                     yield { type: "numericLiteral", value: 0, start, end: reader.prevPosition };
                 }
             }
@@ -742,36 +747,29 @@ function readStringLiteral(reader: Reader): StringLiteral {
                         }
                         value += String.fromCharCode(parseInt(u1 + u2 + u3 + u4, 16));
                     } else if (isZeroToThree(char)) {
-                        const o1 = reader.next();
+                        // OctalEscapeSequence
+                        const o1 = reader.peekNext(1);
                         if (!isOctalDigit(o1)) {
-                            throw new InterpreterSyntaxError(
-                                ...formatUnexpectedCharacterError(
-                                    "OctalEscapeSequence",
-                                    "OctalDigit",
-                                    reader.current,
-                                    reader.position
-                                )
-                            );
+                            value += String.fromCharCode(parseInt(char, 8));
+                            break;
                         }
-                        const o2 = reader.next();
+                        reader.next();
+                        const o2 = reader.peekNext(1);
                         if (!isOctalDigit(o2)) {
-                            throw new InterpreterSyntaxError(
-                                ...formatUnexpectedCharacterError(
-                                    "OctalEscapeSequence",
-                                    "OctalDigit",
-                                    reader.current,
-                                    reader.position
-                                )
-                            );
+                            value += String.fromCharCode(parseInt(char + o1, 8));
+                            break;
                         }
+                        reader.next();
                         value += String.fromCharCode(parseInt(char + o1 + o2, 8));
                     } else if (isOctalDigit(char)) {
-                        let o = char;
                         // OctalEscapeSequence
-                        if (isOctalDigit(reader.current)) {
-                            o += reader.next();
+                        const o1 = reader.peekNext(1);
+                        if (!isOctalDigit(o1)) {
+                            value += String.fromCharCode(parseInt(char, 8));
+                            break;
                         }
-                        value += String.fromCharCode(parseInt(o, 8));
+                        reader.next();
+                        value += String.fromCharCode(parseInt(char + o1, 8));
                     } else if (isLineTerminator(char)) {
                         throw new InterpreterSyntaxError(
                             ...formatUnexpectedCharacterError(
@@ -1716,13 +1714,13 @@ function parseIfStatement(tokenizer: Tokenizer, state: ParserState): IfStatement
     }
     const ps = tokenizer.next();
     if (ps.type !== "punctuator" || ps.value !== "(") {
-        throw new InterpreterSyntaxError(...formatUnexpectedTokenError("IfStatement", "(", begin));
+        throw new InterpreterSyntaxError(...formatUnexpectedTokenError("IfStatement", "(", ps));
     }
     tokenizer.next();
     const expression = parseExpression(tokenizer);
     const pe = tokenizer.current;
     if (pe.type !== "punctuator" || pe.value !== ")") {
-        throw new InterpreterSyntaxError(...formatUnexpectedTokenError("IfStatement", ")", begin));
+        throw new InterpreterSyntaxError(...formatUnexpectedTokenError("IfStatement", ")", pe));
     }
     tokenizer.next();
     const thenStatement = parseStatement(tokenizer, state);
@@ -1775,7 +1773,7 @@ function parseForStatement(tokenizer: Tokenizer, state: ParserState): ForStateme
     }
     const ps = tokenizer.next();
     if (ps.type !== "punctuator" || ps.value !== "(") {
-        throw new InterpreterSyntaxError(...formatUnexpectedTokenError("ForStatement", "(", begin));
+        throw new InterpreterSyntaxError(...formatUnexpectedTokenError("ForStatement", "(", ps));
     }
     const initToken = tokenizer.next();
     let initialization: VariableStatement | Expression | undefined;
@@ -1809,7 +1807,7 @@ function parseForStatement(tokenizer: Tokenizer, state: ParserState): ForStateme
         }
         const end = tokenizer.current;
         if (end.type !== "punctuator" || end.value !== ")") {
-            throw new InterpreterSyntaxError(...formatUnexpectedTokenError("ForStatement", ")", secondSemicolon));
+            throw new InterpreterSyntaxError(...formatUnexpectedTokenError("ForStatement", ")", end));
         }
         tokenizer.next();
         const statement = parseStatement(tokenizer, { ...state, for: true });
@@ -1859,7 +1857,7 @@ function parseForStatement(tokenizer: Tokenizer, state: ParserState): ForStateme
         const expression = parseExpression(tokenizer);
         const pe = tokenizer.current;
         if (pe.type !== "punctuator" || pe.value !== ")") {
-            throw new InterpreterSyntaxError(...formatUnexpectedTokenError("ForStatement", ")", begin));
+            throw new InterpreterSyntaxError(...formatUnexpectedTokenError("ForStatement", ")", pe));
         }
         tokenizer.next();
         const statement = parseStatement(tokenizer, { ...state, for: true });
@@ -1872,7 +1870,7 @@ function parseForStatement(tokenizer: Tokenizer, state: ParserState): ForStateme
             end: tokenizer.prevPosition,
         };
     } else {
-        throw new InterpreterSyntaxError(...formatUnexpectedTokenError("ForStatement", "in or ;", begin));
+        throw new InterpreterSyntaxError(...formatUnexpectedTokenError("ForStatement", "in or ;", inOrSemicolon));
     }
 }
 
@@ -2060,7 +2058,7 @@ function parseMemberExpression(tokenizer: Tokenizer): MemberExpression {
                 expression,
                 argumentList: undefined,
                 start: begin.start,
-                end: tokenizer.current.end,
+                end: expression.end,
             };
         }
     } else {
@@ -2095,7 +2093,7 @@ function parseMemberExpression(tokenizer: Tokenizer): MemberExpression {
                 left,
                 right,
                 start: left.start,
-                end: right.end,
+                end: token.end,
             };
             tokenizer.next();
         } else {
@@ -2148,7 +2146,7 @@ function parseLeftHandSideExpression(tokenizer: Tokenizer): LeftHandSideExpressi
                 left,
                 right,
                 start: left.start,
-                end: right.end,
+                end: token.end,
             };
             tokenizer.next();
         } else {
@@ -2173,7 +2171,7 @@ function parseArgumentList(tokenizer: Tokenizer): AssignmentExpression[] {
         if (endOrComma.type === "punctuator" && endOrComma.value === ")") {
             return argumentList;
         }
-        if (endOrComma.type !== "punctuator" && endOrComma.value !== ",") {
+        if (endOrComma.type !== "punctuator" || endOrComma.value !== ",") {
             throw new InterpreterSyntaxError(...formatUnexpectedTokenError("ArgumentList", ",", endOrComma));
         }
         tokenizer.next();
@@ -2181,10 +2179,9 @@ function parseArgumentList(tokenizer: Tokenizer): AssignmentExpression[] {
 }
 
 function parsePostfixExpression(tokenizer: Tokenizer): PostfixExpression {
-    const begin = tokenizer.current;
     const expression = parseLeftHandSideExpression(tokenizer);
     const token = tokenizer.current;
-    if (begin.end.line !== token.end.line) {
+    if (expression.end.line !== token.end.line) {
         return expression;
     }
     if (token.type === "punctuator" && token.value === "++") {
@@ -2933,6 +2930,7 @@ type CallingInfo = {
     parent: CallingInfo | undefined;
     name: string;
     caller: Caller;
+    evalCode: boolean;
 };
 
 type Scope = {
@@ -3227,6 +3225,99 @@ export function* toString(ctx: Context, value: Value, caller: Caller): Generator
     return yield* toString(ctx, yield* toPrimitive(ctx, value, "string", caller), caller);
 }
 
+function isValidStringNumericLiteral(value: string): boolean {
+    let i = 0;
+    for (; i < value.length; i++) {
+        const c = value.charAt(i);
+        if (isLineTerminator(c) || isWhiteSpace(c)) {
+            continue;
+        }
+        break;
+    }
+    if (i < value.length) {
+        const isHex = value.charAt(i) === "0" && (value.charAt(i + 1) === "x" || value.charAt(i + 1) === "X");
+        if (isHex) {
+            i += 2;
+            for (; i < value.length; i++) {
+                const c = value.charAt(i);
+                if (isHexDigit(c)) {
+                    continue;
+                }
+                break;
+            }
+        } else {
+            if (value.charAt(i) === "+" || value.charAt(i) === "-") {
+                i++;
+            }
+            if (value.substring(i, i + "Infinity".length) === "Infinity") {
+                i += "Infinity".length;
+            } else {
+                if (value.charAt(i) === ".") {
+                    i++;
+                    if (!isDecimalDigit(value.charAt(i))) {
+                        return false;
+                    }
+                    for (; i < value.length; i++) {
+                        const c = value.charAt(i);
+                        if (isDecimalDigit(c)) {
+                            continue;
+                        }
+                        break;
+                    }
+                } else {
+                    if (!isDecimalDigit(value.charAt(i))) {
+                        return false;
+                    }
+                    for (; i < value.length; i++) {
+                        const c = value.charAt(i);
+                        if (isDecimalDigit(c)) {
+                            continue;
+                        }
+                        break;
+                    }
+                    if (value.charAt(i) === ".") {
+                        i++;
+                        for (; i < value.length; i++) {
+                            const c = value.charAt(i);
+                            if (isDecimalDigit(c)) {
+                                continue;
+                            }
+                            break;
+                        }
+                    }
+                }
+                if (value.charAt(i) === "e" || value.charAt(i) === "E") {
+                    i++;
+                    if (value.charAt(i) === "+" || value.charAt(i) === "-") {
+                        i++;
+                    }
+                    if (!isDecimalDigit(value.charAt(i))) {
+                        return false;
+                    }
+                    for (; i < value.length; i++) {
+                        const c = value.charAt(i);
+                        if (isDecimalDigit(c)) {
+                            continue;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        for (; i < value.length; i++) {
+            const c = value.charAt(i);
+            if (isLineTerminator(c) || isWhiteSpace(c)) {
+                continue;
+            }
+            break;
+        }
+    }
+    if (i !== value.length) {
+        return false;
+    }
+    return true;
+}
+
 export function* toNumber(ctx: Context, value: Value, caller: Caller): Generator<unknown, number> {
     if (value === undefined) {
         return NaN;
@@ -3241,8 +3332,12 @@ export function* toNumber(ctx: Context, value: Value, caller: Caller): Generator
         return value;
     }
     if (typeof value === "string") {
-        const r = Number(value);
-        return Number.isFinite(r) ? r | 0 : NaN;
+        if (isValidStringNumericLiteral(value)) {
+            const r = Number(value);
+            return Number.isFinite(r) ? r | 0 : NaN;
+        } else {
+            return NaN;
+        }
     }
     return yield* toNumber(ctx, yield* toPrimitive(ctx, value, "number", caller), caller);
 }
@@ -3778,7 +3873,7 @@ function createIntrinsics(): Intrinsics {
                 }
                 return self.internalProperties.functionTag ?? "function anonymous() {}";
             },
-            1,
+            0,
             "toString"
         ),
     });
@@ -3876,7 +3971,7 @@ function createIntrinsics(): Intrinsics {
                 }
                 return self.internalProperties.value;
             },
-            1,
+            0,
             "toString"
         ),
     });
@@ -3892,7 +3987,7 @@ function createIntrinsics(): Intrinsics {
                 }
                 return self.internalProperties.value;
             },
-            1,
+            0,
             "valueOf"
         ),
     });
@@ -3935,10 +4030,10 @@ function createIntrinsics(): Intrinsics {
             function* stringIndexOf(ctx, self, args, caller) {
                 const str = yield* toString(ctx, self, caller);
                 const searchStr = yield* toString(ctx, args[0], caller);
-                const position = args[1] === undefined ? 0 : toInteger(yield* toNumber(ctx, args[1], caller));
+                const position = toInteger(yield* toNumber(ctx, args[1], caller));
                 return str.indexOf(searchStr, position); // l
             },
-            1,
+            2,
             "indexOf"
         ),
     });
@@ -3951,10 +4046,10 @@ function createIntrinsics(): Intrinsics {
             function* stringLastIndexOf(ctx, self, args, caller) {
                 const str = yield* toString(ctx, self, caller);
                 const searchStr = yield* toString(ctx, args[0], caller);
-                const position = args[1] === undefined ? NaN : toInteger(yield* toNumber(ctx, args[1], caller));
-                return str.lastIndexOf(searchStr, position); // l
+                const position = yield* toNumber(ctx, args[1], caller);
+                return str.lastIndexOf(searchStr, isNaN(position) ? Infinity : toInteger(position)); // l
             },
-            1,
+            2,
             "lastIndexOf"
         ),
     });
@@ -3985,7 +4080,7 @@ function createIntrinsics(): Intrinsics {
             function* stringSubstring(ctx, self, args, caller) {
                 const str = yield* toString(ctx, self, caller);
                 const start = toInteger(yield* toNumber(ctx, args[0], caller));
-                const end = args[1] == undefined ? undefined : toInteger(yield* toNumber(ctx, args[1], caller));
+                const end = args[1] === undefined ? undefined : toInteger(yield* toNumber(ctx, args[1], caller));
                 return str.substring(start, end);
             },
             2,
@@ -4002,7 +4097,7 @@ function createIntrinsics(): Intrinsics {
                 const str = yield* toString(ctx, self, caller);
                 return str.toLowerCase();
             },
-            1,
+            0,
             "toLowerCase"
         ),
     });
@@ -4016,7 +4111,7 @@ function createIntrinsics(): Intrinsics {
                 const str = yield* toString(ctx, self, caller);
                 return str.toUpperCase();
             },
-            1,
+            0,
             "toUpperCase"
         ),
     });
@@ -4114,7 +4209,7 @@ function createIntrinsics(): Intrinsics {
                 }
                 return value;
             },
-            1,
+            0,
             "valueOf"
         ),
     });
@@ -4163,7 +4258,7 @@ function createIntrinsics(): Intrinsics {
                 const value = self.internalProperties.value;
                 return value ? "true" : "false";
             },
-            1,
+            0,
             "toString"
         ),
     });
@@ -4183,7 +4278,7 @@ function createIntrinsics(): Intrinsics {
                 }
                 return self.internalProperties.value;
             },
-            1,
+            0,
             "valueOf"
         ),
     });
@@ -4275,6 +4370,7 @@ function createIntrinsics(): Intrinsics {
                         parent: ctx.scope.callingInfo?.parent,
                         name: "eval code",
                         caller,
+                        evalCode: true,
                     },
                 },
             };
@@ -4304,8 +4400,56 @@ function createIntrinsics(): Intrinsics {
         functionPrototype,
         function* parseIntFunction(ctx, _self, args, caller) {
             const string = yield* toString(ctx, args[0], caller);
-            const radix = yield* toNumber(ctx, args[1], caller);
-            return parseInt(string, radix); // l
+            let radix = yield* toInt32(ctx, args[1], caller);
+            if (radix !== 0 && (radix < 2 || radix > 36)) {
+                return NaN;
+            }
+            let sign = 1;
+            for (let i = 0; i < string.length; i++) {
+                const c = string.charAt(i);
+                if (!isLineTerminator(c) && !isWhiteSpace(c)) {
+                    if (c === "+") {
+                        sign = 1;
+                        i++;
+                    } else if (c === "-") {
+                        sign = -1;
+                        i++;
+                    }
+                    const zero = string.charAt(i);
+                    const x = string.charAt(i + 1);
+                    if (radix !== 0) {
+                        if (radix === 16 && zero === "0" && (x === "x" || x === "X")) {
+                            i += 2;
+                        }
+                    } else if (zero === "0") {
+                        if (x === "x" || x === "X") {
+                            radix = 16;
+                            i += 2;
+                        } else {
+                            radix = 8;
+                        }
+                    } else {
+                        radix = 10;
+                    }
+                    const begin = i;
+                    for (; i < string.length; i++) {
+                        const digitCode = string.charCodeAt(i);
+                        let digit = 36;
+                        if (digitCode >= "0".charCodeAt(0) && digitCode <= "9".charCodeAt(0)) {
+                            digit = digitCode - "0".charCodeAt(0);
+                        } else if (digitCode >= "A".charCodeAt(0) && digitCode <= "Z".charCodeAt(0)) {
+                            digit = digitCode - "A".charCodeAt(0);
+                        } else if (digitCode >= "a".charCodeAt(0) && digitCode <= "z".charCodeAt(0)) {
+                            digit = digitCode - "a".charCodeAt(0);
+                        }
+                        if (digit >= radix) {
+                            break;
+                        }
+                    }
+                    return sign * parseInt(string.substring(begin, i), radix);
+                }
+            }
+            return NaN;
         },
         2,
         "parseInt"
@@ -4456,7 +4600,14 @@ function createIntrinsics(): Intrinsics {
             "parse"
         ),
     });
-    const datePrototype: InterpreterObject = newObject(objectPrototype);
+    const datePrototype: InterpreterObject = {
+        internalProperties: {
+            prototype: objectPrototype,
+            class: "Date",
+            value: NaN,
+        },
+        properties: new Map([]),
+    };
     datePrototype.properties.set("constructor", {
         readOnly: false,
         dontEnum: true,
@@ -4579,22 +4730,13 @@ function createIntrinsics(): Intrinsics {
             "getYear"
         ),
     });
+    // 15.9.5.41 Date.prototype.toGMTString()
+    // > The function object that is the initial value of Date.prototype.toGMTString is the same function object that is the initial value of Date.prototype.toUTCString
     datePrototype.properties.set("toGMTString", {
         readOnly: false,
         dontEnum: true,
         dontDelete: false,
-        value: newNativeFunction(
-            functionPrototype,
-            function* datePrototypeToUTCString(ctx, self, _args, caller) {
-                const value = getDateObjectValue(self);
-                if (value == null) {
-                    throw new InterpreterTypeError(`Date.prototype.toGMTString: this must be Date object`, ctx, caller);
-                }
-                return new Date(value).toUTCString();
-            },
-            0,
-            "toGMTString"
-        ),
+        value: datePrototype.properties.get("toUTCString")?.value,
     });
     datePrototype.properties.set("setYear", {
         readOnly: false,
@@ -4602,15 +4744,21 @@ function createIntrinsics(): Intrinsics {
         dontDelete: false,
         value: newNativeFunction(
             functionPrototype,
-            function* datePrototypeSetSeconds(ctx, self, args, caller) {
+            function* datePrototypeSetYear(ctx, self, args, caller) {
                 const value = getDateObjectValue(self);
-                if (value == null) {
+                if (value == null || !isObject(self)) {
                     throw new InterpreterTypeError(`Date.prototype.setYear: this must be Date object`, ctx, caller);
                 }
                 const year = yield* toNumber(ctx, args[0], caller);
-                return new Date(value).setFullYear(year);
+                const integerYear = toInteger(year);
+                if (!Number.isNaN(year) && integerYear >= 0 && integerYear <= 99) {
+                    self.internalProperties.value = new Date(value).setFullYear(integerYear + 1900);
+                } else {
+                    self.internalProperties.value = new Date(value).setFullYear(year);
+                }
+                return self.internalProperties.value;
             },
-            2,
+            1,
             "setYear"
         ),
     });
@@ -5361,7 +5509,7 @@ function* evaluateExpression(ctx: Context, expression: Expression): Generator<un
                 yield* evaluateExpression(ctx, expression.right),
                 expression.right
             );
-            return yield* bitwiseAnd(ctx, rightValue, leftValue, expression);
+            return yield* bitwiseAnd(ctx, leftValue, rightValue, expression);
         }
         case "bitwiseXorOperator": {
             const leftValue = yield* referenceGetValue(
@@ -5374,7 +5522,7 @@ function* evaluateExpression(ctx: Context, expression: Expression): Generator<un
                 yield* evaluateExpression(ctx, expression.right),
                 expression.right
             );
-            return yield* bitwiseXor(ctx, rightValue, leftValue, expression);
+            return yield* bitwiseXor(ctx, leftValue, rightValue, expression);
         }
         case "bitwiseOrOperator": {
             const leftValue = yield* referenceGetValue(
@@ -5387,7 +5535,7 @@ function* evaluateExpression(ctx: Context, expression: Expression): Generator<un
                 yield* evaluateExpression(ctx, expression.right),
                 expression.right
             );
-            return yield* bitwiseOr(ctx, rightValue, leftValue, expression);
+            return yield* bitwiseOr(ctx, leftValue, rightValue, expression);
         }
         case "logicalAndOperator": {
             const leftValue = yield* referenceGetValue(
@@ -5670,13 +5818,13 @@ function* runForInStatement(ctx: Context, statement: ForInStatement): Generator<
     const iterated = new Set<string>();
     while (true) {
         for (const [name, prop] of obj.properties) {
-            if (prop.dontEnum) {
-                continue;
-            }
             if (iterated.has(name)) {
                 continue;
             }
             iterated.add(name);
+            if (prop.dontEnum) {
+                continue;
+            }
             if (statement.initialization.type === "variableDeclaration") {
                 const ref = resolveIdentifier(ctx.scope, statement.initialization.name);
                 yield* referencePutValue(ctx, ref, name, statement.initialization);
@@ -5693,7 +5841,7 @@ function* runForInStatement(ctx: Context, statement: ForInStatement): Generator<
                 };
             }
             if (result.type === "abruptCompletion" && result.cause === "break") {
-                break;
+                return completion;
             }
             if (result.type === "returnCompletion") {
                 return result;
@@ -5787,13 +5935,35 @@ function* runStatement(ctx: Context, statement: Statement): Generator<unknown, C
     }
 }
 
+function findVariableObject(scope: Scope): InterpreterObject {
+    // 10.1.6 Activation object
+    // > The activation object is then used as the variable object for the purposes of variable instantiation.
+    // 10.2.1 Global Code
+    // > Variable instantiation is performed using the global object as the variable object and using empty property attributes
+    // 10.2.2 Eval Code
+    // Variable instantiation is performed using the calling context's variable object and using empty property attributes.
+    while (!scope.activation) {
+        if (scope.parent == null) {
+            return scope.object;
+        }
+        scope = scope.parent;
+    }
+    return scope.object;
+}
+
 function defineVariable(ctx: Context, list: VariableDeclaration[]) {
+    const variableObject = findVariableObject(ctx.scope);
     for (const decl of list) {
-        if (!ctx.scope.object.properties.has(decl.name)) {
-            ctx.scope.object.properties.set(decl.name, {
+        if (!variableObject.properties.has(decl.name)) {
+            variableObject.properties.set(decl.name, {
                 readOnly: false,
                 dontEnum: false,
-                dontDelete: true,
+                // 12.2 Variable statement
+                // > If the variable statement occurs inside a FunctionDeclaration, the variables are defined with function-local scope in that function, as described in section 10.1.3. Otherwise, they are defined with global scope (that is, they are created as members of the global object, as described in section 10.1.3) using property attributes { DontDelete }..
+                // 10.2.1 Global Code
+                // > The scope chain is created and initialised to contain the global object and no others. Variable instantiation is performed using the global object as the variable object and using empty property attributes
+                // This is contradictory in ES2, but from after ES2 non-eval code gives the property the DontDelete attribute, so we adopt that.
+                dontDelete: ctx.scope.callingInfo?.evalCode === true ? false : true,
                 value: undefined,
             });
         }
@@ -5815,6 +5985,7 @@ function newFunction(ctx: Context, name: string, parameters: string[], block: Bl
                 parent: ctx.scope.callingInfo,
                 caller,
                 name,
+                evalCode: false,
             },
         };
         const context: Context = {
@@ -5868,10 +6039,10 @@ function newFunction(ctx: Context, name: string, parameters: string[], block: Bl
                 dontDelete: true,
                 value: args[i],
             });
-            nameToIArg.set(parameters[i]!, String(i));
         }
         // CreateMappedArgumentsObject
         for (let i = 0; i < args.length; i++) {
+            nameToIArg.set(parameters[i]!, String(i));
             argumentsObject.properties.set(String(i), {
                 // newer ES: [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true
                 // ES2: { DontEnum }

@@ -1,6 +1,6 @@
 ## ES2
 
-ECMAScript実装
+ECMAScript 2nd Edition実装
 
 <https://github.com/otya128/es2>のbmlブランチの`src/index.ts`が配置されています。
 
