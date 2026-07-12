@@ -105,7 +105,7 @@ export function playAIFF(destination: AudioNode, aiff: Buffer): AudioBufferSourc
     buffer.copyToChannel(soundDataF32, 0);
     const source = destination.context.createBufferSource();
     source.buffer = buffer;
-    source.connect(destination.context.destination);
+    source.connect(destination);
     source.start(0);
     return source;
 }
