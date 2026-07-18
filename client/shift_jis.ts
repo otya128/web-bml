@@ -80,9 +80,9 @@ export function encodeShiftJIS(input: string): Uint8Array {
         const ku = jis >>> 8;
         const ten = jis & 0xff;
         if (ku >= 1 && ku <= 62) {
-            buf[off++] = (ku >>> 1) + 0x81 - 1;
+            buf[off++] = ((ku - 1) >>> 1) + 0x81;
         } else if (ku >= 63 && ku <= 94) {
-            buf[off++] = (ku >>> 1) - 63 + 0xe0;
+            buf[off++] = ((ku - 63) >>> 1) + 0xe0;
         }
         if (ku % 2 === 1) {
             if (ten >= 1 && ten <= 63) {
