@@ -840,7 +840,7 @@ export class Resources {
     public *getLockedModules(): Generator<{ module: string, isEx: boolean, requesting: boolean }> {
         for (const [componentId, c] of this.componentRequests) {
             for (const [moduleId, m] of c.moduleRequests) {
-                for (const request of m.reverse()) {
+                for (const request of m.slice().reverse()) {
                     if (request.requestType != null) {
                         yield { module: `/${moduleAndComponentToString(componentId, moduleId)}`, isEx: request.requestType === "lockModuleOnMemoryEx", requesting: true };
                         break;
