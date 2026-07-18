@@ -773,9 +773,9 @@ export class Resources {
         };
         if (file.cacheControl !== "no-store") {
             this.cachedRemoteResources.set(full, file);
-            for (const { resolve } of requests2) {
-                resolve(file);
-            }
+        }
+        for (const { resolve } of requests2) {
+            resolve(file);
         }
         return file;
     }
