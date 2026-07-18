@@ -1208,7 +1208,7 @@ export class Content {
             if (usedKeyList.length && usedKeyList[0] === "none") {
                 return false;
             }
-            const keyGroup = keyCodeToKeyGroup.get(keyCode);
+            const keyGroup = (this.resources.profile === Profile.TrProfileC ? keyCodeToKeyGroupCProfile : keyCodeToKeyGroup).get(keyCode);
             if (keyGroup == null) {
                 return false;
             }
