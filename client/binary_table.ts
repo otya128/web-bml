@@ -195,13 +195,16 @@ export function readBinaryFields(buffer: Uint8Array, fields: BinaryTableField[],
 }
 
 export function writeBinaryFields(data: any[], fields: BinaryTableField[], encodeText: TextEncodeFunction): Uint8Array {
-    if (data.length < fields.length) {
+    // Padはデータ配列の要素ではないため、実データのフィールド数だけを検証する
+    const dataFieldCount = fields.filter(field => field.type !== BinaryTableType.Pad).length;
+    if (data.length < dataFieldCount) {
         throw new Error("FIXME");
     }
 
     let sizeBits = 0;
-    for (let i = 0; i < fields.length; i++) {
-        const field = fields[i];
+    let dataFieldIndex = 0;
+    for (const field of fields) {
+        const fieldData = data[dataFieldIndex];
         switch (field.type) {
             case BinaryTableType.Boolean:
                 if (field.unit !== BinaryTableUnit.Bit) {
@@ -246,7 +249,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[], encod
                     sizeBits += field.length * 8;
                 } else if (field.unit === BinaryTableUnit.Variable) {
                     sizeBits += field.length * 8;
-                    let encoded = new Uint8Array(encodeText(String(data[i])));
+                    const encoded = new Uint8Array(encodeText(String(fieldData)));
                     sizeBits += encoded.length * 8;
                 } else {
                     throw new Error("string must be byte or variable");
@@ -264,11 +267,15 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[], encod
             case BinaryTableType.ZipCode:
                 throw new Error("Z is not allowed");
         }
+        if (field.type !== BinaryTableType.Pad) {
+            dataFieldIndex++;
+        }
     }
     const buffer = new Uint8Array((sizeBits + 7) >> 3);
     let posBits = 0;
-    for (let i = 0; i < fields.length; i++) {
-        const field = fields[i];
+    dataFieldIndex = 0;
+    for (const field of fields) {
+        const fieldData = data[dataFieldIndex];
         switch (field.type) {
             case BinaryTableType.Boolean:
                 if (field.unit !== BinaryTableUnit.Bit) {
@@ -277,7 +284,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[], encod
                 if (field.length !== 1) {
                     throw new Error("FIXME");
                 }
-                posBits = writeBits(posBits, 1, buffer, data[i] ? 1 : 0);
+                posBits = writeBits(posBits, 1, buffer, fieldData ? 1 : 0);
                 break;
             case BinaryTableType.UnsignedInteger:
                 let lengthInBits: number;
@@ -291,7 +298,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[], encod
                 if (lengthInBits > 32) {
                     throw new Error("FIXME");
                 }
-                posBits = writeBits(posBits, lengthInBits, buffer, Number(data[i]));
+                posBits = writeBits(posBits, lengthInBits, buffer, Number(fieldData));
                 break;
             case BinaryTableType.Integer:
                 if (field.unit !== BinaryTableUnit.Byte) {
@@ -301,21 +308,21 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[], encod
                     throw new Error("must be byte aligned");
                 }
                 if (field.length === 1) {
-                    buffer[posBits >> 3] = Number(data[i]);
+                    buffer[posBits >> 3] = Number(fieldData);
                     posBits += 8;
                 } else if (field.length === 2) {
-                    buffer[posBits >> 3] = Number(data[i] >> 8);
+                    buffer[posBits >> 3] = Number(fieldData >> 8);
                     posBits += 8;
-                    buffer[posBits >> 3] = Number(data[i]);
+                    buffer[posBits >> 3] = Number(fieldData);
                     posBits += 8;
                 } else if (field.length === 4) {
-                    buffer[posBits >> 3] = Number(data[i] >> 24);
+                    buffer[posBits >> 3] = Number(fieldData >> 24);
                     posBits += 8;
-                    buffer[posBits >> 3] = Number(data[i] >> 16);
+                    buffer[posBits >> 3] = Number(fieldData >> 16);
                     posBits += 8;
-                    buffer[posBits >> 3] = Number(data[i] >> 8);
+                    buffer[posBits >> 3] = Number(fieldData >> 8);
                     posBits += 8;
-                    buffer[posBits >> 3] = Number(data[i]);
+                    buffer[posBits >> 3] = Number(fieldData);
                     posBits += 8;
                 } else {
                     throw new Error("length must be 1, 2, or 4");
@@ -325,7 +332,7 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[], encod
                 if ((posBits & 7) !== 0) {
                     throw new Error("string must be byte aligned");
                 }
-                const encoded = encodeText(String(data[i]));
+                const encoded = encodeText(String(fieldData));
                 if (field.unit === BinaryTableUnit.Byte) {
                     if (encoded.length === field.length) {
                         buffer.set(encoded, posBits >> 3);
@@ -364,6 +371,9 @@ export function writeBinaryFields(data: any[], fields: BinaryTableField[], encod
             case BinaryTableType.ZipCode:
                 throw new Error("Z is not allowed");
         }
+        if (field.type !== BinaryTableType.Pad) {
+            dataFieldIndex++;
+        }
     }
     return buffer;
 }
@@ -389,8 +399,8 @@ export class BinaryTable {
         }
         const lengthByte = Number.parseInt(sep[0]);
         let posBits = 0;
-        const fields = parseBinaryStructure(structure.substring(structure.indexOf(",") + 1));
-        if (!fields) {
+        const structureFields = parseBinaryStructure(structure.substring(structure.indexOf(",") + 1));
+        if (!structureFields) {
             throw new Error("FIXME: failed to parse structure");
         }
         const rows: Array<Array<any>> = [];
@@ -399,10 +409,12 @@ export class BinaryTable {
             if (lengthByte) {
                 [length, posBits] = readBits(posBits, 8 * lengthByte, buffer);
             }
-            let [columns, read] = readBinaryFields(buffer, fields, decodeText, posBits);
-            posBits = lengthByte ? posBits + length * 8 : read;
+            const [columns, read] = readBinaryFields(buffer, structureFields, decodeText, posBits);
+            // 必ずバイトアライメントされている (STD-B24 第二編付属2 5.5.2.4)
+            posBits = lengthByte ? posBits + length * 8 : Math.ceil(read / 8) * 8;
             rows.push(columns);
         }
+        const fields = structureFields.filter(field => field.type !== BinaryTableType.Pad);
         return { rows, fields };
         //const regex = /^(?<lengthByte>[1-9][0-9]*|0)(,(?<type>[BUISZP]):(?<length>[1-9][0-9]*)(?<unit>[BbV]))+$/;
     }
@@ -421,38 +433,72 @@ export class BinaryTable {
         return Number((this.rows[row] ?? [])[column]);
     }
     public toString(row: number, column: number): string | null {
-        return (this.rows[row] ?? [])[column]?.toString();
+        const value = this.rows[row]?.[column];
+        // 郵便番号と存在しないフィールドは仕様上nullを返す
+        if (value == null || this.fields[column]?.type === BinaryTableType.ZipCode) {
+            return null;
+        }
+        return value.toString();
     }
-    public toArray(startRow: number, numRow: number): any[][] | null {
-        return this.rows.slice(startRow, startRow + numRow).map(x => {
-            return x.map((v, i) => {
+    public toArray(startRow: number, numRow: number): (any[] | null)[] | null {
+        if (!Number.isSafeInteger(startRow) || startRow < 0 || !Number.isSafeInteger(numRow) || numRow < 0 || numRow > 0xffffffff) {
+            return null;
+        }
+        // 存在しないレコードもnullとして数え、常にnumRow個の要素を返す
+        return Array.from({ length: numRow }, (_, rowOffset) => {
+            const row = this.rows[startRow + rowOffset];
+            if (row == null) {
+                return null;
+            }
+            return row.map((v, i) => {
                 if (this.fields[i].type === BinaryTableType.ZipCode) {
                     return null;
                 } else {
                     return v;
                 }
-            })
+            });
         });
     }
     public search(startRow: number, ...args: any[]): number {
-        if (args.length % 3 !== 0 || args.length < 6) {
-            throw new TypeError("argument");
-        }
-        // 条件は4つまで
-        if (args.length > (1 + 3 + 4 * 4)) {
-            throw new TypeError("argument");
+        // 検索条件は1～4組で、末尾の論理条件・件数・出力配列と合わせて3の倍数になる
+        if (args.length % 3 !== 0 || args.length < 6 || args.length > 15) {
+            return NaN;
         }
         const logic = args[args.length - 3] as boolean;
         const limitCount = args[args.length - 2] as number;
         const resultArray = args[args.length - 1] as any[][];
+        if (!Number.isSafeInteger(startRow) || startRow < 0 || !Number.isSafeInteger(limitCount) || limitCount < 1 || !Array.isArray(resultArray)) {
+            return NaN;
+        }
+
+        // 行の走査前に列番号と演算子を検証し、不正な指定をNaNとして処理する
+        const conditions: Array<{ searchedColumn: number, compared: any, operator: SearchOperator, field: BinaryTableField }> = [];
+        for (let c = 0; c < args.length - 3; c += 3) {
+            const searchedColumn = args[c] as number;
+            const compared = args[c + 1] as any;
+            const operator = args[c + 2] as SearchOperator;
+            if (!Number.isSafeInteger(searchedColumn) || searchedColumn < 0 || !Number.isSafeInteger(operator)) {
+                return NaN;
+            }
+            const field = this.fields[searchedColumn];
+            const isValidOperator =
+                (field?.type === BinaryTableType.UnsignedInteger || field?.type === BinaryTableType.Integer) && operator >= SearchOperator.Equal && operator <= SearchOperator.Nxor ||
+                field?.type === BinaryTableType.String && operator >= SearchOperator.StringMatches && operator <= SearchOperator.StringNotInclude ||
+                field?.type === BinaryTableType.Boolean && operator >= SearchOperator.BoolEqualTo && operator <= SearchOperator.BoolNotEqualTo ||
+                field?.type === BinaryTableType.ZipCode && operator >= SearchOperator.ZipInclude && operator <= SearchOperator.ZipNotInclude;
+            if (!field || !isValidOperator) {
+                return NaN;
+            }
+            conditions.push({ searchedColumn, compared, operator, field });
+        }
+
         resultArray.length = 0;
         for (let i = startRow; i < this.rows.length; i++) {
-            let results = new Array(args.length / 3 - 1);
-            for (let c = 0; c < args.length - 3; c += 3) {
-                const searchedColumn = args[c] as number;
-                const compared = args[c + 1] as any;
-                const operator = args[c + 2] as SearchOperator;
+            const results = conditions.map(({ searchedColumn, compared, operator, field }) => {
                 const column = this.rows[i][searchedColumn];
+                // ビット演算の結果をフィールド幅に収めるためのマスク
+                const fieldBitLength = field.unit === BinaryTableUnit.Byte ? field.length * 8 : field.length;
+                const fieldBitMask = fieldBitLength === 32 ? 0xffffffff : 2 ** fieldBitLength - 1;
                 let result = false;
                 switch (operator) {
                     case SearchOperator.Equal:
@@ -474,22 +520,22 @@ export class BinaryTable {
                         result = column >= Number(compared);
                         break;
                     case SearchOperator.And: // &
-                        result = !!(column & Number(compared));
+                        result = !!((column & Number(compared)) & fieldBitMask);
                         break;
                     case SearchOperator.Or: // |
-                        result = !!(column | Number(compared));
+                        result = !!((column | Number(compared)) & fieldBitMask);
                         break;
                     case SearchOperator.Xor: // ^
-                        result = !!(column ^ Number(compared));
+                        result = !!((column ^ Number(compared)) & fieldBitMask);
                         break;
                     case SearchOperator.Nand: // ~&
-                        result = !!~(column & Number(compared));
+                        result = !!((~column & Number(compared)) & fieldBitMask);
                         break;
                     case SearchOperator.Nor: // ~|
-                        result = !!~(column | Number(compared));
+                        result = !!((~column | Number(compared)) & fieldBitMask);
                         break;
                     case SearchOperator.Nxor: // ~^
-                        result = !!~(column ^ Number(compared));
+                        result = !!((~column ^ Number(compared)) & fieldBitMask);
                         break;
                     case SearchOperator.StringMatches:
                         result = column === String(compared);
@@ -522,8 +568,8 @@ export class BinaryTable {
                         result = !zipCodeInclude(column as ZipCode, Number(compared))
                         break;
                 }
-                results[c / 3] = result;
-            }
+                return result;
+            });
             // logic: true => OR
             // logic: false => AND
             let result: boolean;
@@ -535,22 +581,14 @@ export class BinaryTable {
             if (result) {
                 resultArray.push(this.rows[i].map((v, j) => {
                     if (this.fields[j].type === BinaryTableType.ZipCode) {
-                        let found = false;
-                        for (let c = 0; c < args.length - 3; c += 3) {
-                            const searchedColumn = args[c] as number;
-                            if (searchedColumn === j) {
-                                if (results[c / 3]) {
-                                    return true;
-                                } else {
-                                    // 同じ列に対して複数の検索条件が指定される可能性
-                                    found = true;
-                                }
-                            }
+                        // 同じ郵便番号の列に複数条件がある場合も、指定されたAND/ORで結果をまとめる
+                        const zipResults = conditions.flatMap((condition, conditionIndex) => {
+                            return condition.searchedColumn === j ? [results[conditionIndex]] : [];
+                        });
+                        if (zipResults.length === 0) {
+                            return null;
                         }
-                        if (found) {
-                            return false;
-                        }
-                        return null;
+                        return logic ? zipResults.some(result => result) : zipResults.every(result => result);
                     }
                     return v;
                 }));

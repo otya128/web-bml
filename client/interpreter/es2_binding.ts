@@ -891,7 +891,13 @@ export function defineBinaryTableBinding(context: Context, resources: Resources)
     function* BinaryTable$construct(ctx: Context, args: Value[], caller: Caller) {
         const table_ref = yield* toString(ctx, args[0], caller);
         const structure = yield* toString(ctx, args[1], caller);
-        const res: Awaited<ReturnType<typeof resources.fetchResourceAsync>> = yield resources.fetchResourceAsync(table_ref);
+        let res: Awaited<ReturnType<typeof resources.fetchResourceAsync>>;
+        try {
+            res = yield resources.fetchResourceAsync(table_ref);
+        } catch (error) {
+            console.error("Failed to fetch BinaryTable resource", table_ref, error);
+            return null;
+        }
         if (!res) {
             browserLog("BinaryTable", table_ref, "not found");
             return null;
@@ -901,7 +907,14 @@ export function defineBinaryTableBinding(context: Context, resources: Resources)
         const host = newObject($BinaryTable$prototype);
         host.internalProperties.class = "BinaryTable";
         host.internalProperties.value = NaN;
-        const bt = new BT.BinaryTable(buffer, structure, getTextDecoder(resources.profile));
+        let bt: BT.BinaryTable;
+        try {
+            bt = new BT.BinaryTable(buffer, structure, getTextDecoder(resources.profile));
+        } catch (error) {
+            // 壊れたデータや構造指定は BML 側へ例外を漏らさず null で通知する
+            console.error("Failed to create BinaryTable", table_ref, error);
+            return null;
+        }
         host.internalProperties.hostObjectValue = bt;
         host.properties.set("nrow", {
             ...desc,
@@ -1000,7 +1013,8 @@ export function defineBinaryTableBinding(context: Context, resources: Resources)
             if (!(self?.internalProperties.hostObjectValue instanceof BT.BinaryTable)) {
                 throw new InterpreterTypeError(`BinaryTable.prototype.search: Invalid call`, ctx, caller);
             }
-            if (args.length < 7) {
+            // 開始行に続く検索条件は1～4組で、末尾に論理条件・件数・出力配列を取る
+            if (args.length < 7 || args.length > 16 || (args.length - 4) % 3 !== 0) {
                 return NaN;
             }
             const bt = self?.internalProperties.hostObjectValue;
@@ -1035,7 +1049,7 @@ export function defineBinaryTableBinding(context: Context, resources: Resources)
             const logic = toBoolean(args[args.length - 3]);
             const limitCount = yield* toNumber(ctx, args[args.length - 2], caller);
             const resultArray = args[args.length - 1];
-            if (!isObject(resultArray)) {
+            if (!isObject(resultArray) || resultArray.internalProperties.class !== "Array") {
                 return NaN;
             }
             const result: any[][] = [];

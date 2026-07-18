@@ -377,46 +377,77 @@ export class JSInterpreter implements Interpreter {
                         return;
                     }
                     browserLog("new BinaryTable", table_ref);
-                    let buffer: Uint8Array = res.data;
-                    this.instance = new BT.BinaryTable(buffer, structure, getTextDecoder(resources.profile));
-                    callback(this, undefined);
+                    try {
+                        const buffer: Uint8Array = res.data;
+                        this.instance = new BT.BinaryTable(buffer, structure, getTextDecoder(resources.profile));
+                        callback(this, undefined);
+                    } catch (error) {
+                        console.error("Failed to create BinaryTable", table_ref, error);
+                        callback(null, undefined);
+                    }
+                }, error => {
+                    console.error("Failed to fetch BinaryTable resource", table_ref, error);
+                    callback(null, undefined);
                 });
             });
-            interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "close", function close(this: { instance: BT.BinaryTable }) {
+            interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "close", function close(this: { instance?: BT.BinaryTable }) {
+                if (!(this?.instance instanceof BT.BinaryTable)) {
+                    return NaN;
+                }
                 return this.instance.close();
             });
-            interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "toNumber", function toNumber(this: { instance: BT.BinaryTable }, row: number, column: number): number {
+            interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "toNumber", function toNumber(this: { instance?: BT.BinaryTable }, row: number, column: number): number {
+                if (!(this?.instance instanceof BT.BinaryTable)) {
+                    return NaN;
+                }
                 return this.instance.toNumber(row, column);
             });
-            interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "toString", function toString(this: { instance: BT.BinaryTable }, row: number, column: number): string | null {
+            interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "toString", function toString(this: { instance?: BT.BinaryTable }, row: number, column: number): string | null {
+                if (!(this?.instance instanceof BT.BinaryTable)) {
+                    return null;
+                }
                 return this.instance.toString(row, column);
             });
-            interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "toArray", function toArray(this: { instance: BT.BinaryTable }, startRow: number, numRow: number): any[] | null {
+            interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "toArray", function toArray(this: { instance?: BT.BinaryTable }, startRow: number, numRow: number): (any[] | null)[] | null {
+                if (!(this?.instance instanceof BT.BinaryTable)) {
+                    return null;
+                }
                 const r = this.instance.toArray(startRow, numRow);
                 if (r == null) {
                     return r;
                 }
-                return interpreter.arrayNativeToPseudo(r.map(x => interpreter.arrayNativeToPseudo(x)));
+                return interpreter.arrayNativeToPseudo(r.map(x => x == null ? null : interpreter.arrayNativeToPseudo(x)));
             });
-            interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "search", function toArray(this: { instance: BT.BinaryTable }, startRow: number, ...args: any[]): number {
-                const resultArray = args[args.length - 1];
-                args[args.length - 1] = interpreter.arrayPseudoToNative(args[args.length - 1]);
-                const result = this.instance.search(startRow, ...args);
-                // FIXME: errorshori
-                const props = Object.getOwnPropertyNames(args[args.length - 1]);
-                for (var i = 0; i < props.length; i++) {
-                    interpreter.setProperty(resultArray, props[i], interpreter.nativeToPseudo(args[args.length - 1][props[i]]));
+            interpreter.setNativeFunctionPrototype(pseudoBinaryTable, "search", function search(this: { instance?: BT.BinaryTable }, startRow: number, ...args: any[]): number {
+                // 検索条件と出力配列を先に検証し、JS-Interpreter内部の型エラーを防ぐ
+                if (!(this?.instance instanceof BT.BinaryTable) || args.length < 6 || args.length > 15 || args.length % 3 !== 0) {
+                    return NaN;
                 }
-                return result;
+                const pseudoResultArray = args[args.length - 1];
+                try {
+                    const resultArray = interpreter.arrayPseudoToNative(pseudoResultArray);
+                    if (!Array.isArray(resultArray)) {
+                        return NaN;
+                    }
+                    args[args.length - 1] = resultArray;
+                    const result = this.instance.search(startRow, ...args);
+                    for (const property of Object.getOwnPropertyNames(resultArray)) {
+                        interpreter.setProperty(pseudoResultArray, property, interpreter.nativeToPseudo((resultArray as any)[property]));
+                    }
+                    return result;
+                } catch (error) {
+                    console.error("Failed to search BinaryTable", error);
+                    return NaN;
+                }
             });
             interpreter.setProperty(pseudoBinaryTable.properties["prototype"], "nrow", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getNRow(this: { instance: BT.BinaryTable }) {
-                    return this.instance.nrow;
+                get: interpreter.createNativeFunction(function getNRow(this: { instance?: BT.BinaryTable }) {
+                    return this?.instance instanceof BT.BinaryTable ? this.instance.nrow : 0;
                 })
             });
             interpreter.setProperty(pseudoBinaryTable.properties["prototype"], "ncolumn", Interpreter.VALUE_IN_DESCRIPTOR, {
-                get: interpreter.createNativeFunction(function getNColumn(this: { instance: BT.BinaryTable }) {
-                    return this.instance.ncolumn;
+                get: interpreter.createNativeFunction(function getNColumn(this: { instance?: BT.BinaryTable }) {
+                    return this?.instance instanceof BT.BinaryTable ? this.instance.ncolumn : 0;
                 })
             });
             interpreter.setProperty(globalObject, "BinaryTable", pseudoBinaryTable);
