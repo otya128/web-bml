@@ -371,6 +371,10 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
         const event = data.events[0];
         const duration = new TsDate(event.duration).decodeTime();
         const durationSeconds = duration[0] * 3600 + duration[1] * 60 + duration[2];
+        // STD-B10: duration全ビット1 (0xFFFFFF)は継続時間未定
+        // そのときdecodeTime()はBCDとして[165,165,165]になりdurationSecondsは巨大な値になる
+        // browser.epgGetEventDurationは未定時の戻り値が仕様上定められていないため、
+        // durationSecondsはそのまま残し、未定であることだけindefiniteDurationで伝える
         const indefiniteDuration = event.duration[0] === 0xff && event.duration[1] === 0xff && event.duration[2] === 0xff;
         const startTime =  new TsDate(event.start_time).decode();
         const eventId: number = event.event_id;
@@ -869,24 +873,24 @@ function decodeAdditionalAribBXMLInfo(additional_data_component_info: Buffer): A
         // CSではbml_major_versionは2
         // 地上波ではbml_major_versionは3
         if (default_version_flag === 0) {
-            let bml_major_version = additional_data_component_info[off] << 16;
+            let bml_major_version = additional_data_component_info[off] << 8;
             off++;
             bml_major_version |= additional_data_component_info[off];
             bxmlInfo.entryPointInfo.bmlMajorVersion = bml_major_version;
             off++;
-            let bml_minor_version = additional_data_component_info[off] << 16;
+            let bml_minor_version = additional_data_component_info[off] << 8;
             off++;
             bml_minor_version |= additional_data_component_info[off];
             bxmlInfo.entryPointInfo.bmlMinorVersion = bml_minor_version;
             off++;
             // 運用されない
             if (use_xml == 1) {
-                let bxml_major_version = additional_data_component_info[off] << 16;
+                let bxml_major_version = additional_data_component_info[off] << 8;
                 off++;
                 bxml_major_version |= additional_data_component_info[off];
                 bxmlInfo.entryPointInfo.bxmlMajorVersion = bxml_major_version;
                 off++;
-                let bxml_minor_version = additional_data_component_info[off] << 16;
+                let bxml_minor_version = additional_data_component_info[off] << 8;
                 off++;
                 bxml_minor_version |= additional_data_component_info[off];
                 bxmlInfo.entryPointInfo.bxmlMinorVersion = bxml_minor_version;
