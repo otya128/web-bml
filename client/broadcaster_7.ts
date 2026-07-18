@@ -1,4 +1,5 @@
 // スカパー！ＣＳ２(広帯域CSデジタル放送)
+// 現行 BIT の値を優先し、BIT から消えたサービスは過去のデータ放送再生用に残す
 export const broadcaster7 = {
     "services": {
         "100": {
@@ -11,7 +12,7 @@ export const broadcaster7 = {
             "broadcasterId": 18
         },
         "227": {
-            "broadcasterId": 2
+            "broadcasterId": 7
         },
         "240": {
             "broadcasterId": 13
@@ -128,8 +129,8 @@ export const broadcaster7 = {
             "broadcasterId": 11
         },
         "363": {
-            "broadcasterId": 20
+            "broadcasterId": 2
         }
     },
-    "lastUpdated": 1647610100264
+    "lastUpdated": 1784395847000
 };

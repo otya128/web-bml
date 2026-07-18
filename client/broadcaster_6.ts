@@ -1,4 +1,5 @@
 // スカパー！ＣＳ１(広帯域CSデジタル放送)
+// 現行 BIT の値を優先し、BIT から消えたサービスは過去のデータ放送再生用に残す
 export const broadcaster6 = {
     "services": {
         "1": {
@@ -44,5 +45,5 @@ export const broadcaster6 = {
             "broadcasterId": 4
         }
     },
-    "lastUpdated": 1647695700000
+    "lastUpdated": 1784395834000
 };
