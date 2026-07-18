@@ -38,7 +38,7 @@ function sine(sampleRate: number, i: number, freq: number) {
 
 const romSoundCache = new Map<number, { buffer: Float32Array<ArrayBuffer>, sampleRate: number }>();
 
-export function playRomSound(soundId: number, destination: AudioNode) {
+export function playRomSound(soundId: number, destination: AudioNode): boolean {
     let cache = romSoundCache.get(soundId);
     if (cache == null) {
         switch (soundId) {
@@ -78,8 +78,9 @@ export function playRomSound(soundId: number, destination: AudioNode) {
     }
     if (cache != null) {
         playBuffer(destination, cache.buffer, cache.sampleRate);
-        return;
+        return true;
     }
+    return false;
 }
 
 // 選択音

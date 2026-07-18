@@ -1171,11 +1171,11 @@ export class BrowserAPI {
         },
         playRomSound: (soundID: string): number => {
             console.log("playRomSound", soundID);
-            const groups = /romsound:\/\/(?<soundID>\d+)/.exec(soundID)?.groups;
-            if (groups != null) {
-                playRomSound(Number.parseInt(groups.soundID), this.audioNodeProvider.getAudioDestinationNode());
+            const groups = /^romsound:\/\/(?<soundID>\d+)$/.exec(soundID)?.groups;
+            if (groups == null) {
+                return NaN;
             }
-            return 1;
+            return playRomSound(Number.parseInt(groups.soundID), this.audioNodeProvider.getAudioDestinationNode()) ? 1 : NaN;
         },
         getBrowserVersion(): string[] {
             return ["BMLHTML", "BMLHTML", "001", "000"];
