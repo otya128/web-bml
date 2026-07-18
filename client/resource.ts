@@ -128,7 +128,7 @@ class CacheMap {
         // 挿入順に列挙される
         // 列挙中に削除しても安全らしい
         if (this.sizeBytes > this.maxSizeBytes || this.cachedRemoteResources.size > this.maxEntryCount) {
-            for (const [key] of this.cachedRemoteResources.keys()) {
+            for (const key of this.cachedRemoteResources.keys()) {
                 if (this.sizeBytes > this.maxSizeBytes || this.cachedRemoteResources.size > this.maxEntryCount) {
                     this.delete(key);
                 } else {
