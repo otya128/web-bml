@@ -1,4 +1,5 @@
 // BSデジタル放送
+// 現行 BIT の値を優先し、BIT から消えたサービスは過去のデータ放送再生用に残す
 export const broadcaster4 = {
     "services": {
         "101": {
@@ -211,9 +212,12 @@ export const broadcaster4 = {
         "841": {
             "broadcasterId": 16
         },
+        "849": {
+            "broadcasterId": 17
+        },
         "929": {
             "broadcasterId": 15
         }
     },
-    "lastUpdated": 1647611239938
+    "lastUpdated": 1784395598000
 };
