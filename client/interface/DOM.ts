@@ -992,7 +992,7 @@ export namespace BML {
                 multiline: true,
                 callback: (value) => {
                     value = getTextDecoder(this.ownerDocument.resources.profile)(getTextEncoder(this.ownerDocument.resources.profile)(value));
-                    value = value.replace(/[\n\r]/g, "").substring(0, this.maxLength);
+                    value = value.replace(/[\n\r]/g, "").substring(0, maxLength);
                     if (allowed != null) {
                         value = value.split("").filter(x => {
                             return allowed.includes(x);
