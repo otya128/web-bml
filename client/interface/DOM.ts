@@ -326,10 +326,7 @@ export namespace BML {
             const marquee = document.createElement("marquee");
             marquee.behavior = style;
             if (Number.isFinite(loop)) {
-                if (loop !== 0) {
-                } else {
-                    marquee.loop = loop;
-                }
+                marquee.loop = loop;
             }
             // dirはrtl固定
             const speed = computedStyle.getPropertyValue("---wap-marquee-speed").trim().toLowerCase();
