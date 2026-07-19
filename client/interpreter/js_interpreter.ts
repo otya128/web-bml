@@ -280,7 +280,7 @@ export class JSInterpreter implements Interpreter {
             }
             // 絶対URIを使用すること
             // TR-B14 第三分冊 8.3.10.2
-            if (!documentName.startsWith("http://") && documentName.startsWith("https://")) {
+            if (!documentName.startsWith("http://") && !documentName.startsWith("https://")) {
                 callback(NaN, LAUNCH_DOCUMENT_CALLED);
                 return;
             }
