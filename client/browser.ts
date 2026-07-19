@@ -1319,7 +1319,12 @@ export class BrowserAPI {
                         this.setUreg(i, "");
                     }
                 }
-                this.setUreg(0, "0x" + msg.serviceId.toString(16).padStart(4));
+                this.serviceId = msg.serviceId;
+                if (this.resources.profile !== resource.Profile.TrProfileC) {
+                    this.setUreg(0, "0x" + msg.serviceId.toString(16).padStart(4, "0"));
+                } else {
+                    this.setUreg(0, "");
+                }
             }
         }
     }
