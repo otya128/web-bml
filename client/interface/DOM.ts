@@ -1412,12 +1412,12 @@ export namespace BML {
         }
 
         public get streamStatus(): DOMString {
+            const value = this.node.getAttribute("streamstatus");
             if (this.animation != null) {
-                if (this.animation.playState === "finished" && this.streamStatus !== "pause") {
+                if (this.animation.playState === "finished" && value !== "pause") {
                     this.streamStatus = "pause";
                 }
             }
-            const value = this.node.getAttribute("streamstatus");
             if (value == null) {
                 const type = this.type.toLowerCase();
                 // stopを取りうる場合初期値はstop (STD-B24 第二分冊 (2/2) 付属2 4.8.5.2 注2)
