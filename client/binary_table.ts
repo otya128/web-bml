@@ -415,7 +415,7 @@ export class BinaryTable {
         return this.fields.length;
     }
     public close(): number {
-        return 0;
+        return 1;
     }
     public toNumber(row: number, column: number): number {
         return Number((this.rows[row] ?? [])[column]);
