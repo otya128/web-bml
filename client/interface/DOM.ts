@@ -986,7 +986,7 @@ export namespace BML {
             this.ownerDocument.inputApplication?.launch({
                 characterType: ctype,
                 allowedCharacters: allowed,
-                maxLength: this.maxLength,
+                maxLength,
                 value: this.value,
                 inputMode: this.type === "password" ? "password" : "text",
                 multiline: true,
