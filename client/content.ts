@@ -854,7 +854,10 @@ export class Content {
                 const second = Number.parseInt(timeValue.substring(12, 14));
                 const date = new Date(year, month - 1, day, hour, minute, second);
                 const time = date.getTime();
-                if (this.resources.currentTimeUnixMillis != null && time <= this.resources.currentTimeUnixMillis) {
+                const tz = date.getTimezoneOffset() * 60 * 1000;
+                const jst = 9 * 60 * 60 * 1000;
+                const jstTime = time - tz - jst;
+                if (this.resources.currentTimeUnixMillis != null && jstTime <= this.resources.currentTimeUnixMillis) {
                     beitem.internalTimerFired = true;
                     this.eventDispatcher.dispatchTimerFiredEvent(0, elem);
                 }
