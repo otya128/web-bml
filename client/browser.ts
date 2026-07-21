@@ -1076,6 +1076,12 @@ export class BrowserAPI {
             this.interpreter.destroyStack();
             throw new Error("unreachable!!");
         },
+        quitDocument: (): number => {
+            console.log("%cquitDocument", "font-size: 4em");
+            this.content.quitDocument();
+            this.interpreter.destroyStack();
+            throw new Error("unreachable!!");
+        },
         reloadActiveDocument: (): number => {
             console.log("reloadActiveDocument");
             return this.browser.launchDocument(this.browser.getActiveDocument()!);

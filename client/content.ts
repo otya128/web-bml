@@ -885,7 +885,7 @@ export class Content {
     }
 
     private async launchStartup(): Promise<boolean> {
-        const module = `/${this.resources.startupComponentId.toString(16).padStart(2, "0")}/${this.resources.startupModuleId.toString(16).padStart(4, "0")}`;
+        const module = `arib-dc://-1.-1.-1/${this.resources.startupComponentId.toString(16).padStart(2, "0")}/${this.resources.startupModuleId.toString(16).padStart(4, "0")}`;
         await this.resources.fetchResourceAsync(module);
         if (this.resources.fetchLockedResource(module + "/startup.bml")) {
             await this.launchDocumentAsync(module + "/startup.bml");
