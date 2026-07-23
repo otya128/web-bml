@@ -399,6 +399,13 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
         return r;
     }
 
+    function* quitDocument() {
+        browserLog("quitDocument");
+        content.quitDocument();
+        yield LAUNCH_DOCUMENT_CALLED;
+        return NaN;
+    }
+
     function* X_DPA_launchDocWithLink(documentName: string, transitionStyle: string | undefined) {
         console.log("%X_DPA_launchDocWithLink", "font-size: 4em", documentName);
         if (resources.profile !== Profile.TrProfileC) {
@@ -557,6 +564,12 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
             const transitionStyle = args[1] === undefined ? args[1] : yield* toString(ctx, args[1], caller);
             return yield* launchDocument(documentName, transitionStyle);
         }, 1, "launchDocument"),
+    });
+    browser.properties.set("quitDocument", {
+        ...desc,
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$quitDocument() {
+            return yield* quitDocument();
+        }, 0, "quitDocument"),
     });
     browser.properties.set("reloadActiveDocument", {
         ...desc,
