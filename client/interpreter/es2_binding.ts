@@ -317,7 +317,6 @@ export function defineBuiltinBinding(context: Context, resources: Resources) {
     context.realm.intrinsics.Number.properties.delete("NEGATIVE_INFINITY");
     context.realm.intrinsics.Number.properties.delete("POSITIVE_INFINITY");
     context.realm.globalObject.properties.delete("Math");
-    context.realm.globalObject.internalProperties.prototype = null;
 }
 
 export function defineBrowserBinding(context: Context, resources: Resources, browserAPI: BrowserAPI, content: Content, epg: EPG) {
@@ -344,7 +343,7 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
     ureg.internalProperties.get = function* browser$Ureg$get(_ctx, _self, propertyName, _caller) {
         return browserAPI.getUreg(Number(propertyName));
     };
-    ureg.internalProperties.put = function* browser$Ureg$get(ctx, _self, propertyName, value, caller) {
+    ureg.internalProperties.put = function* browser$Ureg$put(ctx, _self, propertyName, value, caller) {
         browserAPI.setUreg(Number(propertyName), yield* toString(ctx, value, caller));
     };
     const greg = newObject(context.realm.intrinsics.ObjectPrototype);
@@ -361,7 +360,7 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
     greg.internalProperties.get = function* browser$Greg$get(_ctx, _self, propertyName, _caller) {
         return browserAPI.getGreg(Number(propertyName));
     };
-    greg.internalProperties.put = function* browser$Greg$get(ctx, _self, propertyName, value, caller) {
+    greg.internalProperties.put = function* browser$Greg$put(ctx, _self, propertyName, value, caller) {
         browserAPI.setGreg(Number(propertyName), yield* toString(ctx, value, caller));
     };
     const desc = {
@@ -728,6 +727,18 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
             return yield* reloadActiveDocument();
         }, 0, "reloadActiveDocument"),
     });
+    browser.properties.set("launchExApp", {
+        ...desc,
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$launchExApp(ctx, _self, args, caller) {
+            const uriname = yield* toString(ctx, args[0], caller);
+            const MIME_type = yield* toString(ctx, args[1], caller);
+            const Ex_info: string[] = [];
+            for (let a of args.slice(2)) {
+                Ex_info.push(yield* toString(ctx, a, caller));
+            }
+            return browserAPI.browser.launchExApp(uriname, MIME_type, ...Ex_info);
+        }, 2, "launchExApp"),
+    });
     browser.properties.set("getFreeContentsMemory", {
         ...desc,
         value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$getFreeContentsMemory(ctx, _self, args, caller) {
@@ -821,6 +832,42 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
             const r = browserAPI.browser.readPersistentArrayWithAccessCheck(yield* toString(ctx, args[0], caller), yield* toString(ctx, args[1], caller));
             return wrapArray(ctx, r);
         }, 2, "readPersistentArrayWithAccessCheck"),
+    });
+    browser.properties.set("connect", {
+        ...desc,
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$connect(ctx, _self, args, caller) {
+            const tel = yield* toString(ctx, args[0], caller);
+            if (args.length < 5) {
+                const bProvider = toBoolean(args[1]);
+                const speed = yield* toNumber(ctx, args[1], caller);
+                const timeout = yield* toNumber(ctx, args[2], caller);
+                return browserAPI.browser.connect(tel, bProvider, speed, timeout);
+            } else {
+                const hostNo = yield* toString(ctx, args[1], caller);
+                const bProvider = toBoolean(args[2]);
+                const speed = yield* toNumber(ctx, args[3], caller);
+                const timeout = yield* toNumber(ctx, args[4], caller);
+                return browserAPI.browser.connect(tel, hostNo, bProvider, speed, timeout);
+            }
+        }, 5, "connect"),
+    });
+    browser.properties.set("disconnect", {
+        ...desc,
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$disconnect(ctx, _self, args, caller) {
+            return browserAPI.browser.disconnect();
+        }, 0, "disconnect"),
+    });
+    browser.properties.set("sendTextData", {
+        ...desc,
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$sendTextData(ctx, _self, args, caller) {
+            return browserAPI.browser.sendTextData(yield* toString(ctx, args[0], caller), yield* toNumber(ctx, args[1], caller));
+        }, 2, "sendTextData"),
+    });
+    browser.properties.set("receiveTextData", {
+        ...desc,
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$receiveTextData(ctx, _self, args, caller) {
+            return browserAPI.browser.receiveTextData(yield* toNumber(ctx, args[0], caller));
+        }, 1, "receiveTextData"),
     });
     browser.properties.set("random", {
         ...desc,
@@ -954,11 +1001,57 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
             return browserAPI.browser.getConnectionType();
         }, 0, "getConnectionType"),
     });
+    browser.properties.set("sendTextMail", {
+        ...desc,
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$sendTextMail(ctx, _self, args, caller) {
+            const subject = yield* toString(ctx, args[0], caller);
+            const body = yield* toString(ctx, args[1], caller);
+            const toAddress = yield* toString(ctx, args[2], caller);
+            const ccAddress: any[] = [];
+            for (let a of args.slice(3)) {
+                ccAddress.push(yield* toString(ctx, a, caller));
+            }
+            return wrapArray(ctx, browserAPI.browser.sendTextMail(subject, body, toAddress, ...ccAddress));
+        }, 3, "sendTextMail"),
+    });
+    browser.properties.set("sendMIMEMail", {
+        ...desc,
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$sendMIMEMail(ctx, _self, args, caller) {
+            const subject = yield* toString(ctx, args[0], caller);
+            const src_module = yield* toString(ctx, args[1], caller);
+            const toAddress = yield* toString(ctx, args[2], caller);
+            const ccAddress: string[] = [];
+            for (let a of args.slice(3)) {
+                ccAddress.push(yield* toString(ctx, a, caller));
+            }
+            return wrapArray(ctx, browserAPI.browser.sendMIMEMail(subject, src_module, toAddress, ...ccAddress));
+        }, 3, "sendMIMEMail"),
+    });
+    browser.properties.set("setCacheResourceOverIP", {
+        ...desc,
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$setCacheResourceOverIP(ctx, _self, args, caller) {
+            if (!isObject(args[0])) {
+                return NaN;
+            }
+            const length = yield* toNumber(ctx, yield* getProperty(ctx, args[0], "length", caller), caller);
+            const resources: string[] = [];
+            for (let i = 0; i < length; i++) {
+                resources.push(yield* toString(ctx, yield* getProperty(ctx, args[0], String(i), caller), caller));
+            }
+            return wrapArray(ctx, browserAPI.browser.setCacheResourceOverIP(resources));
+        }, 1, "setCacheResourceOverIP"),
+    });
     browser.properties.set("getPrefixNumber", {
         ...desc,
         value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$getPrefixNumber(ctx, _self, args, caller) {
             return wrapArray(ctx, browserAPI.browser.getPrefixNumber());
         }, 0, "getPrefixNumber"),
+    });
+    browser.properties.set("vote", {
+        ...desc,
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$vote(ctx, _self, args, caller) {
+            return browserAPI.browser.vote(yield* toString(ctx, args[0], caller), yield* toNumber(ctx, args[1], caller));
+        }, 2, "vote"),
     });
     browser.properties.set("isRootCertificateExisting", {
         ...desc,
@@ -1037,13 +1130,13 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
     });
     browser.properties.set("X_DPA_launchDocWithLink", {
         ...desc,
-        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$X_DPA_writeCproBM(ctx, _self, args, caller) {
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$X_DPA_launchDocWithLink(ctx, _self, args, caller) {
             return yield* X_DPA_launchDocWithLink(yield* toString(ctx, args[0], caller), args[1] === undefined ? args[1] : yield* toString(ctx, args[1], caller));
         }, 1, "X_DPA_launchDocWithLink"),
     });
     browser.properties.set("epgTune", {
         ...desc,
-        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$X_DPA_writeCproBM(ctx, _self, args, caller) {
+        value: newNativeFunction(context.realm.intrinsics.FunctionPrototype, function* browser$epgTune(ctx, _self, args, caller) {
             return yield* epgTune(yield* toString(ctx, args[0], caller));
         }, 1, "epgTune"),
     });

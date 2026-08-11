@@ -55,13 +55,13 @@ export interface Browser {
     // 双方向機能－遅延発呼
     // 非運用
     // 双方向機能－BASIC手順 非対応であればエラーを返すこと
-    connect(tel: string, speed: number, timeout: number): number;
+    connect(tel: string, bProvider: boolean, speed: number, timeout: number): number;
     connect(tel: string, hostNo: string, bProvider: boolean, speed: number, timeout: number): number;
     disconnect(): number;
     // sendBinaryData(uri: string, timeout: number): number;
     // receiveBinaryData(uri: string, timeout: number): number;
     sendTextData(text: string, timeout: number): number;
-    receiveTextData(text: string, timeout: number): number;
+    receiveTextData(timeout: number): string | null;
     // 双方向機能－TCP/IP
     // 非対応であればエラーを返すこと
     setISPParams(ispname: string, tel: string, bProvider: boolean, uid: string, passwd: string, nameServer1: string, nameServer2: string, softCompression: boolean, headerCompression: boolean, idleTime: number, status: number, lineType?: number): number;
@@ -196,7 +196,7 @@ export interface Browser {
 
     // Cプロファイル
     X_DPA_startResidentApp(appName: string, showAV: number, returnURI: string, ...Ex_info: string[]): number;
-    X_DPA_getComBrowserUA(): string[][];(): string[][];
+    X_DPA_getComBrowserUA(): string[][];
     X_DPA_launchDocWithLink(documentName: string): number;
     X_DPA_getIRDID(type: number): string | null;
     X_DPA_writeCproBM(title: string, dstURI: string, outline: string, CproBMtype: number, expire?: Date): number;
@@ -239,26 +239,26 @@ const apiGroup: Map<string, number> = new Map([
     ["Storage.Module.Ext", 0],
     ["Storage.Resource.Ext", 0],
     ["Storage.Resource", 0],
-    ["Com.BASIC.Basic", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
+    ["Com.BASIC.Basic", 0],
     ["Com.BASIC.Ext", 0],
     ["Com.BASIC.Delay", 0],
     ["Com.BASIC.Delayed", 0],
-    ["Com.BASIC.Vote", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
+    ["Com.BASIC.Vote", 0],
     ["Com.BASIC.CAS", 0],
     ["Com.BASIC.Enc", 0],
-    ["Com.IP.Params", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
-    ["Com.IP.Connect", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
-    ["Com.IP.Connect.Ext", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
+    ["Com.IP.Params", 0],
+    ["Com.IP.Connect", 0],
+    ["Com.IP.Connect.Ext", 0],
     ["Com.IP.GetType", 1],
     ["Com.IP", 1],
     ["Com.IP.Http.Ext", 0],
     ["Com.IP.Http", 0],
     ["Com.IP.Ftp.Ext", 0],
     ["Com.IP.Ftp", 0],
-    ["Com.IP.Sendmail", 0], // FIXME?
+    ["Com.IP.Sendmail", 0],
     ["Com.IP.Transmit", 1],
     ["Com.IP.Delayed", 0],
-    ["Com.IP.SetCache", 0], // FIXME?
+    ["Com.IP.SetCache", 0],
     ["Com.IP.confirmIP", 1],
     ["Com.Common.Delayed", 0],
     ["Com.Line.Prefix", 1],
@@ -273,7 +273,7 @@ const apiGroup: Map<string, number> = new Map([
     ["Ctrl.Version", 1],
     ["Ctrl.Screen", 1],
     ["Ctrl.Com", 0], // オプション扱い
-    ["Ctrl.Quit", 0], // FIXME
+    ["Ctrl.Quit", 1],
     ["Ctrl.ExtApp", 0], // オプション扱い
     ["Ctrl.Cache.Ext", 1],
     ["Ctrl.Media", 1],
@@ -358,7 +358,7 @@ const extraBrowserFunction = new Map<string, number>([
 const unsupported = new Map<string, number>([
     ["Misc.Unlink", 1], // 非リンク状態未実装
     ["Com.BASIC.Basic", 1],
-    ["Com.BASIC.Vote", 0],
+    ["Com.BASIC.Vote", 1],
 ]);
 
 const caSystem = new Map<string, number>([
@@ -786,7 +786,7 @@ export class BrowserAPI {
             return NaN;
             
         },
-        writeBookmarkArray(filename: string, title: string, dstURI: string, expire_str: string, bmType: string, linkMedia: string, usageFlag: string, extendedStructure?: string, extendedData?: string) {
+        writeBookmarkArray(filename: string, title: string, dstURI: string, expire_str: string, bmType: string, linkMedia: string, usageFlag: string, extendedStructure?: string, extendedData?: any[]) {
             console.log("writeBookmarkArray stub", { filename, title, dstURI, expire_str, bmType, linkMedia, usageFlag, extendedStructure, extendedData });
             return NaN;
         },
@@ -1179,6 +1179,10 @@ export class BrowserAPI {
             console.log("reloadActiveDocument");
             return this.browser.launchDocument(this.browser.getActiveDocument()!);
         },
+        launchExApp: (uriname: string, MIME_type: string, ...Ex_info: string[]): number => {
+            console.log("launchExApp", { uriname, MIME_type, Ex_info });
+            return NaN;
+        },
         getFreeContentsMemory: (number_of_resource?: number): number => {
             return 10 * 1024 * 1024;
         },
@@ -1227,6 +1231,18 @@ export class BrowserAPI {
         readPersistentArrayWithAccessCheck: (filename: string, structure: string): any[] | null => {
             console.log("readPersistentArrayWithAccessCheck", filename, structure);
             return this.nvram.readPersistentArrayWithAccessCheck(filename, structure);
+        },
+        connect: (tel: string, ...args: [hostNo: string, bProvider: boolean, speed: number, timeout: number] | [bProvider: boolean, speed: number, timeout: number]): number => {
+            return NaN;
+        },
+        disconnect: (): number => {
+            return NaN;
+        },
+        sendTextData: (text: string, timeout: number): number => {
+            return NaN;  
+        },
+        receiveTextData: (timeout: number): string | null => {
+            return null;
         },
         random(num: number): number {
             return Math.floor(Math.random() * num) + 1;
@@ -1347,8 +1363,21 @@ export class BrowserAPI {
             console.log("getConnectionType");
             return this.ip.getConnectionType?.() ?? 403; // Ethernet DHCP
         },
+        sendTextMail(subject: string, body: string, toAddress: string, ...ccAddress: string[]): [number, number] {
+            return [NaN, NaN];
+        },
+        sendMIMEMail(subject: string, src_module: string, toAddress: string, ...ccAddress: string[]): [number, number] {
+            return [NaN, NaN];
+        },
+        setCacheResourceOverIP: (resources: string[]): number => {
+            return 1;
+        },
         getPrefixNumber: () => {
             return ["", "", "", "", ""];
+        },
+        vote: (tel: string, timeout: number): number => {
+            console.log("vote", { tel, timeout });
+            return NaN;
         },
         isRootCertificateExisting: (root_certificate_type: number, root_certificate_id: number, root_certificate_version?: number): number => {
             console.log("isRootCertificateExisting stub", { root_certificate_type, root_certificate_id, root_certificate_version });
@@ -1461,7 +1490,7 @@ export class BrowserAPI {
             this.interpreter.destroyStack();
             throw new Error("unreachable!!");
         },
-    } as Browser;
+    };
 
     serviceId?: number;
     public onMessage(msg: ResponseMessage) {
