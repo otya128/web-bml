@@ -349,6 +349,7 @@ export namespace BML {
             if (flowData == null) {
                 return;
             }
+            flowData.textData = text;
             const nextElement = flowData.textNode.nextElementSibling;
             const computedStyle = window.getComputedStyle(flowData.textNode);
             if (flowData.textNode.nodeName.toLowerCase() === "arib-text") {
