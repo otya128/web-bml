@@ -25,7 +25,7 @@ export interface Browser {
     // epgTuneToDocument(documentName: string): number;
     epgIsReserved(event_ref: string, startTime?: Date): number;
     epgReserve(event_ref: string, startTime?: Date): number;
-    epgCancelReservation(event_ref: string): string;
+    epgCancelReservation(event_ref: string): number;
     epgRecIsReserved(event_ref: string, startTime?: Date): number;
     epgRecReserve(event_ref: string, startTime?: Date): number;
     epgRecCancelReservation(event_ref: string): number;
@@ -89,7 +89,7 @@ export interface Browser {
     setCacheResourceOverIP(resources: string[]): number;
     // 双方向機能－回線接続状態を取得する機能 
     // 非対応であれば[1]-[4]に空文字列を返すこと
-    getPrefixNumber(): [number, string, string, string, string];
+    getPrefixNumber(): [string, string, string, string, string];
     // 双方向機能－大量呼受付サービスを利用する通信機能
     // 非対応であればエラーを返す
     vote(tel: string, timeout: number): number;
@@ -181,8 +181,8 @@ export interface Browser {
     deleteBookmark(filename: string): number;
     lockBookmark(filename: string): number;
     unlockBookmark(filename: string): number;
-    getBookmarkInfo(): [number, number, string];
-    getBookmarkInfo2(region_name: string): [number, number, string];
+    getBookmarkInfo(): [number, number, string] | null;
+    getBookmarkInfo2(region_name: string): [number, number, string] | null;
     // オプション
     // startResidentBookmarkList(): number;
     // 印刷
@@ -215,13 +215,13 @@ const apiGroup: Map<string, number> = new Map([
     ["Class.BinaryTable", 1],
     ["Class.CSVTable", 0],
     ["Class.XMLDoc", 0],
-    ["EPG.Basic", 1], // FIXME: 未実装あり
-    ["EPG.Basic2", 0], // FIXME: 未実装
-    ["EPG.Ext", 0], // epgTuneToDocument
-    ["EPG.Group", 0],
-    ["EPG.Series", 0],
+    ["EPG.Basic", 1], //  FIXME: 未実装あり
+    ["EPG.Basic2", 1], // FIXME: 未実装
+    ["EPG.Ext", 0], // epgTuneToDocument 運用しない
+    ["EPG.Group", 0], // grp.., epgXTune 運用しない
+    ["EPG.Series", 0], // series... オプション
     ["CC.Stream", 0],
-    ["CC.Control", 0], // FIXME: 未実装
+    ["CC.Control", 1], // FIXME: 未実装
     ["Persistent.Ext", 0],
     ["Persistent.Basic", 1],
     ["Persistent.MediaSupport", 1], // FIXME: setAccessInfoOfPersistentArray
@@ -261,8 +261,8 @@ const apiGroup: Map<string, number> = new Map([
     ["Com.IP.SetCache", 0], // FIXME?
     ["Com.IP.confirmIP", 1],
     ["Com.Common.Delayed", 0],
-    ["Com.Line.Prefix", 0], // FIXME: 対応は不可能だけどエラーを返すように実装すべき
-    ["Com.Certificate", 0], // FIXME
+    ["Com.Line.Prefix", 1],
+    ["Com.Certificate", 1],
     ["Ctrl.Basic", 1],
     ["Ctrl.NPT", 1],
     ["Ctrl.Time", 1],
@@ -275,8 +275,8 @@ const apiGroup: Map<string, number> = new Map([
     ["Ctrl.Com", 0], // オプション扱い
     ["Ctrl.Quit", 0], // FIXME
     ["Ctrl.ExtApp", 0], // オプション扱い
-    ["Ctrl.Cache.Ext", 0], // FIXME
-    ["Ctrl.Media", 0], // FIXME
+    ["Ctrl.Cache.Ext", 1],
+    ["Ctrl.Media", 1],
     ["Ctrl.Basic2", 1],
     ["Ctrl.Cache2", 1],
     ["Ctrl.MobileDisplay", 0],
@@ -293,8 +293,8 @@ const apiGroup: Map<string, number> = new Map([
     ["Misc.Peripheral", 0],
     ["Misc.Peripheral.pass", 0],
     ["Misc.Peripheral.Array", 0],
-    ["Bookmark.Basic", 0], // FIXME
-    ["Bookmark.Extended", 0], // FIXME
+    ["Bookmark.Basic", 1], // FIXME
+    ["Bookmark.Extended", 1], // FIXME
     ["Bookmark.Resident", 0],
     ["Misc.Basic", 1],
     ["Misc.Ureg", 1],
@@ -306,7 +306,7 @@ const apiGroup: Map<string, number> = new Map([
     ["AITControlledApp.Start", 0],
 
     // TR-B14 第二分冊 
-    ["Bookmark.Basic2", 0], // getBookmarkInfo2
+    ["Bookmark.Basic2", 1], // getBookmarkInfo2
     ["Ctrl.Status", 1], // getBrowserStatus
     ["Storage.Source", 0], // getContentSource
 ]);
@@ -729,6 +729,91 @@ export class BrowserAPI {
             console.error("epgGetEventDuration", event_ref);
             return NaN;
         },
+        epgTune: (service_ref: string): number => {
+            console.log("epgTune stub", { service_ref });
+            return NaN;
+        },
+        epgTuneToComponent: (component_ref: string): number => {
+            console.log("epgTuneToComponent stub", { component_ref });
+            return NaN;
+        },
+        epgIsReserved: (event_ref: string): number => {
+            console.log("epgIsReserved stub", { event_ref });
+            return NaN;
+        },
+        epgReserve: (event_ref: string, startTime?: Date): number => {
+            console.log("epgReserve stub", { event_ref, startTime });
+            return NaN;
+        },
+        epgCancelReservation: (event_ref: string): number => {
+            console.log("epgCancelReservation stub", { event_ref });
+            return NaN;
+        },
+        epgRecIsReserved: (event_ref: string, startTime?: Date): number => {
+            console.log("epgRecIsReserved stub", { event_ref, startTime });
+            return NaN;
+        },
+        epgRecReserve: (event_ref: string, startTime?: Date): number => {
+            console.log("epgRecReserve stub", { event_ref, startTime });
+            return NaN;
+        },
+        epgRecCancelReservation: (event_ref: string): number => {
+            console.log("epgRecCancelReservation stub", { event_ref });
+            return NaN;
+        },
+        setCCDisplayStatus: (language: number, status: boolean): number => {
+            console.log("setCCDisplayStatus stub", { language, status });
+            return language === 1 ? 1 : NaN;
+        },
+        getCCDisplayStatus: (language: number): number => {
+            console.log("getCCDisplayStatus stub", { language });
+            if (language === 1) {
+                return 1;
+            }
+            if (language >= 1 && language <= 8) {
+                return 0;
+            }
+            return NaN;
+        },
+        getCCLanguageStatus: (language: number): number => {
+            console.log("getCCLanguageStatus stub", { language });
+            if (language === 1) {
+                return 1;
+            }
+            if (language >= 1 && language <= 8) {
+                return 0;
+            }
+            return NaN;
+            
+        },
+        writeBookmarkArray(filename: string, title: string, dstURI: string, expire_str: string, bmType: string, linkMedia: string, usageFlag: string, extendedStructure?: string, extendedData?: string) {
+            console.log("writeBookmarkArray stub", { filename, title, dstURI, expire_str, bmType, linkMedia, usageFlag, extendedStructure, extendedData });
+            return NaN;
+        },
+        readBookmarkArray(filename: string, bmType?: string, extendedStructure?: string) {
+            console.log("readBookmarkArray stub", { filename, bmType, extendedStructure });
+            return null;
+        },
+        deleteBookmark(filename) {
+            console.log("deleteBookmark stub", { filename });
+            return NaN;
+        },
+        lockBookmark(filename) {
+            console.log("lockBookmark stub", { filename });
+            return NaN;
+        },
+        unlockBookmark(filename) {
+            console.log("unlockBookmark stub", { filename });
+            return NaN;
+        },
+        getBookmarkInfo() {
+            console.log("getBookmarkInfo stub");
+            return null;
+        },
+        getBookmarkInfo2(region_name: string) {
+            console.log("getBookmarkInfo2 stub", { region_name });
+            return null;
+        },
         setCurrentDateMode: (time_mode: number): number => {
             console.log("setCurrentDateMode", time_mode);
             if (time_mode == 0) {
@@ -749,6 +834,10 @@ export class BrowserAPI {
             } else {
                 return Math.floor((ct - st) / 1000); // 秒
             }
+        },
+        isBeingBroadcast: (event_ref: string): boolean => {
+            console.log("isBeingBroadcast stub", { event_ref });
+            return false;
         },
         subDate(target: Date, base: Date, unit: number) {
             if (target == null || base == null) {
@@ -808,6 +897,10 @@ export class BrowserAPI {
                 return NaN;
             }
             return this.resources.unlockModule(componentId, moduleId, "lockModuleOnMemory") ? 1 : NaN;
+        },
+        setCachePriority: (module: string, priority: number): number => {
+            console.log("setCachePriority: stub", { module, priority });
+            return 1;
         },
         unlockModuleOnMemoryEx: (module: string | null | undefined): number => {
             console.log("unlockModuleOnMemoryEx", module);
@@ -1086,6 +1179,35 @@ export class BrowserAPI {
             console.log("reloadActiveDocument");
             return this.browser.launchDocument(this.browser.getActiveDocument()!);
         },
+        getFreeContentsMemory: (number_of_resource?: number): number => {
+            return 10 * 1024 * 1024;
+        },
+        isSupportedMedia: (mediaName: string): number => {
+            switch (mediaName) {
+                // BSデジタル放送
+                case "1":
+                    return 1;
+                // 広帯域CSデジタル放送（右旋）
+                case "2":
+                    return 1;
+                // 広帯域CSデジタル放送（左旋）
+                case "3":
+                    return 0;
+                // 地上波デジタルテレビ放送
+                case "4":
+                    return 1;
+                // 地上波デジタル音声放送
+                case "5":
+                    return 0;
+                // 高度 BS デジタル放送
+                case "6":
+                    return 0;
+                // 高度広帯域CSデジタル放送
+                case "7":
+                    return 0;
+            }
+            return 0;
+        },
         readPersistentArray: (filename: string, structure: string): any[] | null => {
             console.log("readPersistentArray", filename, structure);
             return this.nvram.readPersistentArray(filename, structure);
@@ -1202,6 +1324,21 @@ export class BrowserAPI {
             }
             return null;
         },
+        setISPParams: (ispname: string, tel: string, bProvider: boolean, uid: string, passwd: string, nameServer1: string, nameServer2: string, softCompression: boolean, headerCompression: boolean, idleTime: number, status: number, lineType?: number): number => {
+            return NaN;
+        },
+        getISPParams: (): any[] | null => {
+            return null;
+        },
+        connectPPP: (tel: string, bProvider: boolean, uid: string, passwd: string, nameServer1: string, nameServer2: string, softCompression: boolean, headerCompression: boolean, idleTime: number): number => {
+            return NaN;
+        },
+        connectPPPWithISPParams: (idleTime?: number): number => {
+            return NaN;
+        },
+        disconnectPPP: (): number => {
+            return NaN;
+        },
         isIPConnected: (): number => {
             console.log("isIPConnected");
             return this.ip.isIPConnected?.() ?? 0;
@@ -1209,6 +1346,17 @@ export class BrowserAPI {
         getConnectionType: (): number => {
             console.log("getConnectionType");
             return this.ip.getConnectionType?.() ?? 403; // Ethernet DHCP
+        },
+        getPrefixNumber: () => {
+            return ["", "", "", "", ""];
+        },
+        isRootCertificateExisting: (root_certificate_type: number, root_certificate_id: number, root_certificate_version?: number): number => {
+            console.log("isRootCertificateExisting stub", { root_certificate_type, root_certificate_id, root_certificate_version });
+            return 1;
+        },
+        getRootCertificateInfo: (): any[] | null => {
+            console.log("getRootCertificateInfo stub");
+            return [];
         },
         setInterval: (evalCode: string, msec: number, iteration: number): number => {
             const handle = this.eventQueue.setInterval(() => {
