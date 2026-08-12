@@ -2,6 +2,7 @@
 import { BML } from "./interface/DOM";
 import { Interpreter } from "./interpreter/interpreter";
 import { Resources } from "./resource";
+import { type Logger } from "./util/logger";
 
 interface BMLEvent {
     type: string;
@@ -58,10 +59,12 @@ export class EventDispatcher {
     private readonly eventQueue: EventQueue;
     private readonly bmlDocument: BML.BMLDocument;
     private readonly resources: Resources;
-    public constructor(eventQueue: EventQueue, bmlDocument: BML.BMLDocument, resources: Resources) {
+    private readonly logger: Logger;
+    public constructor(eventQueue: EventQueue, bmlDocument: BML.BMLDocument, resources: Resources, logger: Logger) {
         this.eventQueue = eventQueue;
         this.bmlDocument = bmlDocument;
         this.resources = resources;
+        this.logger = logger;
     }
 
     public setCurrentEvent(a: BMLEvent) {
@@ -107,7 +110,7 @@ export class EventDispatcher {
     }
 
     public dispatchModuleLockedEvent(module: string, isEx: boolean, status: number) {
-        console.log("ModuleLocked", module);
+        this.logger.log(`${this.logger.prefix}ModuleLocked`, module);
         const moduleLocked = (BML.bmlNodeToNode(this.bmlDocument.documentElement) as HTMLElement).querySelectorAll("beitem[type=\"ModuleLocked\"]");
         const { componentId, moduleId } = this.resources.parseURLEx(module);
         for (const beitem of Array.from(moduleLocked)) {
@@ -139,7 +142,7 @@ export class EventDispatcher {
     }
 
     public dispatchTimerFiredEvent(status: number, beitem: Element) {
-        console.log("TimerFired", status);
+        this.logger.log(`${this.logger.prefix}TimerFired`, status);
         if (beitem.getAttribute("subscribe") !== "subscribe") {
             return;
         }
@@ -162,7 +165,7 @@ export class EventDispatcher {
     }
 
     public dispatchDataButtonPressedEvent() {
-        console.log("DataButtonPressed");
+        this.logger.log(`${this.logger.prefix}DataButtonPressed`);
         const moduleLocked = (BML.bmlNodeToNode(this.bmlDocument.documentElement) as HTMLElement).querySelectorAll("beitem[type=\"DataButtonPressed\"]");
         for (const beitem of Array.from(moduleLocked)) {
             if (beitem.getAttribute("subscribe") !== "subscribe") {
@@ -188,7 +191,7 @@ export class EventDispatcher {
     }
 
     public dispatchMainAudioStreamChangedEvent(prevComponentId: number, prevChannelId: number | undefined, componentId: number, channelId: number | undefined): void {
-        console.log("MainAudioStreamChanged");
+        this.logger.log(`${this.logger.prefix}MainAudioStreamChanged`);
         const moduleLocked = (BML.bmlNodeToNode(this.bmlDocument.documentElement) as HTMLElement).querySelectorAll("beitem[type=\"MainAudioStreamChanged\"]");
         for (const beitem of Array.from(moduleLocked)) {
             if (beitem.getAttribute("subscribe") !== "subscribe") {
@@ -322,13 +325,15 @@ type BMLTimerID = number;
 
 export class EventQueue {
     private readonly interpreter: Interpreter;
+    private readonly logger: Logger;
     public dispatchFocus = (_event: SyncFocusEvent): Promise<boolean> => Promise.resolve(false);
     public dispatchBlur = (_event: SyncBlurEvent): Promise<boolean> => Promise.resolve(false);
     public dispatchClick = (_event: SyncClickEvent): Promise<boolean> => Promise.resolve(false);
     public dispatchChange = (_event: SyncChangeEvent): Promise<boolean> => Promise.resolve(false);
 
-    public constructor(interpreter: Interpreter) {
+    public constructor(interpreter: Interpreter, logger: Logger) {
         this.interpreter = interpreter;
+        this.logger = logger;
     }
 
     public async executeEventHandler(handler: string): Promise<boolean> {
@@ -339,9 +344,9 @@ export class EventQueue {
         if (!groups) {
             throw new Error("invalid event handler attribute " + handler);
         }
-        console.debug("EXECUTE", handler);
+        this.logger.debug(`${this.logger.prefix}EXECUTE`, handler);
         const result = await this.interpreter.runEventHandler(groups.funcName);
-        console.debug("END", handler);
+        this.logger.debug(`${this.logger.prefix}END`, handler);
         return result;
     }
 

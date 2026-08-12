@@ -3,6 +3,7 @@
 // 地上波の場合多様なのでBITを受信するとlocalStorageに保存する
 import { ResponseMessage } from "../server/ws_api";
 import * as resource from "./resource";
+import { type Logger } from "./util/logger";
 
 type Broadcaster = {
     services: {
@@ -43,10 +44,12 @@ import { broadcaster6 } from "./broadcaster_6";
 import { broadcaster7 } from "./broadcaster_7";
 
 export class BroadcasterDatabase {
-    private resources: resource.Resources; // iru?
-    private prefix: string;
-    public constructor(resources: resource.Resources, prefix?: string) {
+    private readonly resources: resource.Resources; // iru?
+    private readonly prefix: string;
+    private readonly logger: Logger;
+    public constructor(resources: resource.Resources, logger: Logger, prefix?: string) {
         this.resources = resources;
+        this.logger = logger;
         this.prefix = prefix ?? "";
         this.broadcastersPrefix = this.prefix + "broadcasters_";
         this.affiliationsPrefix = this.prefix + "affiliations_";
@@ -165,7 +168,7 @@ export class BroadcasterDatabase {
             const key = `${this.broadcastersPrefix}${msg.originalNetworkId}`;
             const tbid = msg.broadcasters.filter(x => x.terrestrialBroadcasterId != null);
             if (tbid.length > 1) {
-                console.error(tbid);
+                this.logger.error(`${this.logger.prefix}tbid.length > 1`, tbid);
             }
             const v: Broadcaster = {
                 services: Object.fromEntries(msg.broadcasters.flatMap(x => x.services.map(y => [`${y.serviceId}`, { broadcasterId: x.broadcasterId }]))),

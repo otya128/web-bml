@@ -20,7 +20,6 @@ import {
 } from "../../es2";
 import * as BT from "../binary_table";
 import { Content } from "../content";
-import { getLog } from "../util/trace";
 import { Profile, Resources } from "../resource";
 import { BrowserAPI } from "../browser";
 import * as bmlDate from "../date";
@@ -28,10 +27,7 @@ import * as bmlNumber from "../number";
 import * as bmlString from "../string";
 import { EPG } from "../bml_browser";
 import { getTextDecoder } from "../text";
-
-// const domTrace = getTrace("js-interpreter.dom");
-// const eventTrace = getTrace("js-interpreter.event");
-const browserLog = getLog("js-interpreter.browser");
+import { type Logger } from "../util/logger";
 
 const LAUNCH_DOCUMENT_CALLED = { type: "launchDocumentCalled" } as const;
 
@@ -319,7 +315,7 @@ export function defineBuiltinBinding(context: Context, resources: Resources) {
     context.realm.globalObject.properties.delete("Math");
 }
 
-export function defineBrowserBinding(context: Context, resources: Resources, browserAPI: BrowserAPI, content: Content, epg: EPG) {
+export function defineBrowserBinding(context: Context, resources: Resources, browserAPI: BrowserAPI, content: Content, epg: EPG, logger: Logger) {
     const browser = newObject(context.realm.intrinsics.ObjectPrototype);
     browser.internalProperties.class = "hostobject";
     context.realm.globalObject.properties.set("browser", {
@@ -377,7 +373,7 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
         value: greg,
     });
     function* launchDocument(documentName: string, transitionStyle: string | undefined) {
-        browserLog("launchDocument", documentName, transitionStyle);
+        logger.log(`${logger.prefix}launchDocument`, documentName, transitionStyle);
         if (documentName.startsWith("#")) {
             // Cプロファイル TR-B14 第三分冊
             // 8.2.3.4 #fragment運用における受信機動作およびコンテンツガイドライン
@@ -392,21 +388,21 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
     }
 
     function* reloadActiveDocument() {
-        browserLog("reloadActiveDocument");
+        logger.log(`${logger.prefix}reloadActiveDocument`);
         const r = content.launchDocument(browserAPI.browser.getActiveDocument()!);
         yield LAUNCH_DOCUMENT_CALLED;
         return r;
     }
 
     function* quitDocument() {
-        browserLog("quitDocument");
+        logger.log(`${logger.prefix}quitDocument`);
         content.quitDocument();
         yield LAUNCH_DOCUMENT_CALLED;
         return NaN;
     }
 
     function* X_DPA_launchDocWithLink(documentName: string, transitionStyle: string | undefined) {
-        console.log("%X_DPA_launchDocWithLink", "font-size: 4em", documentName);
+        logger.log(`${logger.prefix}%X_DPA_launchDocWithLink`, "font-size: 4em", documentName);
         if (resources.profile !== Profile.TrProfileC) {
             yield LAUNCH_DOCUMENT_CALLED;
             return NaN;
@@ -430,7 +426,7 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
     }
 
     function* epgTune(service_ref: string) {
-        browserLog("%cepgTune", "font-size: 4em", service_ref);
+        logger.log(`${logger.prefix}%cepgTune`, "font-size: 4em", service_ref);
         const { originalNetworkId, transportStreamId, serviceId } = resources.parseServiceReference(service_ref);
         if (originalNetworkId == null || transportStreamId == null || serviceId == null) {
             yield LAUNCH_DOCUMENT_CALLED;
@@ -1185,7 +1181,7 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
     });
 }
 
-export function defineBinaryTableBinding(context: Context, resources: Resources) {
+export function defineBinaryTableBinding(context: Context, resources: Resources, logger: Logger) {
     const desc = {
         readOnly: true,
         dontEnum: true,
@@ -1198,14 +1194,14 @@ export function defineBinaryTableBinding(context: Context, resources: Resources)
         try {
             res = yield resources.fetchResourceAsync(table_ref);
         } catch (error) {
-            console.error("Failed to fetch BinaryTable resource", table_ref, error);
+            logger.error(`${logger.prefix}Failed to fetch BinaryTable resource`, table_ref, error);
             return null;
         }
         if (!res) {
-            browserLog("BinaryTable", table_ref, "not found");
+            logger.log(`${logger.prefix}BinaryTable`, table_ref, "not found");
             return null;
         }
-        browserLog("new BinaryTable", table_ref);
+        logger.log(`${logger.prefix}new BinaryTable`, table_ref);
         let buffer: Uint8Array = res.data;
         const host = newObject($BinaryTable$prototype);
         host.internalProperties.class = "BinaryTable";
@@ -1214,8 +1210,7 @@ export function defineBinaryTableBinding(context: Context, resources: Resources)
         try {
             bt = new BT.BinaryTable(buffer, structure, getTextDecoder(resources.profile));
         } catch (error) {
-            // 壊れたデータや構造指定は BML 側へ例外を漏らさず null で通知する
-            console.error("Failed to create BinaryTable", table_ref, error);
+            logger.error("Failed to create BinaryTable", table_ref, error);
             return null;
         }
         host.internalProperties.hostObjectValue = bt;

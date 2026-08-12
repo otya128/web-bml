@@ -3,7 +3,7 @@ import { MP4VideoPlayer } from "./player/mp4";
 import { MPEGTSVideoPlayer } from "./player/mpegts";
 import { HLSVideoPlayer } from "./player/hls";
 import { NullVideoPlayer } from "./player/null";
-import { BMLBrowser, BMLBrowserFontFace, EPG, IP } from "./bml_browser";
+import { BMLBrowser, BMLBrowserFontFace, EPG, IP, LogLevel } from "./bml_browser";
 import { VideoPlayer } from "./player/video_player";
 import { RemoteControl } from "./remote_controller_client";
 import { keyCodeToAribKey } from "./content";
@@ -138,6 +138,9 @@ const bmlBrowser = new BMLBrowser({
     epg,
     ip: apiIP,
     inputApplication,
+    log: {
+        level: localStorage.getItem("logLevel") as LogLevel,
+    },
 });
 
 remoteControl.content = bmlBrowser.content;

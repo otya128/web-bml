@@ -1,5 +1,5 @@
 import { ResponseMessage } from "../server/ws_api";
-import { BMLBrowser, BMLBrowserFontFace, EPG } from "./bml_browser";
+import { BMLBrowser, BMLBrowserFontFace, EPG, LogLevel } from "./bml_browser";
 import { RemoteControl } from "./remote_controller_client";
 import { keyCodeToAribKey } from "./content";
 import { decodeTS } from "../server/decode_ts";
@@ -42,6 +42,9 @@ const bmlBrowser = new BMLBrowser({
     },
     epg,
     inputApplication,
+    log: {
+        level: localStorage.getItem("logLevel") as LogLevel,
+    },
 });
 
 remoteControl.content = bmlBrowser.content;

@@ -1,4 +1,6 @@
-
+/**
+ * @deprecated
+ */
 export function getTrace(_channel: string): (message?: any, ...optionalParams: any[]) => void {
     if (!localStorage.getItem("trace")) {
         return () => {};
@@ -6,6 +8,9 @@ export function getTrace(_channel: string): (message?: any, ...optionalParams: a
     return console.debug;
 }
 
+/**
+ * @deprecated
+ */
 export function getLog(_channel: string): (message?: any, ...optionalParams: any[]) => void {
     return console.log;
 }

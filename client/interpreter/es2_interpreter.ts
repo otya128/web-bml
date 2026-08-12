@@ -10,16 +10,12 @@ import {
 } from "../../es2";
 import { Interpreter } from "./interpreter";
 import { Content } from "../content";
-import { getTrace } from "../util/trace";
 import { Resources } from "../resource";
 import { BrowserAPI } from "../browser";
 import { EPG } from "../bml_browser";
 import { define, wrap } from "./es2_dom_binding";
 import { defineBuiltinBinding, defineBrowserBinding, defineBinaryTableBinding } from "./es2_binding";
-
-// const domTrace = getTrace("js-interpreter.dom");
-// const eventTrace = getTrace("js-interpreter.event");
-const interpreterTrace = getTrace("js-interpreter");
+import { type Logger } from "../util/logger";
 
 const LAUNCH_DOCUMENT_CALLED = { type: "launchDocumentCalled" } as const;
 
@@ -47,8 +43,8 @@ export class ES2Interpreter implements Interpreter {
             value: wrap(prototypes, map, this.content.bmlDocument),
         });
         defineBuiltinBinding(context, this.resources);
-        defineBrowserBinding(context, this.resources, this.browserAPI, this.content, this.epg);
-        defineBinaryTableBinding(context, this.resources);
+        defineBrowserBinding(context, this.resources, this.browserAPI, this.content, this.epg, this.browserLogger);
+        defineBinaryTableBinding(context, this.resources, this.browserLogger);
         this.resetStack();
     }
 
@@ -58,8 +54,12 @@ export class ES2Interpreter implements Interpreter {
     private resources: Resources = null!;
     private content: Content = null!;
     private epg: EPG = null!;
-    public constructor() {
+    private readonly logger: Logger;
+    private readonly browserLogger: Logger;
+    public constructor(logger: Logger, browserLogger: Logger) {
         this._isExecuting = false;
+        this.logger = logger;
+        this.browserLogger = browserLogger;
     }
 
     public setupEnvironment(browserAPI: BrowserAPI, resources: Resources, content: Content, epg: EPG): void {
@@ -76,7 +76,7 @@ export class ES2Interpreter implements Interpreter {
         try {
             program = parse(script, { name: src ?? "anonymous", source: script });
         } catch (e) {
-            console.error("failed to parse script", src, e);
+            this.logger.error(`${this.logger.prefix}failed to parse script`, src, e);
             return Promise.resolve(false);
         }
         return this.runScript(program);
@@ -92,11 +92,11 @@ export class ES2Interpreter implements Interpreter {
         const context = this.context;
         let exit = false;
         const exeNum = this.exeNum++;
-        interpreterTrace("runScript()", exeNum, prevContext, this.content.context);
+        this.logger.debug(`${this.logger.prefix}runScript()`, exeNum, prevContext, this.content.context);
         try {
             this._isExecuting = true;
             while (true) {
-                interpreterTrace("RUN SCRIPT", exeNum, prevContext, this.content.context);
+                this.logger.debug(`${this.logger.prefix}RUN SCRIPT`, exeNum, prevContext, this.content.context);
                 try {
                     let executionStartTime = performance.now();
                     // 50ms実行し続けると一旦中断
@@ -110,12 +110,12 @@ export class ES2Interpreter implements Interpreter {
                         const { value, done } = iter.next(lastResult);
                         lastResult = undefined;
                         if (typeof value === "object" && value != null && "type" in value && value.type === "launchDocumentCalled") {
-                            interpreterTrace("browser.launchDocument called.");
+                            this.logger.debug(`${this.logger.prefix}browser.launchDocument called.`);
                             exit = true;
                             break;
                         } else if (typeof value === "object" && value != null && "type" in value && value.type === "interruption") {
                             // 中断したら50ms待って再開
-                            console.warn("script execution timeout");
+                            this.logger.warn(`${this.logger.prefix}script execution timeout`);
                             await new Promise((resolve) => {
                                 setTimeout(() => {
                                     resolve(true);
@@ -128,22 +128,22 @@ export class ES2Interpreter implements Interpreter {
                             break;
                         }
                     }
-                    interpreterTrace("RETURN RUN SCRIPT", exeNum, prevContext, this.content.context);
+                    this.logger.debug(`${this.logger.prefix}RETURN RUN SCRIPT`, exeNum, prevContext, this.content.context);
                 } catch (e) {
-                    console.error("unhandled error", exeNum, prevContext, this.content.context, e);
+                    this.logger.error(`${this.logger.prefix}unhandled error`, exeNum, prevContext, this.content.context, e);
                 }
                 if (this.content.context !== prevContext) {
-                    console.error("context switched", this.content.context, prevContext);
+                    this.logger.error(`${this.logger.prefix}context switched`, this.content.context, prevContext);
                     exit = true;
                 }
                 break;
             }
             if (!exit && this.content.context !== prevContext) {
-                console.error("context switched", this.content.context, prevContext);
+                this.logger.error(`${this.logger.prefix}context switched`, this.content.context, prevContext);
                 exit = true;
             }
         } finally {
-            interpreterTrace("leave runScript()", exeNum, exit, prevContext, this.content.context);
+            this.logger.debug(`${this.logger.prefix}leave runScript()`, exeNum, exit, prevContext, this.content.context);
             if (exit) {
                 return true;
             } else {
