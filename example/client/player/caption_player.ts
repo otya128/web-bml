@@ -1,5 +1,5 @@
 import { SVGProvider, SVGProviderOption } from "aribb24.js";
-import { playRomSound } from "../romsound";
+import { playRomSound } from "web-bml";
 import { VideoPlayer } from "./video_player";
 
 // 別途PESを受け取って字幕を描画する

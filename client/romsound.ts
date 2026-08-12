@@ -18,6 +18,7 @@
  * 15:
 **/
 
+import { Buffer } from "buffer";
 import { romsoundData } from "./romsound_data";
 
 const sampleRate = 12000 * 2;

@@ -18,10 +18,16 @@ Mirakurunからの放送、EPGStationからの録画または引数に与えた�
 
 ### 実行方法
 
+ライブラリ部分をビルド:
+
 ```sh
 npm ci
 npm run build
-npm run start [input.ts]
+```
+
+```sh
+npm -w example run build
+npm -w example run start [input.ts]
 ```
 
 localhost:23234
@@ -30,22 +36,22 @@ localhost:23234
 
 ```sh
 docker build -t web-bml .
-docker run --rm --name web-bml -e MIRAK_URL=http://localhost:40772 -e EPG_URL=http://localhost:8888 -p 23234:23234 web-bml
+docker run --init --rm --name web-bml -e MIRAK_URL=http://localhost:40772 -e EPG_URL=http://localhost:8888 -p 23234:23234 web-bml
 ```
 
 ファイルを試す場合:
 ```sh
-docker run --rm --name web-bml --mount "type=bind,source=PATH-TO-TS.ts,target=/app/input.ts,readonly" -e INPUT_FILE=input.ts -p 23234:23234 web-bml
+docker run --init --rm --name web-bml --mount "type=bind,source=PATH-TO-TS.ts,target=/app/input.ts,readonly" -e INPUT_FILE=input.ts -p 23234:23234 web-bml
 ```
 
 MirakurunとEPGStationが既にコンテナで動いている場合:
 
 ```sh
-docker run --rm --name web-bml --net=host -e MIRAK_URL=http://localhost:40772 -e EPG_URL=http://localhost:8888 web-bml
+docker run --init --rm --name web-bml --net=host -e MIRAK_URL=http://localhost:40772 -e EPG_URL=http://localhost:8888 web-bml
 ```
 
 ```sh
-docker run --rm --name web-bml --net=xxxx -e MIRAK_URL=http://mirakurun:40772 -e EPG_URL=http://epgstation:8888 -p 23234:23234 web-bml
+docker run --init --rm --name web-bml --net=xxxx -e MIRAK_URL=http://mirakurun:40772 -e EPG_URL=http://epgstation:8888 -p 23234:23234 web-bml
 ```
 
 

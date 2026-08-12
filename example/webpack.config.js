@@ -18,9 +18,9 @@ module.exports = {
                 use: 'ts-loader',
             },
             {
-                test: /.*\.css$/,
-                type: 'asset/source',
-            }
+                test: /\.js?$/,
+                extractSourceMap: true,
+            },
         ],
     },
     resolve: {
@@ -41,16 +41,14 @@ module.exports = {
         },
     },
     devtool: 'source-map',
-    // babelのため
+    // @chinachu/aribtsのため
     plugins: [
         new webpack.ProvidePlugin({
             process: 'process/browser',
             Buffer: ['buffer', 'Buffer'],
         }),
-        new webpack.ProvidePlugin({
-            acorn: path.resolve(__dirname, 'JS-Interpreter', 'acorn.js')
-        }),
     ],
+    ignoreWarnings: [/Failed to parse source map/],
 };
 
 if (process.env.NODE_ENV == null) {

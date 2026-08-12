@@ -1,16 +1,15 @@
-import { Indicator } from "./bml_browser";
-import { AribKeyCode, keyCodeToAribKey, Content } from "./content";
+import { type AribKeyCode, keyCodeToAribKey, BMLBrowser, type Indicator } from "web-bml";
 import { VideoPlayer } from "./player/video_player";
 import { RemoteControllerMessage } from "./remote_controller";
 
 export class RemoteControl implements Indicator {
-    public content?: Content;
+    public browser?: BMLBrowser;
     public player?: VideoPlayer;
     element: HTMLElement;
     receivingStatusElement: HTMLElement;
     networkingStatusElement?: HTMLElement;
-    constructor(element: HTMLElement, receivingStatusElement: HTMLElement, networkingStatusElement?: HTMLElement, content?: Content, player?: VideoPlayer) {
-        this.content = content;
+    constructor(element: HTMLElement, receivingStatusElement: HTMLElement, networkingStatusElement?: HTMLElement, browser?: BMLBrowser, player?: VideoPlayer) {
+        this.browser = browser;
         this.player = player;
         this.element = element;
         this.receivingStatusElement = receivingStatusElement;
@@ -52,17 +51,17 @@ export class RemoteControl implements Indicator {
                 document.documentElement.style.transformOrigin = "left top";
                 this.player?.scale(2);
             } else if (remoteController.type === "button") {
-                this.content?.processKeyDown(remoteController.keyCode as AribKeyCode);
-                this.content?.processKeyUp(remoteController.keyCode as AribKeyCode);
+                this.browser?.content.processKeyDown(remoteController.keyCode as AribKeyCode);
+                this.browser?.content.processKeyUp(remoteController.keyCode as AribKeyCode);
             } else if (remoteController.type === "keydown") {
                 const k = keyCodeToAribKey(remoteController.key);
                 if (k != -1) {
-                    this.content?.processKeyDown(k);
+                    this.browser?.content.processKeyDown(k);
                 }
             } else if (remoteController.type === "keyup") {
                 const k = keyCodeToAribKey(remoteController.key);
                 if (k != -1) {
-                    this.content?.processKeyUp(k);
+                    this.browser?.content.processKeyUp(k);
                 }
             }
         }

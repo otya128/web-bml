@@ -1,4 +1,4 @@
-import { InputApplication, InputApplicationLaunchOptions, InputCancelReason, InputCharacterType } from "./bml_browser";
+import { InputApplication, InputApplicationLaunchOptions, InputCancelReason } from "./bml_browser";
 
 // Y=110未満には表示してはいけない (TR-B14 第二分冊 1.6)
 export class OverlayInputApplication implements InputApplication {
