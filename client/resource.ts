@@ -500,11 +500,11 @@ export class Resources {
                 creq.moduleRequests.delete(msg.moduleId);
                 for (const cb of callbacks) {
                     if (cb.filename == null) {
-                        this.logger.warn(`${this.logger.prefix}async fetch done`, str);
+                        this.logger.log(`${this.logger.prefix}async fetch done`, str);
                         cb.resolve(cachedModule.files.get(null) ?? null);
                     } else {
                         const file = cachedModule.files.get(cb.filename);
-                        this.logger.warn(`${this.logger.prefix}async fetch done`, str, cb.filename);
+                        this.logger.log(`${this.logger.prefix}async fetch done`, str, cb.filename);
                         cb.resolve(file ?? null);
                     }
                 }
@@ -706,7 +706,7 @@ export class Resources {
             cachedComponent = this.cachedComponents.get(componentId);
             cachedModule = cachedComponent?.modules?.get(moduleId);
             if (cachedModule == null) {
-                this.logger.error(`${this.logger.prefix}module not found `, url);
+                this.logger.log(`${this.logger.prefix}module not cached `, url);
                 return null;
             }
         }
@@ -822,7 +822,7 @@ export class Resources {
         }
         // PMTにcomponentが存在しかつDIIにmoduleが存在するまたはDIIが取得されていないときにコールバックを登録
         // TODO: ModuleUpdated用にDII取得後に存在しないことが判明したときの処理が必要
-        this.logger.warn(`${this.logger.prefix}async fetch requested`, url);
+        this.logger.log(`${this.logger.prefix}async fetch requested`, url);
         return new Promise((resolve, _) => {
             const c = this.componentRequests.get(componentId);
             const entry = { filename, resolve, requestType };

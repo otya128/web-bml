@@ -941,7 +941,7 @@ export class BrowserAPI {
             }
             const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemory");
             if (!cachedModule) {
-                this.logger.warn(`${this.logger.prefix}lockModuleOnMemory: module not cached`, module);
+                this.logger.log(`${this.logger.prefix}lockModuleOnMemory: module not cached`, module);
                 this.resources.fetchResourceAsync(module, "lockModuleOnMemory").then(() => {
                     const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemory");
                     if (cachedModule == null) {
@@ -986,7 +986,7 @@ export class BrowserAPI {
             const cachedModule = this.resources.lockCachedModule(componentId, moduleId, "lockModuleOnMemoryEx");
             if (!cachedModule) {
                 const dataEventId = this.resources.getDownloadComponentInfo(componentId)?.dataEventId;
-                this.logger.warn(`${this.logger.prefix}lockModuleOnMemoryEx: module not cached`, module);
+                this.logger.log(`${this.logger.prefix}lockModuleOnMemoryEx: module not cached`, module);
                 this.resources.fetchResourceAsync(module, "lockModuleOnMemoryEx").then(() => {
                     if (dataEventId != null) {
                         const eid = this.resources.getDownloadComponentInfo(componentId)?.dataEventId;
