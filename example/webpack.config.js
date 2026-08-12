@@ -28,8 +28,8 @@ module.exports = {
             '.ts', '.js', '.tsx'
         ],
         fallback: {
+            process: require.resolve('process/browser'),
             stream: require.resolve('stream-browserify'),
-            zlib: require.resolve('browserify-zlib'),
         },
     },
     devtool: 'source-map',

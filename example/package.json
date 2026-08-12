@@ -10,11 +10,8 @@
         "dev": "ts-node server/index.ts"
     },
     "dependencies": {
-        "web-bml": "file://..",
         "arib-subtitle-timedmetadater": "^4.0.10",
         "aribb24.js": "^1.10.9",
-        "assert": "^2.0.0",
-        "browserify-zlib": "^0.2.0",
         "buffer": "^6.0.3",
         "dotenv": "^16.0.3",
         "hls.js": "^1.2.1",
@@ -29,7 +26,7 @@
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
         "stream-browserify": "^3.0.0",
-        "util": "^0.12.4"
+        "web-bml": "file://.."
     },
     "devDependencies": {
         "@types/koa": "^2.13.4",
