@@ -1,4 +1,4 @@
-import stream from "stream";
+import { Buffer } from "buffer";
 import { TsUtil, TsChar, TsStream, TsDate } from "@chinachu/aribts";
 import zlib from "zlib";
 import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from './entity_parser';

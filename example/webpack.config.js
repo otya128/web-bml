@@ -28,24 +28,14 @@ module.exports = {
             '.ts', '.js', '.tsx'
         ],
         fallback: {
-            fs: false,
-            path: false,
-            url: false,
-            vm: false,
-            process: require.resolve('process/browser'),
-            Buffer: require.resolve('buffer'),
             stream: require.resolve('stream-browserify'),
             zlib: require.resolve('browserify-zlib'),
-            assert: require.resolve('assert'),
-            util: require.resolve('util'),
         },
     },
     devtool: 'source-map',
-    // @chinachu/aribtsのため
     plugins: [
         new webpack.ProvidePlugin({
             process: 'process/browser',
-            Buffer: ['buffer', 'Buffer'],
         }),
     ],
     ignoreWarnings: [/Failed to parse source map/],
