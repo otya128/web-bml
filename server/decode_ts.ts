@@ -47,7 +47,6 @@ export type DecodeTSOptions = {
     sendCallback: (msg: wsApi.ResponseMessage) => void;
     serviceId?: number;
     parsePES?: boolean;
-    dumpError?: boolean;
 };
 
 type CachedComponent = {
@@ -56,7 +55,7 @@ type CachedComponent = {
 
 export function decodeTS(options: DecodeTSOptions) {
     const reader = new TSReader();
-    const { sendCallback: send, serviceId, parsePES, dumpError } = options;
+    const { sendCallback: send, serviceId: specifiedServiceId, parsePES } = options;
     let pmtRetrieved = false;
     let pidToComponent = new Map<number, ComponentPMT>();
     let componentToPid = new Map<number, ComponentPMT>();
@@ -80,7 +79,7 @@ export function decodeTS(options: DecodeTSOptions) {
     const eitPresentFollowingFlag = new Map<number, boolean>();
     // program_number = service_id
     let pidToProgramNumber = new Map<number, number>();
-    let programNumber: number | null = null;
+    let serviceId: number | null = specifiedServiceId ?? null;
     let pcrPID: number | null = null;
     // 字幕/文字スーパーのPESのPID
     let privatePes = new Set<number>();
@@ -91,9 +90,6 @@ export function decodeTS(options: DecodeTSOptions) {
     let oneSegPMTCount = 0;
     let oneSeg = false;
     let patRetrieved = false;
-
-    // if (dumpError) {
-    // }
 
     reader.addEventListener("tot", ({ section }) => {
         const time = mjdBCDToUnixEpoch(section.jstTime) * 1000;
@@ -109,18 +105,17 @@ export function decodeTS(options: DecodeTSOptions) {
     reader.addEventListener("pat", ({ section }) => {
         patRetrieved = true;
         const pat = new Map<number, number>();
-        programNumber = null;
         for (const program of section.programs) {
             if (program.type === "networkPID") {
                 continue;
             }
             // 多重化されていればとりあえず一番最初のprogram_number使っておく
-            programNumber ??= program.programNumber;
             pat.set(program.programMapPID, program.programNumber);
+            serviceId ??= program.programNumber;
         }
         if (pat.size !== pidToProgramNumber.size || [...pidToProgramNumber.keys()].some((x) => !pat.has(x))) {
             console.log("PAT changed", pat);
-            if (serviceId != null && pat.size !== 1) {
+            if (specifiedServiceId != null && pat.size !== 1) {
                 console.warn("multiplexed!");
             }
             pmtRetrieved = false;
@@ -135,12 +130,12 @@ export function decodeTS(options: DecodeTSOptions) {
                 oneSegPMTCount++;
                 if (oneSegPMTCount >= 10) {
                     oneSeg = true;
-                    programNumber ??= section.programNumber;
+                    serviceId ??= section.programNumber;
                 }
             }
-            if (pidToProgramNumber.get(pid) !== (serviceId ?? programNumber)) {
-                return;
-            }
+        }
+        if (section.programNumber !== serviceId) {
+            return;
         }
         const ptc = new Map<number, ComponentPMT>();
         const ctp = new Map<number, ComponentPMT>();
@@ -183,7 +178,7 @@ export function decodeTS(options: DecodeTSOptions) {
             ctp.set(componentPMT.componentId, componentPMT);
         }
         updateProgramInfo({
-            serviceId: programNumber,
+            serviceId,
         });
         pcrPID = section.pcrPID;
         pidToComponent = ptc;
@@ -277,7 +272,7 @@ export function decodeTS(options: DecodeTSOptions) {
         // 地上波だとbroadcaster_idは255
         const broadcasters: wsApi.BITBroadcaster[] = [];
         for (const descriptor of section.broadcasters) {
-            let broadcaster_id: number = descriptor.broadcasterId;
+            let broadcaster_id = descriptor.broadcasterId;
             const broadcasterNameDescriptor = descriptor.broadcasterDescriptors.find((x) => x.tag === "broadcasterName");
             const broadcasterName = broadcasterNameDescriptor?.name == null ? null : decodeSIText(broadcasterNameDescriptor?.name);
             const serviceListDescriptor = descriptor.broadcasterDescriptors.find((x) => x.tag === "serviceList");
@@ -328,7 +323,7 @@ export function decodeTS(options: DecodeTSOptions) {
         } else if (!oneSeg && pid !== 0x0012) { // H-EIT
             return;
         }
-        if (currentProgramInfo.originalNetworkId !== section.originalNetworkId || section.serviceId !== programNumber) {
+        if (currentProgramInfo.originalNetworkId !== section.originalNetworkId || section.serviceId !== serviceId) {
             return;
         }
         if (!section.currentNextIndicator) {
@@ -390,7 +385,7 @@ export function decodeTS(options: DecodeTSOptions) {
     });
 
     reader.addEventListener("sit", ({ section }) => {
-        const service = section.services.find((service) => service.serviceId === programNumber);
+        const service = section.services.find((service) => service.serviceId === serviceId);
         if (service == null) {
             return;
         }
@@ -407,7 +402,7 @@ export function decodeTS(options: DecodeTSOptions) {
 
         // JSTはjst_time_flag=1のときだけ有効なので、フラグ付きを1st→2ndの順で探す
         const bcdJSTTime = transmissionTime?.jstTime ?? serviceTime?.jstTime;
-        const jstTime: number | null = bcdJSTTime == null ? null : mjdBCDToUnixEpoch(bcdJSTTime) * 1000;
+        const jstTime = bcdJSTTime == null ? null : mjdBCDToUnixEpoch(bcdJSTTime) * 1000;
 
         // event_start_timeは2nd loopでのみ有効
         let startTimeUnixMillis: number | null = null;
@@ -420,7 +415,7 @@ export function decodeTS(options: DecodeTSOptions) {
         }
 
         const broadcastIdDescriptor = service.descriptors.find((desc) => desc.tag === "broadcastId");
-        let originalNetworkId: number | null = networkId ?? null;
+        let originalNetworkId = networkId ?? null;
         if (broadcastIdDescriptor != null) {
             originalNetworkId = broadcastIdDescriptor.originalNetworkId;
             transportStreamId = broadcastIdDescriptor.transportStreamId;
@@ -543,15 +538,15 @@ export function decodeTS(options: DecodeTSOptions) {
                 return;
             }
             // DDB
-            const headerModuleId: number = section.moduleId;
-            const headerModuleVersionLow5bit: number = section.versionNumber;
-            const headerBlockNumberLow8bit: number = section.sectionNumber;
+            const headerModuleId = section.moduleId;
+            const headerModuleVersionLow5bit = section.versionNumber;
+            const headerBlockNumberLow8bit = section.sectionNumber;
 
             // dsmccMessageHeader
             // protocolDiscriminatorは常に0x11
             // dsmccTypeは常に0x03
             // messageIdは常に0x1002
-            const downloadId: number = section.dsmccDownloadDataHeader.downloadId;
+            const downloadId = section.dsmccDownloadDataHeader.downloadId;
             // downloadIdの下位28ビットは常に1で運用される
             const data_event_id = (downloadId >> 28) & 15;
             const moduleId = section.moduleId;

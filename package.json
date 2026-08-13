@@ -29,7 +29,7 @@
     }
   },
   "dependencies": {
-    "arib-mmt-tlv-ts": "^2.0.0",
+    "arib-mmt-tlv-ts": "^2.0.1",
     "crc-32": "^1.2.2",
     "css": "https://github.com/otya128/reworkcss-css/releases/download/v3.0.2/css-3.0.2.tgz",
     "fast-xml-parser": "^4.0.11",
