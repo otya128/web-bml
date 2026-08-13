@@ -2,8 +2,9 @@ import { Buffer } from "buffer";
 import { TSReader } from "arib-mmt-tlv-ts/ts/reader.js";
 import { decodeSIText } from "arib-mmt-tlv-ts/ts/si-text-decoder.js";
 import { bcdTimeToSeconds, mjdBCDToUnixEpoch } from "arib-mmt-tlv-ts/utils.js";
+import { type TSPacket } from "arib-mmt-tlv-ts/ts/packet.js";
 import { unzlibSync } from "fflate";
-import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from './entity_parser';
+import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from "./entity_parser";
 import * as wsApi from "./ws_api";
 import type { ComponentPMT, AdditionalAribBXMLInfo } from "./ws_api";
 
@@ -83,7 +84,7 @@ export function decodeTS(options: DecodeTSOptions) {
     let pcrPID: number | null = null;
     // 字幕/文字スーパーのPESのPID
     let privatePes = new Set<number>();
-    let privatePesBuffers = new Map<number, { length: number; received: number; buffer: Uint8Array[] }>();
+    let privatePesBuffers = new Map<number, { length: number; received: number; buffer: Uint8Array[]; continuityCounter: number }>();
 
     // ワンセグの場合0x1fc8-0x1fcfまでの固定PIDでPMTでワンセグのみを受信している場合PATは受信されない
     // ワンセグPMTを10回受信する間にPATが未受信であればワンセグだと判定
@@ -196,48 +197,71 @@ export function decodeTS(options: DecodeTSOptions) {
     });
 
 
-    reader.addEventListener("packet", ({ packet }) => {
-        if (privatePes.has(packet.pid)) {
-            let buffer = privatePesBuffers.get(packet.pid);
-            if (packet.payloadUnitStartIndicator) {
-                privatePesBuffers.delete(packet.pid);
-            }
-            if (packet.payloadUnitStartIndicator && buffer?.length === 0 && buffer?.buffer.length > 0) {
+    function onPrivatePESPacket(packet: TSPacket) {
+        if (packet.transportScramblingControl !== 0) {
+            return;
+        }
+        let buffer = privatePesBuffers.get(packet.pid);
+        if (packet.payloadUnitStartIndicator) {
+            privatePesBuffers.delete(packet.pid);
+        }
+        if (packet.payloadUnitStartIndicator && buffer?.length === 0 && buffer?.buffer.length > 0) {
+            if (((buffer.continuityCounter + 1) & 15) === packet.continuityCounter) {
                 const msg = decodePES(Buffer.concat(buffer.buffer));
                 if (msg != null) {
                     send(msg);
                 }
             }
-            const payload = packet.data.slice(packet.payloadOffset);
-            if (packet.payloadUnitStartIndicator) {
-                buffer = { length: 0, received: 0, buffer: [] };
-                privatePesBuffers.set(packet.pid, buffer);
-                if (payload.length > 6) {
-                    if (payload[0] !== 0x00 || payload[1] !== 0x00 || payload[2] !== 0x01) {
-                        privatePesBuffers.delete(packet.pid);
-                    } else {
-                        const length = (payload[4] << 8) | payload[5];
-                        if (length === 0) {
-                            buffer = { length: 0, received: 0, buffer: [] };
-                        } else {
-                            buffer = { length: length + 6, received: 0, buffer: [] };
-                        }
-                    }
-                } else {
+        }
+        const payload = packet.data.slice(packet.payloadOffset);
+        if (packet.payloadUnitStartIndicator) {
+            if (payload.length > 6) {
+                if (payload[0] !== 0x00 || payload[1] !== 0x00 || payload[2] !== 0x01) {
+                    privatePesBuffers.delete(packet.pid);
                     return;
+                } else {
+                    const length = (payload[4] << 8) | payload[5];
+                    if (length === 0) {
+                        buffer = { length: 0, received: payload.length, buffer: [payload], continuityCounter: packet.continuityCounter };
+                    } else {
+                        buffer = { length: length + 6, received: payload.length, buffer: [payload], continuityCounter: packet.continuityCounter };
+                    }
+                    privatePesBuffers.set(packet.pid, buffer);
                 }
-            } else if (buffer == null) {
+            }
+        } else {
+            if (buffer == null) {
                 return;
             }
+            if (buffer.continuityCounter === packet.continuityCounter) {
+                return;
+            }
+            if (((buffer.continuityCounter + 1) & 15) !== packet.continuityCounter) {
+                privatePesBuffers.delete(packet.pid);
+                return;
+            }
+            buffer.continuityCounter = packet.continuityCounter;
             buffer.buffer.push(payload);
             buffer.received += payload.length;
-            if (buffer.length <= buffer.received) {
-                privatePesBuffers.delete(packet.pid);
-                const msg = decodePES(Buffer.concat(buffer.buffer));
-                if (msg != null) {
-                    send(msg);
-                }
+        }
+        if (buffer == null) {
+            return;
+        }
+        if (buffer.length <= buffer.received) {
+            privatePesBuffers.delete(packet.pid);
+            const msg = decodePES(Buffer.concat(buffer.buffer));
+            if (msg != null) {
+                send(msg);
             }
+        }
+    }
+
+    reader.addEventListener("packet", ({ packet }) => {
+        if (packet.transportErrorIndicator) {
+            return;
+        }
+        if (privatePes.has(packet.pid)) {
+            onPrivatePESPacket(packet);
         }
         if (packet.pid !== pcrPID) {
             return;
