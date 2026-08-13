@@ -247,9 +247,9 @@ export function decodeTS(options: DecodeTSOptions) {
         if (buffer == null) {
             return;
         }
-        if (buffer.length <= buffer.received) {
+        if (buffer.length !== 0 && buffer.length <= buffer.received) {
             privatePesBuffers.delete(packet.pid);
-            const msg = decodePES(Buffer.concat(buffer.buffer));
+            const msg = decodePES(Buffer.concat(buffer.buffer).subarray(0, buffer.length));
             if (msg != null) {
                 send(msg);
             }
