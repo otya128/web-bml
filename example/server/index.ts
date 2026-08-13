@@ -184,14 +184,14 @@ router.get("/rounded-mplus-1m-arib.ttf", async ctx => {
 
 // モトヤマルベリ
 router.get("/KosugiMaru-Regular.woff2", async ctx => {
-    const path = require.resolve("web-bml/fonts/KosugiMaru-Regular.woff2");
+    const path = require.resolve("web-bml-fonts/KosugiMaru-Regular.woff2");
     const stat = await fsAsync.stat(path);
     ctx.response.length = stat.size;
     ctx.body = fs.createReadStream(path);
     ctx.set("Content-Type", "font/woff2")
 });
 router.get("/KosugiMaru-Bold.woff2", async ctx => {
-    const path = require.resolve("web-bml/fonts/KosugiMaru-Bold.woff2");
+    const path = require.resolve("web-bml-fonts/KosugiMaru-Bold.woff2");
     const stat = await fsAsync.stat(path);
     ctx.response.length = stat.size;
     ctx.body = fs.createReadStream(path);
@@ -199,7 +199,7 @@ router.get("/KosugiMaru-Bold.woff2", async ctx => {
 });
 // モトヤシーダ
 router.get("/Kosugi-Regular.woff2", async ctx => {
-    const path = require.resolve("web-bml/fonts/KosugiMaru-Regular.woff2");
+    const path = require.resolve("web-bml-fonts/KosugiMaru-Regular.woff2");
     const stat = await fsAsync.stat(path);
     ctx.response.length = stat.size;
     ctx.body = fs.createReadStream(path);

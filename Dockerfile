@@ -1,7 +1,7 @@
 FROM node:24-trixie AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-COPY example/package.json ./example/package.json
+COPY example/package.json ./example/package.json ./fonts/package.json
 RUN npm ci
 
 FROM node:24-trixie AS builder

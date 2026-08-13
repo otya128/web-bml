@@ -2,14 +2,13 @@
   "name": "web-bml",
   "version": "1.0.0",
   "main": "./dist/client/bml_browser.js",
-  "license": "(MIT OR Apache-2.0)",
+  "license": "MIT",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w"
   },
   "files": [
-    "dist",
-    "fonts"
+    "dist"
   ],
   "exports": {
     ".": {
@@ -27,8 +26,7 @@
     "./protocol": {
       "types": "./dist/server/ws_api.d.ts",
       "default": "./dist/server/ws_api.js"
-    },
-    "./fonts/*": "./fonts/*"
+    }
   },
   "dependencies": {
     "arib-mmt-tlv-ts": "^2.0.0",
@@ -43,6 +41,7 @@
     "typescript": "^5.9.2"
   },
   "workspaces": [
-    "example"
+    "example",
+    "fonts"
   ]
 }
