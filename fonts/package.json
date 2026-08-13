@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "license": "Apache-2.0",
   "files": [
-    "*.woff",
+    "*.woff2",
     "LICENSE.txt",
     "AUTHORS.txt"
   ]
