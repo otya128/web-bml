@@ -1,5 +1,5 @@
-/node_modules
-/.env
-/dist
-/hls
-/build
+node_modules/
+.env
+hls/
+build/
+dist/

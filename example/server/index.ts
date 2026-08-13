@@ -14,7 +14,7 @@ import dns from "dns/promises";
 import { randomUUID } from 'crypto';
 import { DataBroadcastingStream, LiveStream } from './stream/live_stream';
 import { HLSLiveStream } from './stream/hls_stream';
-import { decodeTS } from './decode_ts';
+import { decodeTS } from "web-bml/ts";
 
 let port = Number.parseInt(process.env.PORT ?? "");
 if (Number.isNaN(port)) {
@@ -184,22 +184,25 @@ router.get("/rounded-mplus-1m-arib.ttf", async ctx => {
 
 // モトヤマルベリ
 router.get("/KosugiMaru-Regular.woff2", async ctx => {
-    const stat = await fsAsync.stat("fonts/KosugiMaru-Regular.woff2");
+    const path = require.resolve("web-bml-fonts/KosugiMaru-Regular.woff2");
+    const stat = await fsAsync.stat(path);
     ctx.response.length = stat.size;
-    ctx.body = fs.createReadStream("fonts/KosugiMaru-Regular.woff2");
+    ctx.body = fs.createReadStream(path);
     ctx.set("Content-Type", "font/woff2")
 });
 router.get("/KosugiMaru-Bold.woff2", async ctx => {
-    const stat = await fsAsync.stat("fonts/KosugiMaru-Bold.woff2");
+    const path = require.resolve("web-bml-fonts/KosugiMaru-Bold.woff2");
+    const stat = await fsAsync.stat(path);
     ctx.response.length = stat.size;
-    ctx.body = fs.createReadStream("fonts/KosugiMaru-Bold.woff2");
+    ctx.body = fs.createReadStream(path);
     ctx.set("Content-Type", "font/woff2")
 });
 // モトヤシーダ
 router.get("/Kosugi-Regular.woff2", async ctx => {
-    const stat = await fsAsync.stat("fonts/Kosugi-Regular.woff2");
+    const path = require.resolve("web-bml-fonts/KosugiMaru-Regular.woff2");
+    const stat = await fsAsync.stat(path);
     ctx.response.length = stat.size;
-    ctx.body = fs.createReadStream("fonts/Kosugi-Regular.woff2");
+    ctx.body = fs.createReadStream(path);
     ctx.set("Content-Type", "font/woff2")
 });
 
@@ -672,8 +675,13 @@ router.get('/api/ws', async (ctx) => {
     const id = randomUUID();
 
     readStream.pause();
-    const tsStream = decodeTS({ sendCallback: (msg) => ws.send(JSON.stringify(msg)), serviceId, parsePES: true });
-    readStream.pipe(tsStream);
+    const reader = decodeTS({ sendCallback: (msg) => ws.send(JSON.stringify(msg)), serviceId, parsePES: true });
+    const tsStream = readStream.pipe(new stream.Transform({
+        transform(chunk, encoding, callback) {
+            reader.push(chunk);
+            callback(null, chunk);
+        }
+    }));
 
     const dbs: DataBroadcastingStream = {
         id,

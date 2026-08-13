@@ -1,15 +1,16 @@
 import { ResponseMessage } from "../server/ws_api";
 import { BroadcasterDatabase } from "./broadcaster_database";
 import { BrowserAPI } from "./browser";
-import { Content } from "./content";
+import { Content, keyCodeToAribKey, AribKeyCode } from "./content";
 import { EventDispatcher, EventQueue } from "./event_queue";
 import { BML } from "./interface/DOM";
 import { ES2Interpreter } from "./interpreter/es2_interpreter";
 import { Interpreter } from "./interpreter/interpreter";
-import { JSInterpreter } from "./interpreter/js_interpreter";
 import { NVRAM } from "./nvram";
 import { Resources } from "./resource";
 import { Logger, type LogLevel as LoggerLogLevel } from "./util/logger";
+import { OverlayInputApplication } from "./overlay_input";
+import { playRomSound } from "./romsound";
 
 export interface AudioNodeProvider {
     getAudioDestinationNode(): AudioNode;
@@ -260,7 +261,7 @@ export class BMLBrowser {
         const eventLogger = setupLogger("event-dispatcher");
         const contentLogger = setupLogger("content");
         const browserLogger = setupLogger("browser");
-        this.interpreter = Boolean(localStorage.getItem((options.storagePrefix ?? "") + "use_js_interpreter")) ? new JSInterpreter() : new ES2Interpreter(interpreterLogger, browserLogger);
+        this.interpreter = new ES2Interpreter(interpreterLogger, browserLogger);
         this.eventQueue = new EventQueue(this.interpreter, eventQueueLogger);
         this.resources = new Resources(this.indicator, options.ip ?? {}, resourcesLogger);
         this.broadcasterDatabase = new BroadcasterDatabase(this.resources, broadcasterDatabaseLogger, (options.storagePrefix ?? "") + (options.broadcasterDatabasePrefix ?? ""));
@@ -352,3 +353,7 @@ export class BMLBrowser {
         this.eventDispatcher.dispatchMainAudioStreamChangedEvent(prevComponentId, prevChannelId, componentId, channelId);
     }
 }
+
+export { keyCodeToAribKey, type AribKeyCode };
+export { OverlayInputApplication };
+export { playRomSound };

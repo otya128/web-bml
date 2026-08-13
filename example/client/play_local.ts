@@ -1,10 +1,10 @@
 import { ResponseMessage } from "../server/ws_api";
-import { BMLBrowser, BMLBrowserFontFace, EPG, LogLevel } from "./bml_browser";
+import { BMLBrowser, BMLBrowserFontFace, EPG, LogLevel } from "web-bml";
 import { RemoteControl } from "./remote_controller_client";
-import { keyCodeToAribKey } from "./content";
-import { decodeTS } from "../server/decode_ts";
+import { keyCodeToAribKey } from "web-bml";
+import { decodeTS } from "web-bml/ts";
 import { CaptionPlayer } from "./player/caption_player";
-import { OverlayInputApplication } from "./overlay_input";
+import { OverlayInputApplication } from "web-bml";
 
 // BML文書と動画と字幕が入る要素
 const browserElement = document.getElementById("data-broadcasting-browser")!;
@@ -47,7 +47,7 @@ const bmlBrowser = new BMLBrowser({
     },
 });
 
-remoteControl.content = bmlBrowser.content;
+remoteControl.browser = bmlBrowser;
 // trueであればデータ放送の上に動画を表示させる非表示状態
 bmlBrowser.addEventListener("invisible", (evt) => {
     console.log("invisible", evt.detail);
@@ -132,7 +132,6 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
     const params = new URLSearchParams(location.search);
     const serviceId = Number.parseInt(params.get("demultiplexServiceId") ?? "");
     const tsStream = decodeTS({ sendCallback: onMessage, parsePES: true, serviceId: isNaN(serviceId) ? undefined : serviceId });
-    tsStream.on("data", () => { });
     while (true) {
         const r = await reader.read();
         if (r.done) {
@@ -143,7 +142,7 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
         const chunkSize = 188 * 100;
         for (let i = 0; i < chunk.length; i += chunkSize) {
             const prevPCR = pcr;
-            tsStream._transform(chunk.subarray(i, i + chunkSize), null, () => { });
+            tsStream.push(chunk.subarray(i, i + chunkSize));
             const curPCR = pcr;
             const nowTime = performance.now();
             if (prevPCR == null) {

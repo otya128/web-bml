@@ -12,7 +12,7 @@ import { convertJPEG } from "../arib_jpeg";
 import { aribMNGToCSSAnimation } from "../arib_mng";
 import { playAIFF } from "../arib_aiff";
 import { unicodeToJISMap } from "../unicode_to_jis_map";
-import { ModuleListEntry } from "../../server/ws_api";
+import { type ModuleListEntry } from "../../server/ws_api";
 import { getTextDecoder, getTextEncoder } from "../text";
 import { DRCSGlyph, DRCSGlyphs } from "../drcs";
 import { jisToUnicodeMap } from "../jis_to_unicode_map";

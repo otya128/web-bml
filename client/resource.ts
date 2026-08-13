@@ -697,7 +697,7 @@ export class Resources {
         if (cachedComponent == null) {
             cachedComponent = this.cachedComponents.get(componentId);
             if (cachedComponent == null) {
-                this.logger.error(`${this.logger.prefix}component not found failed to fetch `, url);
+                this.logger.log(`${this.logger.prefix}component not cached `, url);
                 return null;
             }
         }

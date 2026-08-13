@@ -14,6 +14,7 @@
 //                | Last-Modified            ; Section 14.29
 //                | extension-header
 
+import { Buffer } from "buffer";
 
 // 2.2 Basic Rules
 

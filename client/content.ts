@@ -13,11 +13,10 @@ import { BMLBrowserEventTarget, Indicator, InputApplication, KeyGroup, Profile a
 import { convertJPEG } from "./arib_jpeg";
 import { getTextDecoder } from "./text";
 import { DRCSGlyphs } from "./drcs";
-// @ts-ignore
-import defaultCSS from "../public/default.css";
-// @ts-ignore
-import defaultCProfileCSS from "../public/default_c.css";
 import { type Logger } from "./util/logger";
+
+import { defaultCSS } from "./default_css";
+import { defaultCProfileCSS } from "./default_c_css";
 
 export enum AribKeyCode {
     Up = 1,

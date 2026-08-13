@@ -1,7 +1,7 @@
 import Mpegts from "mpegts.js";
 import * as aribb24js from "aribb24.js";
 import { VideoPlayer } from "./video_player";
-import { playRomSound } from "../romsound";
+import { playRomSound } from "web-bml";
 
 // Based on EPGStation
 

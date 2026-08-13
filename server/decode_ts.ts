@@ -1,9 +1,12 @@
-import stream from "stream";
-import { TsUtil, TsChar, TsStream, TsDate } from "@chinachu/aribts";
-import zlib from "zlib";
-import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from './entity_parser';
+import { Buffer } from "buffer";
+import { TSReader } from "arib-mmt-tlv-ts/ts/reader.js";
+import { decodeSIText } from "arib-mmt-tlv-ts/ts/si-text-decoder.js";
+import { bcdTimeToSeconds, mjdBCDToUnixEpoch } from "arib-mmt-tlv-ts/utils.js";
+import { type TSPacket } from "arib-mmt-tlv-ts/ts/packet.js";
+import { unzlibSync } from "fflate";
+import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from "./entity_parser";
 import * as wsApi from "./ws_api";
-import { ComponentPMT, AdditionalAribBXMLInfo } from './ws_api';
+import type { ComponentPMT, AdditionalAribBXMLInfo } from "./ws_api";
 
 type DownloadComponentInfo = {
     componentId: number,
@@ -24,7 +27,7 @@ type DownloadModuleInfo = {
     moduleVersion: number,
     moduleSize: number,
     contentType?: string,
-    blocks?: (Buffer | undefined)[],
+    blocks?: (Uint8Array | undefined)[],
     downloadedBlockCount: number,
     dataEventId: number,
 };
@@ -45,33 +48,43 @@ export type DecodeTSOptions = {
     sendCallback: (msg: wsApi.ResponseMessage) => void;
     serviceId?: number;
     parsePES?: boolean;
-    dumpError?: boolean;
 };
 
 type CachedComponent = {
     modules: Map<number, CachedModule>,
 };
 
-export function decodeTS(options: DecodeTSOptions): TsStream {
-    const { sendCallback: send, serviceId, parsePES, dumpError } = options;
-    const tsStream = new TsStream();
-    const tsUtil = new TsUtil();
+export function decodeTS(options: DecodeTSOptions) {
+    const reader = new TSReader();
+    const { sendCallback: send, serviceId: specifiedServiceId, parsePES } = options;
     let pmtRetrieved = false;
     let pidToComponent = new Map<number, ComponentPMT>();
     let componentToPid = new Map<number, ComponentPMT>();
     let currentTime: number | null = null;
     const downloadComponents = new Map<number, DownloadComponentInfo>();
     const cachedComponents = new Map<number, CachedComponent>();
-    let currentProgramInfo: wsApi.ProgramInfoMessage | null = null;
+    let currentProgramInfo: wsApi.ProgramInfoMessage = {
+                    type: "programInfo",
+                    eventId: null,
+                    transportStreamId: null,
+                    originalNetworkId: null,
+                    serviceId: null,
+                    eventName: null,
+                    startTimeUnixMillis: null,
+                    durationSeconds: null,
+                    indefiniteDuration: null,
+                    networkId: null,
+                };
     // SDTのEIT_present_following_flag
     // key: service_id
     const eitPresentFollowingFlag = new Map<number, boolean>();
     // program_number = service_id
     let pidToProgramNumber = new Map<number, number>();
-    let programNumber: number | null = null;
-    let pcr_pid: number | null = null;
+    let serviceId: number | null = specifiedServiceId ?? null;
+    let pcrPID: number | null = null;
     // 字幕/文字スーパーのPESのPID
     let privatePes = new Set<number>();
+    let privatePesBuffers = new Map<number, { length: number; received: number; buffer: Uint8Array[]; continuityCounter: number }>();
 
     // ワンセグの場合0x1fc8-0x1fcfまでの固定PIDでPMTでワンセグのみを受信している場合PATは受信されない
     // ワンセグPMTを10回受信する間にPATが未受信であればワンセグだと判定
@@ -79,33 +92,9 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
     let oneSeg = false;
     let patRetrieved = false;
 
-    if (dumpError) {
-        tsStream.on("drop", (pid: any, counter: any, expected: any) => {
-            let time = "unknown";
-
-            if (tsUtil.hasTime()) {
-                let date = tsUtil.getTime();
-                if (date) {
-                    time = `${("0" + date.getHours()).slice(-2)}:${("0" + date.getMinutes()).slice(-2)}:${("0" + date.getSeconds()).slice(-2)}`;
-                }
-            }
-
-            console.error(`pid: 0x${("000" + pid.toString(16)).slice(-4)}, counter: ${counter}, expected: ${expected}, time: ${time}`);
-        });
-    }
-
-    tsStream.on("info", (data: any) => {
-        console.error("");
-        console.error("info:");
-        Object.keys(data).forEach(key => {
-            console.error(`0x${("000" + parseInt(key, 10).toString(16)).slice(-4)}: packet: ${data[key].packet}, drop: ${data[key].drop}, scrambling: ${data[key].scrambling}`);
-        });
-    });
-
-    tsStream.on("tdt", (pid: any, data: any) => {
-        tsUtil.addTdt(pid, data);
-        const time = tsUtil.getTime()?.getTime();
-        if (time != null && currentTime !== time) {
+    reader.addEventListener("tot", ({ section }) => {
+        const time = mjdBCDToUnixEpoch(section.jstTime) * 1000;
+        if (currentTime !== time) {
             currentTime = time;
             send({
                 type: "currentTime",
@@ -114,34 +103,20 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
         }
     });
 
-    tsStream.on("tot", (pid: any, data: any) => {
-        tsUtil.addTot(pid, data);
-        const time = tsUtil.getTime()?.getTime();
-        if (time != null && currentTime !== time) {
-            currentTime = time;
-            send({
-                type: "currentTime",
-                timeUnixMillis: currentTime,
-            });
-        }
-    });
-
-    tsStream.on("pat", (pid: any, data: any) => {
+    reader.addEventListener("pat", ({ section }) => {
         patRetrieved = true;
-        tsUtil.addPat(pid, data);
-        const programs: { program_number: number, network_PID?: number, program_map_PID?: number }[] = data.programs;
         const pat = new Map<number, number>();
-        programNumber = null;
-        for (const program of programs) {
-            if (program.program_map_PID != null) {
-                // 多重化されていればとりあえず一番最初のprogram_number使っておく
-                programNumber ??= program.program_number;
-                pat.set(program.program_map_PID, program.program_number);
+        for (const program of section.programs) {
+            if (program.type === "networkPID") {
+                continue;
             }
+            // 多重化されていればとりあえず一番最初のprogram_number使っておく
+            pat.set(program.programMapPID, program.programNumber);
+            serviceId ??= program.programNumber;
         }
         if (pat.size !== pidToProgramNumber.size || [...pidToProgramNumber.keys()].some((x) => !pat.has(x))) {
             console.log("PAT changed", pat);
-            if (serviceId != null && pat.size !== 1) {
+            if (specifiedServiceId != null && pat.size !== 1) {
                 console.warn("multiplexed!");
             }
             pmtRetrieved = false;
@@ -149,53 +124,44 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
         pidToProgramNumber = pat;
     });
 
-    tsStream.on("pmt", (pid: any, data: any) => {
+    reader.addEventListener("pmt", ({ pid, section }) => {
         // 多重化されている
         if (!oneSeg && pidToProgramNumber.size !== 1) {
             if (pidToProgramNumber.size === 0 && pid === 0x1fc8 && !patRetrieved) {
                 oneSegPMTCount++;
                 if (oneSegPMTCount >= 10) {
                     oneSeg = true;
-                    programNumber ??= data.program_number;
+                    serviceId ??= section.programNumber;
                 }
             }
-            if (pidToProgramNumber.get(pid) !== (serviceId ?? programNumber)) {
-                return;
-            }
+        }
+        if (section.programNumber !== serviceId) {
+            return;
         }
         const ptc = new Map<number, ComponentPMT>();
         const ctp = new Map<number, ComponentPMT>();
         privatePes.clear();
-        for (const stream of data.streams) {
-            if (parsePES && stream.stream_type === 0x06) {
-                privatePes.add(stream.elementary_PID);
+        for (const stream of section.streams) {
+            if (parsePES && stream.streamType === 0x06) {
+                privatePes.add(stream.elementaryPID);
             }
-            const pid = stream.elementary_PID;
+            const pid = stream.elementaryPID;
             let bxmlInfo: AdditionalAribBXMLInfo | undefined;
             let componentId: number | undefined;
-            let data_component_id: number | undefined;
-            for (const esInfo of stream.ES_info) {
-                if (esInfo.descriptor_tag == 0x52) { // Stream identifier descriptor ストリーム識別記述子
+            let dataComponentId: number | undefined;
+            for (const esInfo of stream.esInfo) {
+                if (esInfo.tag == "streamIdentifier") { // Stream identifier descriptor ストリーム識別記述子
                     // PID => component_tagの対応
-                    const component_tag = esInfo.component_tag;
-                    componentId = component_tag;
-                } else if (esInfo.descriptor_tag == 0xfd) { // Data component descriptor データ符号化方式記述子
-                    let additional_data_component_info: Buffer = esInfo.additional_data_component_info;
-                    data_component_id = esInfo.data_component_id as number;
-                    // FIXME!!!!!!!!
-                    // aribtsの実装がおかしくてdata_component_idを8ビットとして読んでる
-                    if (esInfo.additional_data_component_info.length + 1 === esInfo.descriptor_length) {
-                        data_component_id <<= 8;
-                        data_component_id |= additional_data_component_info[0];
-                        additional_data_component_info = additional_data_component_info.subarray(1);
-                    }
+                    componentId = esInfo.componentTag;
+                } else if (esInfo.tag == "dataComponent") { // Data component descriptor データ符号化方式記述子
+                    dataComponentId = esInfo.dataComponentId;
                     // STD-B10 第2部 付録J 表J-1参照
-                    if (data_component_id == 0x0C || // 地上波
-                        data_component_id == 0x0D || // 地上波
-                        data_component_id == 0x07 || // BS
-                        data_component_id == 0x0B // CS
+                    if (dataComponentId == 0x0C || // 地上波
+                        dataComponentId == 0x0D || // 地上波
+                        dataComponentId == 0x07 || // BS
+                        dataComponentId == 0x0B // CS
                     ) {
-                        bxmlInfo = decodeAdditionalAribBXMLInfo(additional_data_component_info);
+                        bxmlInfo = decodeAdditionalAribBXMLInfo(Buffer.from(esInfo.additionalDataComponentInfo));
                     }
                 }
             }
@@ -206,13 +172,16 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                 componentId,
                 pid,
                 bxmlInfo,
-                streamType: stream.stream_type,
-                dataComponentId: data_component_id,
+                streamType: stream.streamType,
+                dataComponentId: dataComponentId,
             };
             ptc.set(pid, componentPMT);
             ctp.set(componentPMT.componentId, componentPMT);
         }
-        pcr_pid = data.PCR_PID;
+        updateProgramInfo({
+            serviceId,
+        });
+        pcrPID = section.pcrPID;
         pidToComponent = ptc;
         if (!pmtRetrieved || componentToPid.size !== ctp.size || [...componentToPid.keys()].some((x) => !ctp.has(x))) {
             // PMTが変更された
@@ -228,62 +197,114 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
     });
 
 
-    tsStream.on("packet", (pid, data) => {
-        if (privatePes.has(pid) && data.data_byte != null) {
-            const info = (tsStream.info as any)[pid];
-            if (data.payload_unit_start_indicator) {
-                info.buffer.reset();
-                info.buffer.add(data.data_byte);
-                if (data.data_byte.length >= 6) {
-                    info.buffer.entireLength = data.data_byte.readUInt16BE(4) + 6;
-                } else {
-                    info.buffer.entireLength = 0x7fffffff;
-                }
-            } else {
-                info.buffer.add(data.data_byte);
-            }
-            if (info.buffer.entireLength === info.buffer.length) {
-                const pes: Buffer = info.buffer.concat();
-                info.buffer.reset();
-                const msg = decodePES(pes);
+    function onPrivatePESPacket(packet: TSPacket) {
+        if (packet.transportScramblingControl !== 0) {
+            return;
+        }
+        let buffer = privatePesBuffers.get(packet.pid);
+        if (packet.payloadUnitStartIndicator) {
+            privatePesBuffers.delete(packet.pid);
+        }
+        if (packet.payloadUnitStartIndicator && buffer?.length === 0 && buffer?.buffer.length > 0) {
+            if (((buffer.continuityCounter + 1) & 15) === packet.continuityCounter) {
+                const msg = decodePES(Buffer.concat(buffer.buffer));
                 if (msg != null) {
                     send(msg);
                 }
             }
         }
-        if (pid !== pcr_pid) {
+        const payload = packet.data.slice(packet.payloadOffset);
+        if (packet.payloadUnitStartIndicator) {
+            if (payload.length > 6) {
+                if (payload[0] !== 0x00 || payload[1] !== 0x00 || payload[2] !== 0x01) {
+                    privatePesBuffers.delete(packet.pid);
+                    return;
+                } else {
+                    const length = (payload[4] << 8) | payload[5];
+                    if (length === 0) {
+                        buffer = { length: 0, received: payload.length, buffer: [payload], continuityCounter: packet.continuityCounter };
+                    } else {
+                        buffer = { length: length + 6, received: payload.length, buffer: [payload], continuityCounter: packet.continuityCounter };
+                    }
+                    privatePesBuffers.set(packet.pid, buffer);
+                }
+            }
+        } else {
+            if (buffer == null) {
+                return;
+            }
+            if (buffer.continuityCounter === packet.continuityCounter) {
+                return;
+            }
+            if (((buffer.continuityCounter + 1) & 15) !== packet.continuityCounter) {
+                privatePesBuffers.delete(packet.pid);
+                return;
+            }
+            buffer.continuityCounter = packet.continuityCounter;
+            buffer.buffer.push(payload);
+            buffer.received += payload.length;
+        }
+        if (buffer == null) {
             return;
         }
-        const program_clock_reference_base = data.adaptation_field?.program_clock_reference_base;
-        const program_clock_reference_extension = data.adaptation_field?.program_clock_reference_extension;
-        // console.log(program_clock_reference_base);
-        if (program_clock_reference_base != null && program_clock_reference_extension != null) {
-            send({
-                type: "pcr",
-                pcrBase: program_clock_reference_base,
-                pcrExtension: program_clock_reference_extension,
-            });
+        if (buffer.length !== 0 && buffer.length <= buffer.received) {
+            privatePesBuffers.delete(packet.pid);
+            const msg = decodePES(Buffer.concat(buffer.buffer).subarray(0, buffer.length));
+            if (msg != null) {
+                send(msg);
+            }
         }
+    }
+
+    reader.addEventListener("packet", ({ packet }) => {
+        if (packet.transportErrorIndicator) {
+            return;
+        }
+        if (privatePes.has(packet.pid)) {
+            onPrivatePESPacket(packet);
+        }
+        if (packet.pid !== pcrPID) {
+            return;
+        }
+        if (packet.adaptationFieldControl !== 2 && packet.adaptationFieldControl !== 3) {
+            return;
+        }
+        const adaptationFieldLength = packet.data[4];
+        if (adaptationFieldLength < 1 + 6) {
+            return;
+        }
+        const pcrFlag = !!(packet.data[5] & 16);
+        if (!pcrFlag) {
+            return;
+        }
+        let pcrBase = 0;
+        pcrBase += packet.data[6] * 0x01000000 * 2;
+        pcrBase += packet.data[7] * 0x00010000 * 2;
+        pcrBase += packet.data[8] * 0x00000100 * 2;
+        pcrBase += packet.data[9] * 0x00000001 * 2;
+        pcrBase += packet.data[10] & 0x80 ? 1 : 0;
+        const pcrExtension = ((packet.data[10] & 1) << 8) | packet.data[11];
+        send({
+            type: "pcr",
+            pcrBase,
+            pcrExtension,
+        });
     });
 
-    tsStream.on("bit", (_pid, data) => {
-        // FIXME: node-aribts側の問題でCRCが不一致だと変なobjBitが送られてきてしまう
-        if (data.broadcaster_descriptors == null) {
-            return;
-        }
+    reader.addEventListener("bit", ({ section }) => {
         // data.first_descriptorsはSI伝送記述子のみ
         // 地上波だとbroadcaster_idは255
-        const original_network_id: number = data.original_network_id;
         const broadcasters: wsApi.BITBroadcaster[] = [];
-        for (const broadcaster_descriptor of data.broadcaster_descriptors) {
-            let broadcaster_id: number = broadcaster_descriptor.broadcaster_id;
-            const broadcasterNameDescriptor = broadcaster_descriptor.descriptors.find((x: any) => x.descriptor_tag === 0xD8);
-            const broadcasterName = broadcasterNameDescriptor?.char == null ? null : new TsChar(broadcasterNameDescriptor.char).decode();
-            const serviceListDescriptor = broadcaster_descriptor.descriptors.find((x: any) => x.descriptor_tag === 0x41);
-            const extendedBroadcasterDescriptor = broadcaster_descriptor.descriptors.find((x: any) => x.descriptor_tag === 0xCE);
-            const affiliations = extendedBroadcasterDescriptor?.affiliations?.map((x: { affiliation_id: number }) => x.affiliation_id) ?? [];
-            const affiliationBroadcasters = extendedBroadcasterDescriptor?.broadcasters?.map((x: { original_network_id: number, broadcaster_id: number }) => ({ originalNetworkId: x.original_network_id, broadcasterId: x.broadcaster_id })) ?? [];
-            const services = (serviceListDescriptor?.services as ({ service_id: number, service_type: number }[] | null | undefined))?.map(x => ({ serviceId: x.service_id, serviceType: x.service_type })) ?? [];
+        for (const descriptor of section.broadcasters) {
+            let broadcaster_id = descriptor.broadcasterId;
+            const broadcasterNameDescriptor = descriptor.broadcasterDescriptors.find((x) => x.tag === "broadcasterName");
+            const broadcasterName = broadcasterNameDescriptor?.name == null ? null : decodeSIText(broadcasterNameDescriptor?.name);
+            const serviceListDescriptor = descriptor.broadcasterDescriptors.find((x) => x.tag === "serviceList");
+            const extendedBroadcasterDescriptor = descriptor.broadcasterDescriptors.find((x) => x.tag === "extendedBroadcaster");
+            const terDescriptor = extendedBroadcasterDescriptor?.broadcasterType === "terrestrial" ? extendedBroadcasterDescriptor : undefined;
+            const affiliations = terDescriptor?.affiliationIdList ?? [];
+            const affiliationBroadcasters = terDescriptor?.broadcasters ?? [];
+            const services = serviceListDescriptor?.services ?? [];
             if (broadcaster_id === 255) {
                 // broadcaster_id = extendedBroadcasterDescriptor?.terrestrial_broadcaster_id ?? broadcaster_id;
             }
@@ -293,201 +314,151 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                 broadcasterName,
                 affiliationBroadcasters: affiliationBroadcasters,
                 services,
-                terrestrialBroadcasterId: extendedBroadcasterDescriptor?.terrestrial_broadcaster_id,
+                terrestrialBroadcasterId: terDescriptor?.terrestrialBroadcasterId,
             };
             broadcasters.push(broadcaster);
         }
         const msg: wsApi.BITMessage = {
             type: "bit",
             broadcasters,
-            originalNetworkId: original_network_id,
+            originalNetworkId: section.originalNetworkId,
         };
         send(msg);
     });
 
-    function getStreamInfo() {
-        if (!tsUtil.hasOriginalNetworkId() || !tsUtil.hasTransportStreamId() || !tsUtil.hasTransportStreams(tsUtil.getOriginalNetworkId())) {
-            return;
-        }
-
-        return {
-            onid: (tsUtil.getTransportStreams(tsUtil.getOriginalNetworkId()) as { [key: number]: any })[tsUtil.getTransportStreamId()].original_network_id,
-            tsid: tsUtil.getTransportStreamId(),
-            sid: serviceId ?? programNumber,
-            nid: tsUtil.getOriginalNetworkId(),
-        };
-    }
-
-    function sendStreamInfo() {
-        if (currentProgramInfo == null) {
-            const ids = getStreamInfo();
-            if (ids != null) {
-                currentProgramInfo = {
-                    type: "programInfo",
-                    eventId: null,
-                    transportStreamId: ids.tsid,
-                    originalNetworkId: ids.onid,
-                    serviceId: ids.sid,
-                    eventName: null,
-                    startTimeUnixMillis: null,
-                    durationSeconds: null,
-                    indefiniteDuration: null,
-                    networkId: ids.nid,
-                };
-                send(currentProgramInfo);
+    function updateProgramInfo(info: Partial<wsApi.ProgramInfoMessage>) {
+        for (const key of Object.keys(currentProgramInfo) as (keyof wsApi.ProgramInfoMessage)[]) {
+            if (key in info) {
+                if (info[key] !== currentProgramInfo[key]) {
+                    currentProgramInfo = {
+                        ...currentProgramInfo,
+                        ...info,
+                    };
+                    send(currentProgramInfo);
+                    return;
+                }
             }
         }
     }
 
-    tsStream.on("eit", (pid, data) => {
-        // FIXME: node-aribts側の問題でCRCが不一致だと変なobjEitが送られてきてしまう
-        if (data.events == null) {
-            return;
-        }
+    reader.addEventListener("eit", ({ pid, section }) => {
         if (oneSeg && pid !== 0x0027) { // L-EIT
             return;
         } else if (!oneSeg && pid !== 0x0012) { // H-EIT
             return;
         }
-        const ids = getStreamInfo();
-        if (ids == null) {
+        if (currentProgramInfo.originalNetworkId !== section.originalNetworkId || section.serviceId !== serviceId) {
             return;
         }
-        if (ids.onid !== data.original_network_id || data.service_id !== ids.sid) {
+        if (!section.currentNextIndicator) {
             return;
         }
-        if (data.current_next_indicator === 0) {
+        if (section.tableId !== "EIT[p/f]" || section.other) { // 自TS, 現在/次のイベント情報
             return;
         }
-        if (data.table_id !== 0x4e) { // 自TS, 現在/次のイベント情報
+        if (section.sectionNumber !== 0) { // 現在のイベント情報かどうか
             return;
         }
-        if (data.section_number !== 0) { // 現在のイベント情報かどうか
+        if (section.events.length !== 1) {
             return;
         }
-        if (data.events.length !== 1) {
-            return;
-        }
-        const event = data.events[0];
-        const duration = new TsDate(event.duration).decodeTime();
-        const durationSeconds = duration[0] * 3600 + duration[1] * 60 + duration[2];
+        const event = section.events[0];
+        const eventId = event.eventId;
         // STD-B10: duration全ビット1 (0xFFFFFF)は継続時間未定
         // そのときdecodeTime()はBCDとして[165,165,165]になりdurationSecondsは巨大な値になる
         // browser.epgGetEventDurationは未定時の戻り値が仕様上定められていないため、
         // durationSecondsはそのまま残し、未定であることだけindefiniteDurationで伝える
-        const indefiniteDuration = event.duration[0] === 0xff && event.duration[1] === 0xff && event.duration[2] === 0xff;
-        const startTime =  new TsDate(event.start_time).decode();
-        const eventId: number = event.event_id;
-        const descriptors: any[] = event.descriptors;
-        const shortEvent = descriptors.find(x => x.descriptor_tag === 0x4D); // 短形式イベント記述子
-        const shortEventName = shortEvent == null ? null : new TsChar(shortEvent.event_name_char).decode();
-        const prevProgramInfo = currentProgramInfo;
-        currentProgramInfo = {
-            type: "programInfo",
-            eventId: eventId,
-            transportStreamId: ids.tsid,
-            originalNetworkId: ids.onid,
-            serviceId: ids.sid,
-            eventName: shortEventName,
-            startTimeUnixMillis: startTime?.getTime(),
-            durationSeconds: durationSeconds,
+        const durationSeconds = bcdTimeToSeconds(event.duration ?? 0xffffff);
+        const indefiniteDuration = event.duration == null;
+        const startTimeUnixMillis =  event.startTime == null ? null : mjdBCDToUnixEpoch(event.startTime) * 1000;
+        const shortEvent = event.descriptors.find(x => x.tag === "shortEvent"); // 短形式イベント記述子
+        const eventName = shortEvent == null ? null : decodeSIText(shortEvent.eventName);
+        updateProgramInfo({
+            eventId,
+            eventName,
+            startTimeUnixMillis,
+            durationSeconds,
             indefiniteDuration,
-            networkId: ids.nid,
-        };
-        if (prevProgramInfo?.eventId !== currentProgramInfo.eventId ||
-            prevProgramInfo?.transportStreamId !== currentProgramInfo.transportStreamId ||
-            prevProgramInfo?.originalNetworkId !== currentProgramInfo.originalNetworkId ||
-            prevProgramInfo?.serviceId !== currentProgramInfo.serviceId ||
-            prevProgramInfo?.startTimeUnixMillis !== currentProgramInfo.startTimeUnixMillis ||
-            prevProgramInfo?.eventName !== currentProgramInfo.eventName ||
-            prevProgramInfo?.durationSeconds !== currentProgramInfo.durationSeconds ||
-            prevProgramInfo?.indefiniteDuration !== currentProgramInfo.indefiniteDuration ||
-            prevProgramInfo?.networkId !== currentProgramInfo.networkId) {
-            send(currentProgramInfo);
+        });
+    });
+
+    reader.addEventListener("nit", ({ section }) => {
+        if (section.tableId === "NIT[actual]") {
+            updateProgramInfo({
+                networkId: section.networkId,
+            });
         }
     });
 
-    tsStream.on("nit", (pid, data) => {
-        tsUtil.addNit(pid, data);
-        sendStreamInfo();
-    });
-
-    tsStream.on("sdt", (pid, data) => {
-        tsUtil.addSdt(pid, data);
-        eitPresentFollowingFlag.clear();
-        if (data.table_id === 0x42) { // 自ストリームのSDT
-            for (const service of data.services) {
-                eitPresentFollowingFlag.set(service.service_id, service.EIT_present_following_flag !== 0);
+    reader.addEventListener("sdt", ({ section }) => {
+        if (section.tableId === "SDT[actual]") { // 自ストリームのSDT
+            eitPresentFollowingFlag.clear();
+            for (const service of section.services) {
+                eitPresentFollowingFlag.set(service.serviceId, service.eitPresentFollowingFlag);
                 for (const descriptor of service.descriptors) {
-                    if (descriptor.descriptor_tag == 0x48) {// 0x48 サービス記述子
+                    if (descriptor.tag === "service") {// 0x48 サービス記述子
                         // console.log(service.service_id, new TsChar(descriptor.service_name_char).decode(), new TsChar(descriptor.service_provider_name_char).decode());
                     }
                 }
             }
+            updateProgramInfo({
+                originalNetworkId: section.originalNetworkId,
+                transportStreamId: section.transportStreamId
+            });
         }
-        sendStreamInfo();
     });
 
-    tsStream.on("sit", (pid: any, data: any) => {
-        const services = data.services[0].service;
-        const short_event_descriptor = services.filter((data: any) => data.descriptor_tag === 0x4D);
-        const event_name_char = new TsChar(short_event_descriptor[0].event_name_char).decode();
-        const serviceId = data.services[0].service_id;
-        let originalNetworkId = data.transmission_info[1].network_id;
-        let transportStreamId = null;
+    reader.addEventListener("sit", ({ section }) => {
+        const service = section.services.find((service) => service.serviceId === serviceId);
+        if (service == null) {
+            return;
+        }
+        const shortEventDescriptor = service.descriptors.find((desc) => desc.tag === "shortEvent");
+        const eventName = shortEventDescriptor == null ? null : decodeSIText(shortEventDescriptor.eventName);
+        const networkId = section.transmissionInfoDescriptors.find((desc) => desc.tag === "networkIdentification")?.networkId;
+        let transportStreamId: number | null = null;
+        let eventId: number | null = null;
+        let durationSeconds: number | null = null;
+        let indefiniteDuration: boolean | null = null;
 
-        const transmission_tot = data.transmission_info.filter((data: { [key: string]: any }) => data.descriptor_tag === 0xC3);
-        const service_tot = services.filter((data: { [key: string]: any }) => data.descriptor_tag === 0xC3);
+        const transmissionTime = section.transmissionInfoDescriptors.find((desc) => desc.tag === "partialTSTime");
+        const serviceTime = service.descriptors.find((desc) => desc.tag === "partialTSTime");
 
         // JSTはjst_time_flag=1のときだけ有効なので、フラグ付きを1st→2ndの順で探す
-        let jst_time: number | null = null;
-        for (const descriptor of [...transmission_tot, ...service_tot]) {
-            if (descriptor.jst_time_flag === 1 && descriptor.jst_time != null) {
-                jst_time = new TsDate(descriptor.jst_time).decode().getTime();
-                break;
-            }
-        }
+        const bcdJSTTime = transmissionTime?.jstTime ?? serviceTime?.jstTime;
+        const jstTime = bcdJSTTime == null ? null : mjdBCDToUnixEpoch(bcdJSTTime) * 1000;
 
         // event_start_timeは2nd loopでのみ有効
-        let event_start_time: number | null = null;
-        if (service_tot.length > 0) {
-            const eventStartTimeBytes: Buffer | undefined = service_tot[0].event_start_time;
-            if (eventStartTimeBytes != null && !eventStartTimeBytes.every((byte: number) => byte === 0xff)) {
-                event_start_time = new TsDate(eventStartTimeBytes).decode().getTime();
+        let startTimeUnixMillis: number | null = null;
+        if (serviceTime != null) {
+            if (serviceTime.eventStartTime != null) {
+                startTimeUnixMillis = mjdBCDToUnixEpoch(serviceTime.eventStartTime) * 1000;
             }
+            durationSeconds = bcdTimeToSeconds(serviceTime.duration ?? 0xffffff);
+            indefiniteDuration = serviceTime.duration == null;
         }
 
-        const event_group_descriptor = services.filter((data: any) => data.descriptor_tag === 0xD6);
-        let eventId = null;
-        if (event_group_descriptor.length > 0) {
-            if (event_group_descriptor[0].events.filter((data: any) => data.service_id === serviceId).length > 0) {
-                eventId = event_group_descriptor[0].events.filter((data: any) => data.service_id === serviceId)[0].event_id;
-            }
+        const broadcastIdDescriptor = service.descriptors.find((desc) => desc.tag === "broadcastId");
+        let originalNetworkId = networkId ?? null;
+        if (broadcastIdDescriptor != null) {
+            originalNetworkId = broadcastIdDescriptor.originalNetworkId;
+            transportStreamId = broadcastIdDescriptor.transportStreamId;
+            eventId = broadcastIdDescriptor.eventId;
         }
 
-        const broadcast_id_descriptor = services.find((data: any) => data.descriptor_tag === 0x85);
-        if (broadcast_id_descriptor) {
-            originalNetworkId = broadcast_id_descriptor.original_network_id;
-            transportStreamId = broadcast_id_descriptor.transport_stream_id;
-            eventId = broadcast_id_descriptor.event_id;
-        }
-
-        currentProgramInfo = {
-            type: "programInfo",
-            eventId,
-            transportStreamId,
+        updateProgramInfo({
+            networkId,
             originalNetworkId,
-            serviceId,
-            eventName: event_name_char,
-            startTimeUnixMillis: event_start_time,
-            durationSeconds: null,
-            indefiniteDuration: null,
-            networkId: null,
-        };
-        send(currentProgramInfo);
+            transportStreamId,
+            eventId,
+            eventName,
+            startTimeUnixMillis,
+            durationSeconds,
+            indefiniteDuration,
+        });
 
-        if (jst_time != null && currentTime !== jst_time) {
-            currentTime = jst_time;
+        if (jstTime != null && currentTime !== jstTime) {
+            currentTime = jstTime;
             send({
                 type: "currentTime",
                 timeUnixMillis: currentTime,
@@ -495,30 +466,29 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
         }
     });
 
-    tsStream.on("dsmcc", (pid: any, data: any) => {
+    reader.addEventListener("dsmcc", ({ pid, section }) => {
         const c = pidToComponent.get(pid);
         if (c == null) {
             return;
         }
         const { componentId, bxmlInfo } = c;
-        if (data.table_id === 0x3b) {
+        if (section.tableId === "DII") {
             // DII
             // console.log(pid, data);
-            const transationIdLow2byte: number = data.table_id_extension;
-            const sectionNumber: number = data.section_number;
-            const lastSectionNumber: number = data.last_section_number;
+            const transationIdLow2byte = section.tableIdExtension;
+            const sectionNumber = section.sectionNumber;
+            const lastSectionNumber = section.lastSectionNumber;
 
             // dsmccMessageHeader
             // protocolDiscriminatorは常に0x11
             // dsmccTypeは常に0x03
             // messageIdは常に0x1002
-            const message = data.message;
-            const downloadId: number = message.downloadId;
+            const downloadId = section.downloadId;
             // downloadIdの下位28ビットは常に1で運用される
-            const data_event_id = (downloadId >> 28) & 15;
+            const dataEventId = (downloadId >> 28) & 15;
             const modules = new Map<number, DownloadModuleInfo>();
-            const transactionId: number = message.transaction_id;
-            if (downloadComponents.get(componentId)?.transactionId === data.message.transaction_id) {
+            const transactionId = section.dsmccMessageHeader.transactionId;
+            if (downloadComponents.get(componentId)?.transactionId === section.dsmccMessageHeader.transactionId) {
                 return;
             }
             const componentInfo: DownloadComponentInfo = {
@@ -526,20 +496,20 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                 modules,
                 transactionId,
                 downloadedModuleCount: 0,
-                dataEventId: data_event_id,
+                dataEventId,
             };
             // console.log(`componentId: ${componentId.toString(16).padStart(2, "0")} downloadId: ${downloadId}`)
             // blockSizeは常に4066
-            const blockSize: number = message.blockSize;
+            const blockSize = section.blockSize;
             // windowSize, ackPeriod, tCDownloadWindowは常に0
             // privateDataは運用しない
             // 0<=numberOfModules<=64で運用
             // moduleSize<=256KB
             // compatibilityDescriptorは運用しない
-            for (const module of data.message.modules) {
-                const moduleId: number = module.moduleId;
-                const moduleVersion: number = module.moduleVersion;
-                const moduleSize: number = module.moduleSize;
+            for (const module of section.modules) {
+                const moduleId = module.moduleId;
+                const moduleVersion = module.moduleVersion;
+                const moduleSize = module.moduleSize;
                 const moduleInfo: DownloadModuleInfo = {
                     compressionType: CompressionType.None,
                     moduleId,
@@ -547,34 +517,28 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                     moduleSize,
                     blocks: new Array(Math.ceil(moduleSize / blockSize)),
                     downloadedBlockCount: 0,
-                    dataEventId: data_event_id,
+                    dataEventId: dataEventId,
                 };
                 modules.set(moduleId, moduleInfo);
                 // console.log(`   moduleId: ${moduleId.toString(16).padStart(4, "0")} moduleVersion: ${moduleVersion}`)
-                for (const info of module.moduleInfo) {
+                for (const info of module.moduleInfoDescriptors) {
                     // Type記述子, ダウンロード推定時間記述子, Compression Type記述子のみ運用される(TR-B14 第三分冊 4.2.4 表4-4参照)
-                    if (info.descriptor_tag === 0x01) { // Type記述子 STD-B24 第三分冊 第三編 6.2.3.1
-                        const contentType = info.text_char.toString("ascii");
+                    if (info.tag === "type") { // Type記述子 STD-B24 第三分冊 第三編 6.2.3.1
+                        const contentType = Buffer.from(info.text).toString("ascii");
                         moduleInfo.contentType = contentType;
-                    } else if (info.descriptor_tag === 0x07) { // ダウンロード推定時間記述子 STD-B24 第三分冊 第三編 6.2.3.6
-                        const descriptor: Buffer = info.descriptor;
-                        const est_download_time = descriptor.readUInt32BE(0);
-                    } else if (info.descriptor_tag === 0xC2) { // Compression Type記述子 STD-B24 第三分冊 第三編 6.2.3.9
-                        const descriptor: Buffer = info.descriptor;
-                        const compression_type = descriptor.readInt8(0); // 0: zlib
-                        const original_size = descriptor.readUInt32BE(1);
-                        moduleInfo.originalSize = original_size;
-                        moduleInfo.compressionType = compression_type as CompressionType;
+                    } else if (info.tag === "estDownloadTime") { // ダウンロード推定時間記述子 STD-B24 第三分冊 第三編 6.2.3.6
+                    } else if (info.tag === "compressionType") { // Compression Type記述子 STD-B24 第三分冊 第三編 6.2.3.9
+                        moduleInfo.originalSize = info.originalSize;
+                        moduleInfo.compressionType = info.compressionType as CompressionType;
                     }
                 }
             }
             let returnToEntryFlag: boolean | undefined;
-            for (const privateData of data.message.privateData) {
-                const descriptor_tag: number = privateData.descriptor_tag;
+            for (const descriptor of section.privateDataDescriptors) {
                 // arib_bxml_privatedata_descriptor
                 // STD-B24 第二分冊 (1/2) 第二編 9.3.4参照
-                if (descriptor_tag === 0xF0) {
-                    returnToEntryFlag = !!(privateData.descriptor[0] & 0x80);
+                if (descriptor.tag === "aribBxmlPrivateData") {
+                    returnToEntryFlag = descriptor.returnToEntryFlag;
                 }
             }
             const cachedComponent = cachedComponents.get(componentId);
@@ -584,12 +548,12 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             send({
                 type: "moduleListUpdated",
                 componentId,
-                modules: data.message.modules.map((x: any) => ({ id: x.moduleId, version: x.moduleVersion, size: x.moduleSize })),
-                dataEventId: data_event_id,
+                modules: section.modules.map((x) => ({ id: x.moduleId, version: x.moduleVersion, size: x.moduleSize })),
+                dataEventId: dataEventId,
                 returnToEntryFlag,
             });
             downloadComponents.set(componentId, componentInfo);
-        } else if (data.table_id === 0x3c) {
+        } else if (section.tableId === "DDB") {
             if (bxmlInfo == null) {
                 return;
             }
@@ -598,21 +562,20 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                 return;
             }
             // DDB
-            const headerModuleId: number = data.table_id_extension;
-            const headerModuleVersionLow5bit: number = data.version_number;
-            const headerBlockNumberLow8bit: number = data.section_number;
+            const headerModuleId = section.moduleId;
+            const headerModuleVersionLow5bit = section.versionNumber;
+            const headerBlockNumberLow8bit = section.sectionNumber;
 
             // dsmccMessageHeader
             // protocolDiscriminatorは常に0x11
             // dsmccTypeは常に0x03
             // messageIdは常に0x1002
-            const message = data.message;
-            const downloadId: number = message.downloadId;
+            const downloadId = section.dsmccDownloadDataHeader.downloadId;
             // downloadIdの下位28ビットは常に1で運用される
             const data_event_id = (downloadId >> 28) & 15;
-            const moduleId = message.moduleId;
-            const moduleVersion = message.moduleVersion;
-            const blockNumber = message.blockNumber;
+            const moduleId = section.moduleId;
+            const moduleVersion = section.moduleVersion;
+            const blockNumber = section.blockNumber;
 
             const moduleInfo = componentInfo.modules.get(moduleId);
             // console.log(`download ${componentId.toString(16).padStart(2, "0")}/${moduleId.toString(16).padStart(4, "0")}`)
@@ -631,7 +594,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
             if (moduleInfo.blocks[blockNumber] != null) {
                 return;
             }
-            moduleInfo.blocks[blockNumber] = data.message.blockDataByte as Buffer;
+            moduleInfo.blocks[blockNumber] = section.blockData;
             moduleInfo.downloadedBlockCount++;
             if (moduleInfo.downloadedBlockCount >= moduleInfo.blocks.length) {
                 componentInfo.downloadedModuleCount++;
@@ -642,7 +605,7 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                     downloadModuleInfo: moduleInfo,
                     dataEventId: data_event_id,
                 };
-                let moduleData = Buffer.concat(moduleInfo.blocks as Buffer[]);
+                let moduleData = Buffer.concat(moduleInfo.blocks as Uint8Array[]);
                 moduleInfo.blocks = undefined;
                 const previousCachedModule = cachedComponent.modules.get(moduleInfo.moduleId);
                 if (previousCachedModule != null && previousCachedModule.downloadModuleInfo.moduleVersion === moduleInfo.moduleVersion && previousCachedModule.dataEventId === moduleInfo.dataEventId) {
@@ -650,7 +613,8 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                     return;
                 }
                 if (moduleInfo.compressionType === CompressionType.Zlib) {
-                    moduleData = zlib.inflateSync(moduleData) as Buffer<ArrayBuffer>;
+                    const r = unzlibSync(moduleData);
+                    moduleData = Buffer.from(r.buffer, r.byteOffset, r.byteLength);
                 }
                 const mediaType = moduleInfo.contentType == null ? null : parseMediaTypeFromString(moduleInfo.contentType).mediaType;
                 // console.info(`component ${componentId.toString(16).padStart(2, "0")} module ${moduleId.toString(16).padStart(4, "0")}updated`);
@@ -726,84 +690,44 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                 cachedComponent.modules.set(moduleInfo.moduleId, cachedModule);
                 cachedComponents.set(componentId, cachedComponent);
             }
-        } else if (data.table_id === 0x3d) {
+        } else if (section.tableId === "streamDescriptor") {
             // ストリーム記述子
-            const data_event_id = data.table_id_extension >> 12;
-            const event_msg_group_id = data.table_id_extension & 0b1111_1111_1111;
-            const stream_descriptor: Buffer = data.stream_descriptor;
             const events: wsApi.ESEvent[] = [];
-            for (let i = 0; i + 1 < stream_descriptor.length;) {
-                const descriptor_tag = stream_descriptor.readUInt8(i);
-                i++;
-                const descriptor_length = stream_descriptor.readUInt8(i);
-                i++;
-                const descriptor = stream_descriptor.subarray(i, i + descriptor_length);
-                i += descriptor_length;
-                if (descriptor.length !== descriptor_length) {
-                    break;
-                }
-                if (descriptor_tag === 0x17) { // NPT参照記述子 NPTReferenceDescriptor
-                    if (descriptor_length < 18) {
-                        continue;
-                    }
-                    // 0のみ運用
-                    const postDiscontinuityIndicator = descriptor[0] >> 7;
-                    // 運用しない (常に0)
-                    const dsm_contentId = descriptor[0] & 127;
-                    // 7bit reserved
-                    const STC_Reference = descriptor.readUInt32BE(2) + ((descriptor[1] & 1) * 0x100000000);
-                    // 31bit reserved
-                    const NPT_Reference = descriptor.readUInt32BE(10) + ((descriptor[9] & 1) * 0x100000000);
-                    // 0/1か1/1のみ運用
-                    const scaleNumerator = descriptor.readUInt16BE(14);
-                    const scaleDenominator = descriptor.readUInt16BE(16);
+            for (const descriptor of section.streamDescriptors) {
+                if (descriptor.tag === "nptReference") { // NPT参照記述子 NPTReferenceDescriptor
                     events.push({
                         type: "nptReference",
-                        postDiscontinuityIndicator: !!postDiscontinuityIndicator,
-                        dsmContentId: dsm_contentId,
-                        STCReference: STC_Reference,
-                        NPTReference: NPT_Reference,
-                        scaleNumerator,
-                        scaleDenominator,
+                        postDiscontinuityIndicator: !!descriptor.postDiscontinuityIndicator,
+                        dsmContentId: descriptor.dsmContentId,
+                        STCReference: descriptor.stcReference,
+                        NPTReference: descriptor.nptReference,
+                        scaleNumerator: descriptor.scaleNumerator,
+                        scaleDenominator: descriptor.scaleDenominator,
                     });
-                } else if (descriptor_tag === 0x40) { // 汎用イベントメッセージ記述子 General_event_descriptor
-                    if (descriptor_length < 11) {
-                        continue;
-                    }
-                    const event_msg_group_id = (descriptor.readUInt16BE(0) >> 4) & 0b1111_1111_1111;
-                    // 4bit reserved_future_use
-                    const time_mode = descriptor.readUInt8(2);
-
-                    const event_msg_type = descriptor.readUInt8(8);
-                    const event_msg_id = descriptor.readUInt16BE(9);
-                    const private_data_byte = descriptor.subarray(11);
+                } else if (descriptor.tag === "generalEvent") { // 汎用イベントメッセージ記述子 General_event_descriptor
                     // 0x00と0x02のみが運用される(TR-B14, TR-B15)
-                    if (time_mode === 0) {
-                        // 40bit reserved_future_use
+                    if (descriptor.time.timeMode === "immediate") {
                         events.push({
                             type: "immediateEvent",
-                            eventMessageType: event_msg_type,
-                            eventMessageGroupId: event_msg_group_id,
-                            eventMessageId: event_msg_id,
-                            privateDataByte: Array.from(private_data_byte),
-                            timeMode: time_mode
+                            eventMessageType: descriptor.eventMessageType,
+                            eventMessageGroupId: descriptor.eventMessageGroupId,
+                            eventMessageId: descriptor.eventMessageId,
+                            privateDataByte: Array.from(descriptor.privateData),
+                            timeMode: 0,
                         });
-                    } else if (time_mode === 0x01 || time_mode === 0x05) {
+                    } else if (descriptor.time.timeMode === "MJD" || descriptor.time.timeMode === "MJDStreamTime") {
                         // event_msg_MJD_JST_time
-                    } else if (time_mode === 0x02) {
-                        // 7bit reserved_future_use
-                        // event_msg_NPT
-                        const NPT = descriptor.readUInt32BE(4) + ((descriptor[3] & 1) * 0x100000000);
+                    } else if (descriptor.time.timeMode === "NPT") {
                         events.push({
                             type: "nptEvent",
-                            eventMessageType: event_msg_type,
-                            eventMessageNPT: NPT,
-                            eventMessageGroupId: event_msg_group_id,
-                            eventMessageId: event_msg_id,
-                            privateDataByte: Array.from(private_data_byte),
-                            timeMode: time_mode
+                            eventMessageType: descriptor.eventMessageType,
+                            eventMessageNPT: descriptor.time.eventMessageNPT,
+                            eventMessageGroupId: descriptor.eventMessageGroupId,
+                            eventMessageId: descriptor.eventMessageId,
+                            privateDataByte: Array.from(descriptor.privateData),
+                            timeMode: 2,
                         });
-                    } else if (time_mode === 0x03) {
+                    } else if (descriptor.time.timeMode === "relative") {
                         // 4bit reserved_future_use
                         // 36bit event_msg_relativeTime
                     }
@@ -813,11 +737,11 @@ export function decodeTS(options: DecodeTSOptions): TsStream {
                 type: "esEventUpdated",
                 events,
                 componentId,
-                dataEventId: data_event_id,
+                dataEventId: section.dataEventId,
             });
         }
     });
-    return tsStream;
+    return reader;
 }
 
 function decodeAdditionalAribBXMLInfo(additional_data_component_info: Buffer): AdditionalAribBXMLInfo {
