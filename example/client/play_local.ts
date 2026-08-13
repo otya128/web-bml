@@ -132,7 +132,6 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
     const params = new URLSearchParams(location.search);
     const serviceId = Number.parseInt(params.get("demultiplexServiceId") ?? "");
     const tsStream = decodeTS({ sendCallback: onMessage, parsePES: true, serviceId: isNaN(serviceId) ? undefined : serviceId });
-    tsStream.on("data", () => { });
     while (true) {
         const r = await reader.read();
         if (r.done) {
@@ -143,7 +142,7 @@ async function openReadableStream(stream: ReadableStream<Uint8Array>) {
         const chunkSize = 188 * 100;
         for (let i = 0; i < chunk.length; i += chunkSize) {
             const prevPCR = pcr;
-            tsStream._transform(chunk.subarray(i, i + chunkSize), null, () => { });
+            tsStream.push(chunk.subarray(i, i + chunkSize));
             const curPCR = pcr;
             const nowTime = performance.now();
             if (prevPCR == null) {

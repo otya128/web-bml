@@ -27,17 +27,8 @@ module.exports = {
         extensions: [
             '.ts', '.js', '.tsx'
         ],
-        fallback: {
-            process: require.resolve('process/browser'),
-            stream: require.resolve('stream-browserify'),
-        },
     },
     devtool: 'source-map',
-    plugins: [
-        new webpack.ProvidePlugin({
-            process: 'process/browser',
-        }),
-    ],
     ignoreWarnings: [/Failed to parse source map/],
 };
 
