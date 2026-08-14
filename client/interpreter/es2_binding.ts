@@ -48,7 +48,7 @@ function wrapArray(ctx: Context, array: any[] | PrimitiveValue): Value {
 
 function wrapDate(ctx: Context, date: Date | PrimitiveValue): Value {
     if (date instanceof Date) {
-        return newDate(ctx, date)
+        return newDate(ctx, date);
     } else {
         return date;
     }
@@ -550,7 +550,7 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
                 }
             }
             return browserAPI.browser.writeBookmarkArray(filename, title, dstURI, expire_str, bmType, linkMedia, usageFlag, extendedStructure, a);
-        }, 8, "writeBookmarkArray"),
+        }, 9, "writeBookmarkArray"),
     });
     browser.properties.set("readBookmarkArray", {
         ...desc,
@@ -835,8 +835,8 @@ export function defineBrowserBinding(context: Context, resources: Resources, bro
             const tel = yield* toString(ctx, args[0], caller);
             if (args.length < 5) {
                 const bProvider = toBoolean(args[1]);
-                const speed = yield* toNumber(ctx, args[1], caller);
-                const timeout = yield* toNumber(ctx, args[2], caller);
+                const speed = yield* toNumber(ctx, args[2], caller);
+                const timeout = yield* toNumber(ctx, args[3], caller);
                 return browserAPI.browser.connect(tel, bProvider, speed, timeout);
             } else {
                 const hostNo = yield* toString(ctx, args[1], caller);
