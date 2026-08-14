@@ -1,6 +1,6 @@
 {
   "name": "web-bml",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "./dist/client/bml_browser.js",
   "license": "MIT",
   "scripts": {
@@ -8,6 +8,7 @@
     "watch": "tsc -w"
   },
   "files": [
+    "src",
     "dist"
   ],
   "exports": {
