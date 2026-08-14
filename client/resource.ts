@@ -153,6 +153,14 @@ class CacheMap {
     }
 }
 
+function fromBase64(input: string): Uint8Array<ArrayBuffer> {
+    if ("fromBase64" in globalThis.Uint8Array) {
+        return Uint8Array.fromBase64(input);
+    } else {
+        return Uint8Array.from(window.atob(input), c => c.charCodeAt(0));
+    }
+}
+
 export enum Profile {
     BS = 0x0007,
     CS = 0x000b,
@@ -481,7 +489,7 @@ export class Resources {
                 files: new Map(msg.files.map(file => ([file.contentLocation?.toLowerCase() ?? null, {
                     contentLocation: file.contentLocation,
                     contentType: file.contentType,
-                    data: Uint8Array.from(window.atob(file.dataBase64), c => c.charCodeAt(0)),
+                    data: fromBase64(file.dataBase64),
                     blobUrl: new Map(),
                 }]))),
                 version: msg.version,

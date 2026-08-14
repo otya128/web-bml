@@ -54,6 +54,14 @@ type CachedComponent = {
     modules: Map<number, CachedModule>,
 };
 
+function toBase64(input: Buffer): string {
+    // Node 25からなため
+    if ("toBase64" in Uint8Array.prototype) {
+        return input.toBase64();
+    }
+    return input.toString("base64");
+}
+
 export function decodeTS(options: DecodeTSOptions) {
     const reader = new TSReader();
     const { sendCallback: send, serviceId: specifiedServiceId, parsePES } = options;
@@ -660,7 +668,7 @@ export function decodeTS(options: DecodeTSOptions) {
                             files: [...files.values()].map(x => ({
                                 contentType: x.contentType,
                                 contentLocation: x.contentLocation,
-                                dataBase64: x.data.toString("base64"),
+                                dataBase64: toBase64(x.data),
                             })),
                             version: moduleVersion,
                             dataEventId: data_event_id,
@@ -681,7 +689,7 @@ export function decodeTS(options: DecodeTSOptions) {
                         files: [...files.values()].map(x => ({
                             contentType: x.contentType,
                             contentLocation: x.contentLocation,
-                            dataBase64: x.data.toString("base64"),
+                            dataBase64: toBase64(x.data),
                         })),
                         version: moduleVersion,
                         dataEventId: data_event_id,
