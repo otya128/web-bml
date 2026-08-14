@@ -9,7 +9,7 @@ import { ResponseMessage } from "../server/ws_api";
 import { playRomSound } from "./romsound";
 import { AudioNodeProvider, Indicator, IP, Reg } from "./bml_browser";
 import { decodeEUCJP, encodeEUCJP, stripStringEUCJP } from "./euc_jp";
-import { decodeShiftJIS, encodeShiftJIS } from "./shift_jis";
+import { decodeShiftJIS, encodeShiftJIS, stripStringShiftJIS } from "./shift_jis";
 import { type Logger } from "./util/logger";
 // browser疑似オブジェクト
 
@@ -692,7 +692,7 @@ export class BrowserAPI {
 
     public setGreg(index: number, value: string) {
         if (index >= 0 && index < this.browser.Greg.length) {
-            this.greg.setReg(index, stripStringEUCJP(value, 256));
+            this.greg.setReg(index, this.resources.profile === resource.Profile.TrProfileC ? stripStringShiftJIS(value, 256) : stripStringEUCJP(value, 256));
         }
     }
 
@@ -706,7 +706,7 @@ export class BrowserAPI {
 
     public setUreg(index: number, value: string) {
         if (index >= 0 && index < this.browser.Ureg.length) {
-            this.ureg.setReg(index, stripStringEUCJP(value, 256));
+            this.ureg.setReg(index, this.resources.profile === resource.Profile.TrProfileC ? stripStringShiftJIS(value, 256) : stripStringEUCJP(value, 256));
         }
     }
 
