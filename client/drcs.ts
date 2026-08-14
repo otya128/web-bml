@@ -1,8 +1,7 @@
 import { jisToUnicodeMap } from "./jis_to_unicode_map";
 import CRC32 from "crc-32";
-import { Buffer } from "buffer";
 
-function readBits(posBits: number, bits: number, buffer: Buffer): number {
+function readBits(posBits: number, bits: number, buffer: Uint8Array): number {
     let value = 0;
     for (let i = 0; i < bits; i++) {
         value <<= 1;
@@ -27,11 +26,13 @@ export type DRCSGlyphs = {
 };
 
 export class BinaryWriter {
-    private buffer: Buffer<ArrayBuffer>;
+    private buffer: Uint8Array<ArrayBuffer>;
+    private view: DataView;
     private offset: number;
     private size: number;
     public constructor() {
-        this.buffer = Buffer.alloc(4096);
+        this.buffer = new Uint8Array(4096);
+        this.view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
         this.offset = 0;
         this.size = 0;
     }
@@ -47,15 +48,16 @@ export class BinaryWriter {
 
     private extend(needBytes: number) {
         const prevBuf = this.buffer;
-        this.buffer = Buffer.alloc(Math.max(needBytes + this.offset, this.buffer.length * 2));
-        prevBuf.copy(this.buffer);
+        this.buffer = new Uint8Array(Math.max(needBytes + this.offset, this.buffer.length * 2));
+        this.view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
+        this.buffer.set(prevBuf);
     }
 
     public writeUInt8(value: number): number {
         if (this.offset >= this.buffer.byteLength) {
             this.extend(1);
         }
-        this.buffer.writeUInt8(value, this.offset);
+        this.view.setUint8(this.offset, value);
         this.offset += 1;
         this.size = Math.max(this.offset, this.size);
         return this.offset - 1;
@@ -64,7 +66,7 @@ export class BinaryWriter {
         if (this.offset + 2 >= this.buffer.byteLength) {
             this.extend(2);
         }
-        this.buffer.writeUInt16BE(value, this.offset);
+        this.view.setUint16(this.offset, value);
         this.offset += 2;
         this.size = Math.max(this.offset, this.size);
         return this.offset - 2;
@@ -73,8 +75,8 @@ export class BinaryWriter {
         if (this.offset + 3 >= this.buffer.byteLength) {
             this.extend(3);
         }
-        this.buffer.writeUInt8((value >> 8) & 0xff, this.offset);
-        this.buffer.writeUInt16BE(value & 0xffff, this.offset);
+        this.view.setUint8(this.offset, (value >> 8) & 0xff);
+        this.view.setUint16(this.offset + 1, value & 0xffff);
         this.offset += 3;
         this.size = Math.max(this.offset, this.size);
         return this.offset - 3;
@@ -83,7 +85,7 @@ export class BinaryWriter {
         if (this.offset + 4 >= this.buffer.byteLength) {
             this.extend(4);
         }
-        this.buffer.writeUInt32BE(value, this.offset);
+        this.view.setUint32(this.offset, value);
         this.offset += 4;
         this.size = Math.max(this.offset, this.size);
         return this.offset - 4;
@@ -92,7 +94,7 @@ export class BinaryWriter {
         if (this.offset + 1 >= this.buffer.byteLength) {
             this.extend(1);
         }
-        this.buffer.writeInt8(value, this.offset);
+        this.view.setInt8(this.offset, value);
         this.offset += 1;
         this.size = Math.max(this.offset, this.size);
         return this.offset - 1;
@@ -101,7 +103,7 @@ export class BinaryWriter {
         if (this.offset + 2 >= this.buffer.byteLength) {
             this.extend(2);
         }
-        this.buffer.writeInt16BE(value, this.offset);
+        this.view.setInt16(this.offset, value);
         this.offset += 2;
         this.size = Math.max(this.offset, this.size);
         return this.offset - 2;
@@ -110,7 +112,7 @@ export class BinaryWriter {
         if (this.offset + 4 >= this.buffer.byteLength) {
             this.extend(4);
         }
-        this.buffer.writeInt32BE(value, this.offset);
+        this.view.setInt32(this.offset, value);
         this.offset += 4;
         this.size = Math.max(this.offset, this.size);
         return this.offset - 4;
@@ -119,33 +121,32 @@ export class BinaryWriter {
         if (this.offset + 8 >= this.buffer.byteLength) {
             this.extend(8);
         }
-        this.buffer.writeBigInt64BE(BigInt(value), this.offset);
+        this.view.setBigInt64(this.offset, BigInt(value));
         this.offset += 8;
         this.size = Math.max(this.offset, this.size);
         return this.offset - 8;
     }
+    utf8Encoder?: TextEncoder;
     public writeASCII(value: string): number {
+        if (this.utf8Encoder == null) {
+            this.utf8Encoder = new TextEncoder();
+        }
+        const bytes = this.utf8Encoder.encode(value);
+        return this.writeBuffer(bytes);
+    }
+    public writeBuffer(value: Uint8Array): number {
         if (this.offset + value.length >= this.buffer.byteLength) {
             this.extend(value.length);
         }
-        this.buffer.write(value, this.offset, "ascii");
+        this.buffer.set(value, this.offset);
         this.offset += value.length;
         this.size = Math.max(this.offset, this.size);
         return this.offset - value.length;
     }
-    public writeBuffer(value: Buffer): number {
-        if (this.offset + value.length >= this.buffer.byteLength) {
-            this.extend(value.length);
-        }
-        value.copy(this.buffer, this.offset);
-        this.offset += value.length;
-        this.size = Math.max(this.offset, this.size);
-        return this.offset - value.length;
-    }
-    public getBuffer(): Buffer<ArrayBuffer> {
+    public getBuffer(): Uint8Array<ArrayBuffer> {
         return this.buffer.subarray(0, this.size);
     }
-    public subarray(start?: number | undefined, end?: number | undefined): Buffer {
+    public subarray(start?: number | undefined, end?: number | undefined): Uint8Array {
         if (end == null) {
             end = this.size;
         }
@@ -153,21 +154,22 @@ export class BinaryWriter {
     }
 }
 
-function checksum(buffer: Buffer): number {
+function checksum(buffer: Uint8Array): number {
     let chksum = 0;
     let i = 0;
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     for (; i + 3 < buffer.length; i += 4) {
-        chksum = (chksum + buffer.readInt32BE(i)) & 0xffffffff;
+        chksum = (chksum + view.getInt32(i)) & 0xffffffff;
     }
     let remain = buffer.length - i;
     if (remain === 1) {
-        chksum = (chksum + (buffer.readUInt8(i + 0) << 24)) & 0xffffffff;
+        chksum = (chksum + (view.getUint8(i + 0) << 24)) & 0xffffffff;
         throw new Error("unreachable");
     } else if (remain === 2) {
-        chksum = (chksum + (buffer.readUInt16BE(i + 0) << 16)) & 0xffffffff;
+        chksum = (chksum + (view.getUint16(i + 0) << 16)) & 0xffffffff;
         throw new Error("unreachable");
     } else if (remain === 3) {
-        chksum = (chksum + ((buffer.readUInt16BE(i + 0) << 16) | (buffer.readUInt8(i + 2) << 8))) & 0xffffffff;
+        chksum = (chksum + ((view.getUint16(i + 0) << 16) | (view.getUint8(i + 2) << 8))) & 0xffffffff;
         throw new Error("unreachable");
     } else if (remain !== 0) {
         throw new Error("unreachable");
@@ -175,7 +177,7 @@ function checksum(buffer: Buffer): number {
     return chksum;
 }
 
-export function toTTF(glyphs: DRCSGlyphs[]): { ttf: Buffer<ArrayBuffer>, unicodeCharacters: number[] } {
+export function toTTF(glyphs: DRCSGlyphs[]): { ttf: Uint8Array<ArrayBuffer>, unicodeCharacters: number[] } {
     const tables = [
         { name: "cmap", writer: writeCMAP, headerOffset: -1 },
         { name: "head", writer: writeHEAD, headerOffset: -1 },
@@ -613,60 +615,145 @@ function writeLOCA(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
     }
 }
 
-function encodePNG({ width, height, bitmap, depth }: DRCSGlyph): Buffer {
-    const buffer = Buffer.alloc(33 /* IHDR */ + 12 /* IDAT */ + 2 + height * (5 + width * 2 + 1 /* filter */) + 4 + 12 /* IEND */);
+function encodePNG({ width, height, bitmap, depth }: DRCSGlyph): Uint8Array {
+    const buffer = new Uint8Array(33 /* IHDR */ + 12 /* IDAT */ + 2 + height * (5 + width * 2 + 1 /* filter */) + 4 + 12 /* IEND */);
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     let off = 0;
     // 臼NG
-    off = buffer.writeUInt8(0x89, off);
-    off = buffer.writeUInt8(0x50, off);
-    off = buffer.writeUInt8(0x4e, off);
-    off = buffer.writeUInt8(0x47, off);
-    off = buffer.writeUInt8(0x0d, off);
-    off = buffer.writeUInt8(0x0a, off);
-    off = buffer.writeUInt8(0x1a, off);
-    off = buffer.writeUInt8(0x0a, off);
+    view.setUint8(off, 0x89);
+    off++;
+    view.setUint8(off, 0x50);
+    off++;
+    view.setUint8(off, 0x4e);
+    off++;
+    view.setUint8(off, 0x47);
+    off++;
+    view.setUint8(off, 0x0d);
+    off++;
+    view.setUint8(off, 0x0a);
+    off++;
+    view.setUint8(off, 0x1a);
+    off++;
+    view.setUint8(off, 0xa);
+    off++;
 
-    off = buffer.writeUInt32BE(13, off);
+    view.setUint32(off, 13);
+    off += 4;
     const ihdrOff = off;
-    off += buffer.write("IHDR", off, "ascii");
-    off = buffer.writeUInt32BE(width, off);
-    off = buffer.writeUInt32BE(height, off);
+    view.setUint8(off, "I".charCodeAt(0));
+    off++;
+    view.setUint8(off, "H".charCodeAt(0));
+    off++;
+    view.setUint8(off, "D".charCodeAt(0));
+    off++;
+    view.setUint8(off, "R".charCodeAt(0));
+    off++;
+    view.setUint32(off, width);
+    off += 4;
+    view.setUint32(off, height);
+    off += 4;
     // 8-bit grayscale, alpha
-    off = buffer.writeUInt8(8, off);
-    off = buffer.writeUInt8(4, off);
+    view.setUint8(off, 8);
+    off++;
+    view.setUint8(off, 4);
+    off++;
     // deflate, no filter, interlace
-    off = buffer.writeUInt8(0, off);
-    off = buffer.writeUInt8(0, off);
-    off = buffer.writeUInt8(0, off);
-    off = buffer.writeInt32BE(CRC32.buf(buffer.subarray(ihdrOff, off)), off);
-    off = buffer.writeUInt32BE(2 + height * (5 + width * 2 + 1 /* filter */) + 4, off);
+    view.setUint8(off, 0);
+    off++;
+    view.setUint8(off, 0);
+    off++;
+    view.setUint8(off, 0);
+    off++;
+    view.setInt32(off, CRC32.buf(buffer.subarray(ihdrOff, off)));
+    off += 4;
+    view.setUint32(off, 2 + height * (5 + width * 2 + 1 /* filter */) + 4);
+    off += 4;
     const idatOff = off;
-    off += buffer.write("IDAT", off, "ascii");
-    off = buffer.writeUInt8(0x78, off);
-    off = buffer.writeUInt8(0x01, off);
+    view.setUint8(off, "I".charCodeAt(0));
+    off++;
+    view.setUint8(off, "D".charCodeAt(0));
+    off++;
+    view.setUint8(off, "A".charCodeAt(0));
+    off++;
+    view.setUint8(off, "T".charCodeAt(0));
+    off++;
+    view.setUint8(off, 0x78);
+    off++;
+    view.setUint8(off, 0x01);
+    off++;
     let a = 1, b = 0;
     for (let y = 0; y < height; y++) {
-        off = buffer.writeUInt8(y === height - 1 ? 1 : 0, off);
-        off = buffer.writeUInt16LE(width * 2 + 1, off);
-        off = buffer.writeUInt16LE(~(width * 2 + 1) & 0xffff, off);
-        off = buffer.writeUInt8(0x00, off);
+        view.setUint8(off, y === height - 1 ? 1 : 0);
+        off++;
+        view.setUint16(off, width * 2 + 1, true);
+        off += 2;
+        view.setUint16(off, ~(width * 2 + 1) & 0xffff, true);
+        off += 2;
+        view.setUint8(off, 0);
+        off++;
         b = (b + a) % 65521;
         for (let x = 0; x < width; x++) {
-            off = buffer.writeUInt8(255, off)
+            view.setUint8(off, 255);
+            off++;
             a = (a + 255) % 65521;
             b = (b + a) % 65521;
             const v = Math.floor(bitmap[x + y * width] / (depth - 1) * 255);
-            off = buffer.writeUInt8(v, off)
+            view.setUint8(off, v);
+            off++;
             a = (a + v) % 65521;
             b = (b + a) % 65521;
         }
     }
-    off = buffer.writeInt32BE((b << 16) + a, off);
-    off = buffer.writeInt32BE(CRC32.buf(buffer.subarray(idatOff, off)), off);
-    off = buffer.writeUInt32BE(0, off);
-    off += buffer.write("IEND", off, "ascii");
-    off = buffer.writeInt32BE(CRC32.buf(buffer.subarray(off - 4, off)), off);
+    view.setInt32(off, (b << 16) + a);
+    off += 4;
+    view.setInt32(off, CRC32.buf(buffer.subarray(idatOff, off)));
+    off += 4;
+    view.setUint32(off, 0);
+    off += 4;
+    view.setUint8(off, "I".charCodeAt(0));
+    off++;
+    view.setUint8(off, "E".charCodeAt(0));
+    off++;
+    view.setUint8(off, "N".charCodeAt(0));
+    off++;
+    view.setUint8(off, "D".charCodeAt(0));
+    off++;
+    view.setInt32(off, CRC32.buf(buffer.subarray(off - 4, off)));
+    off += 4;
     return buffer;
+}
+
+let base64Table: string[] = [];
+
+function toBase64(input: Uint8Array): string {
+    // Node 25からなため
+    if ("toBase64" in Uint8Array.prototype) {
+        return input.toBase64();
+    }
+    if (base64Table.length === 0) {
+        base64Table = Array.from({ length: 64 }).map((_, i) => globalThis.btoa(String.fromCharCode(i << 2)).charAt(0));
+    }
+    let result = "";
+    for (let i = 0; i + 3 <= input.length; i += 3) {
+        const t = (input[i] << 16) | (input[i + 1] << 8) | (input[i + 2]);
+        result += base64Table[(t >> 18) & 63];
+        result += base64Table[(t >> 12) & 63];
+        result += base64Table[(t >> 6) & 63];
+        result += base64Table[t & 63];
+    }
+    if (input.length % 3 === 1) {
+        const t = input[input.length - 1] << 16;
+        result += base64Table[(t >> 18) & 63];
+        result += base64Table[(t >> 12) & 63];
+        result += "==";
+    } else if (input.length % 3 === 2) {
+        const t = (input[input.length - 2] << 16) | (input[input.length - 1] << 8);
+        result += base64Table[(t >> 18) & 63];
+        result += base64Table[(t >> 12) & 63];
+        result += base64Table[(t >> 6) & 63];
+        result += "=";
+    }
+    return result;
 }
 
 function writeSVG(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
@@ -690,12 +777,13 @@ function writeSVG(glyphs: DRCSGlyphs[], writer: BinaryWriter) {
         let svg = `<svg id="glyph${glyphId}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 ${glyph.height} ${glyph.width} ${glyph.height}">
 <defs>
 <mask id="mask">
-<image x="0" y="${-Math.round(-glyph.width * 123 / 1024)}" width="${glyph.width + 1}" height="${glyph.height + 1}" xlink:href="data:image/png;base64,${png.toString("base64")}"/>
+<image x="0" y="${-Math.round(-glyph.width * 123 / 1024)}" width="${glyph.width + 1}" height="${glyph.height + 1}" xlink:href="data:image/png;base64,${toBase64(png)}"/>
 </mask>
 </defs>
 <rect x="0" y="${-Math.round(-glyph.width * 123 / 1024)}" width="${glyph.width + 1}" height="${glyph.height + 1}" mask="url(#mask)" />
 </svg>`;
-        offsets.push({ glyphId, offset: writer.writeASCII(svg), size: svg.length });
+        const offset = writer.writeASCII(svg);
+        offsets.push({ glyphId, offset, size: writer.position - offset });
     }
     const prev = writer.seek(offsetSVGDocumentList + 2);
     for (const g of offsets) {
@@ -714,21 +802,21 @@ export enum FontId {
     BoldRoundGothic = 3, // 太丸ゴシック
 }
 
-export function loadDRCS(drcs: Buffer, filterId?: number): DRCSGlyphs[] {
+export function loadDRCS(drcs: Uint8Array<ArrayBuffer>, filterId?: number): DRCSGlyphs[] {
     let off = 0;
-    const nCode = drcs.readUInt8(off);
+    const nCode = drcs[off];
     off += 1;
     const ret: DRCSGlyphs[] = [];
     for (let i = 0; i < nCode; i++) {
-        const charCode1 = drcs.readUInt8(off);
+        const charCode1 = drcs[off];
         off += 1;
-        const charCode2 = drcs.readUInt8(off);
+        const charCode2 = drcs[off];
         off += 1;
-        const nFont = drcs.readUInt8(off);
+        const nFont = drcs[off];
         off += 1;
         const glyphs: DRCSGlyphs = { ku: charCode1 - 0x20, ten: charCode2 - 0x20, glyphs: [] };
         for (let j = 0; j < nFont; j++) {
-            const b = drcs.readUInt8(off);
+            const b = drcs[off];
             off += 1;
             const fontId = (b >> 4) as FontId;
             const mode = b & 15;
@@ -738,16 +826,16 @@ export function loadDRCS(drcs: Buffer, filterId?: number): DRCSGlyphs[] {
             // modeは1のみが運用される
             if (mode === 0 || mode === 1) {
                 // depthは2のみが運用される(4階調)
-                const depth = drcs.readUInt8(off);
+                const depth = drcs[off];
                 off += 1;
                 // 以下のフォントサイズのみが運用される (STD-B24 第二分冊 第二編 付属3 4.6.10 表4-10参照)
                 // 丸ゴシック(1) 16px, 20px, 24px, 30px, 36px
                 // 太丸ゴシック(3) 30px
                 // 角ゴシック(2) 20px, 24px
                 // DRCSは全角のみが運用される
-                const width = drcs.readUInt8(off);
+                const width = drcs[off];
                 off += 1;
-                const height = drcs.readUInt8(off);
+                const height = drcs[off];
                 off += 1;
                 const depthBits = Math.ceil(Math.log2(depth + 2));
                 let posBits = off * 8;

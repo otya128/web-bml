@@ -1,10 +1,9 @@
-import { Buffer } from "buffer";
 import { TSReader } from "arib-mmt-tlv-ts/ts/reader.js";
 import { decodeSIText } from "arib-mmt-tlv-ts/ts/si-text-decoder.js";
 import { bcdTimeToSeconds, mjdBCDToUnixEpoch } from "arib-mmt-tlv-ts/utils.js";
 import { PESReader } from "arib-mmt-tlv-ts/ts/pes-reader.js";
 import { unzlibSync } from "fflate";
-import { EntityParser, MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from "./entity_parser";
+import { EntityParser, type MediaType, parseMediaType, entityHeaderToString, parseMediaTypeFromString } from "./entity_parser";
 import * as wsApi from "./ws_api";
 import type { ComponentPMT, AdditionalAribBXMLInfo } from "./ws_api";
 
@@ -35,7 +34,7 @@ type DownloadModuleInfo = {
 type CachedModuleFile = {
     contentType: MediaType,
     contentLocation: string | null,
-    data: Buffer,
+    data: Uint8Array,
 };
 
 type CachedModule = {
@@ -54,12 +53,53 @@ type CachedComponent = {
     modules: Map<number, CachedModule>,
 };
 
-function toBase64(input: Buffer): string {
+const utf8Decoder = new TextDecoder("utf-8");
+
+let base64Table: string[] = [];
+
+function toBase64(input: Uint8Array): string {
     // Node 25からなため
     if ("toBase64" in Uint8Array.prototype) {
         return input.toBase64();
     }
-    return input.toString("base64");
+    if (base64Table.length === 0) {
+        base64Table = Array.from({ length: 64 }).map((_, i) => globalThis.btoa(String.fromCharCode(i << 2)).charAt(0));
+    }
+    let result = "";
+    for (let i = 0; i + 3 <= input.length; i += 3) {
+        const t = (input[i] << 16) | (input[i + 1] << 8) | (input[i + 2]);
+        result += base64Table[(t >> 18) & 63];
+        result += base64Table[(t >> 12) & 63];
+        result += base64Table[(t >> 6) & 63];
+        result += base64Table[t & 63];
+    }
+    if (input.length % 3 === 1) {
+        const t = input[input.length - 1] << 16;
+        result += base64Table[(t >> 18) & 63];
+        result += base64Table[(t >> 12) & 63];
+        result += "==";
+    } else if (input.length % 3 === 2) {
+        const t = (input[input.length - 2] << 16) | (input[input.length - 1] << 8);
+        result += base64Table[(t >> 18) & 63];
+        result += base64Table[(t >> 12) & 63];
+        result += base64Table[(t >> 6) & 63];
+        result += "=";
+    }
+    return result;
+}
+
+function concatBuffers(buffers: Uint8Array[]): Uint8Array {
+    if (buffers.length === 1) {
+        return buffers[0];
+    }
+    const total = buffers.reduce((p, c) => p + c.length, 0);
+    const result = new Uint8Array(total);
+    let offset = 0;
+    for (const buffer of buffers) {
+        result.set(buffer, offset);
+        offset += buffer.length;
+    }
+    return result;
 }
 
 export function decodeTS(options: DecodeTSOptions) {
@@ -169,7 +209,7 @@ export function decodeTS(options: DecodeTSOptions) {
                         dataComponentId == 0x07 || // BS
                         dataComponentId == 0x0B // CS
                     ) {
-                        bxmlInfo = decodeAdditionalAribBXMLInfo(Buffer.from(esInfo.additionalDataComponentInfo));
+                        bxmlInfo = decodeAdditionalAribBXMLInfo(esInfo.additionalDataComponentInfo);
                     }
                 }
             }
@@ -479,7 +519,7 @@ export function decodeTS(options: DecodeTSOptions) {
                 for (const info of module.moduleInfoDescriptors) {
                     // Type記述子, ダウンロード推定時間記述子, Compression Type記述子のみ運用される(TR-B14 第三分冊 4.2.4 表4-4参照)
                     if (info.tag === "type") { // Type記述子 STD-B24 第三分冊 第三編 6.2.3.1
-                        const contentType = Buffer.from(info.text).toString("ascii");
+                        const contentType = utf8Decoder.decode(info.text);
                         moduleInfo.contentType = contentType;
                     } else if (info.tag === "estDownloadTime") { // ダウンロード推定時間記述子 STD-B24 第三分冊 第三編 6.2.3.6
                     } else if (info.tag === "compressionType") { // Compression Type記述子 STD-B24 第三分冊 第三編 6.2.3.9
@@ -560,7 +600,7 @@ export function decodeTS(options: DecodeTSOptions) {
                     downloadModuleInfo: moduleInfo,
                     dataEventId: data_event_id,
                 };
-                let moduleData = Buffer.concat(moduleInfo.blocks as Uint8Array[]);
+                let moduleData = concatBuffers(moduleInfo.blocks as Uint8Array[]);
                 moduleInfo.blocks = undefined;
                 const previousCachedModule = cachedComponent.modules.get(moduleInfo.moduleId);
                 if (previousCachedModule != null && previousCachedModule.downloadModuleInfo.moduleVersion === moduleInfo.moduleVersion && previousCachedModule.dataEventId === moduleInfo.dataEventId) {
@@ -568,8 +608,7 @@ export function decodeTS(options: DecodeTSOptions) {
                     return;
                 }
                 if (moduleInfo.compressionType === CompressionType.Zlib) {
-                    const r = unzlibSync(moduleData);
-                    moduleData = Buffer.from(r.buffer, r.byteOffset, r.byteLength);
+                    moduleData = unzlibSync(moduleData);
                 }
                 const mediaType = moduleInfo.contentType == null ? null : parseMediaTypeFromString(moduleInfo.contentType).mediaType;
                 // console.info(`component ${componentId.toString(16).padStart(2, "0")} module ${moduleId.toString(16).padStart(4, "0")}updated`);
@@ -699,7 +738,7 @@ export function decodeTS(options: DecodeTSOptions) {
     return reader;
 }
 
-function decodeAdditionalAribBXMLInfo(additional_data_component_info: Buffer): AdditionalAribBXMLInfo {
+function decodeAdditionalAribBXMLInfo(additional_data_component_info: Uint8Array): AdditionalAribBXMLInfo {
     let off = 0;
     // 地上波についてはTR-B14 第二分冊 2.1.4 表2-3を参照
     // BSについてはTR-B15 第一分冊 5.1.5 表5-4を参照

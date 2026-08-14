@@ -1,5 +1,5 @@
 import { defaultCLUT } from './default_clut';
-export function readCLUT(clut: Buffer): number[][] {
+export function readCLUT(clut: Uint8Array<ArrayBuffer>): number[][] {
     let table = defaultCLUT.slice();
     const prevLength = table.length;
     table.length = 256;

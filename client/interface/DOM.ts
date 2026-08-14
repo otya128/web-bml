@@ -5,7 +5,6 @@ import { aribPNGToPNG } from "../arib_png";
 import { readCLUT } from "../clut";
 import { defaultCLUT } from "../default_clut";
 import { parseCSSValue } from "../transpile_css";
-import { Buffer } from "buffer";
 import { Interpreter } from "../interpreter/interpreter";
 import { AudioNodeProvider, BMLBrowserEventTarget, InputApplication, inputCharacters, InputCharacterType } from "../bml_browser";
 import { convertJPEG } from "../arib_jpeg";
@@ -1241,8 +1240,8 @@ export namespace BML {
                         return;
                     }
                     if (isMNG) {
-                        const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
-                        const keyframes = aribMNGToCSSAnimation(Buffer.from(fetched.data), clut);
+                        const clut = fetchedClut == null ? defaultCLUT : readCLUT(fetchedClut);
+                        const keyframes = aribMNGToCSSAnimation(fetched.data, clut);
                         this.delete();
                         if (keyframes == null) {
                             return;
@@ -1264,8 +1263,8 @@ export namespace BML {
                     } else {
                         imageUrl = fetched.blobUrl.get(fetchedClut);
                         if (imageUrl == null) {
-                            const clut = fetchedClut == null ? defaultCLUT : readCLUT(Buffer.from(fetchedClut?.buffer));
-                            const png = aribPNGToPNG(Buffer.from(fetched.data), clut);
+                            const clut = fetchedClut == null ? defaultCLUT : readCLUT(fetchedClut);
+                            const png = aribPNGToPNG(fetched.data, clut);
                             const blob = new Blob([png.data], { type: "image/png" });
                             imageUrl = { blobUrl: URL.createObjectURL(blob), width: png.width, height: png.height };
                             fetched.blobUrl.set(fetchedClut, imageUrl);
@@ -1445,7 +1444,7 @@ export namespace BML {
                         if (data == null) {
                             return;
                         }
-                        this.audioBufferSourceNode = playAIFF(this.ownerDocument.audioNodeProvider.getAudioDestinationNode(), Buffer.from(data)) ?? undefined;
+                        this.audioBufferSourceNode = playAIFF(this.ownerDocument.audioNodeProvider.getAudioDestinationNode(), data) ?? undefined;
                         this.node.setAttribute("streamstatus", "play");
                         if (this.audioBufferSourceNode != null) {
                             const sourceNode = this.audioBufferSourceNode;

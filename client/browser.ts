@@ -1,6 +1,5 @@
 import { NVRAM } from "./nvram";
 import * as resource from "./resource";
-import { Buffer } from "buffer";
 import * as drcs from "./drcs";
 import { Interpreter } from "./interpreter/interpreter";
 import { EventDispatcher, EventQueue } from "./event_queue";
@@ -590,13 +589,13 @@ export class BrowserAPI {
             if (res?.data == null) {
                 return NaN;
             }
-            this.content.loadDRCS(drcs.loadDRCS(Buffer.from(res.data)));
+            this.content.loadDRCS(drcs.loadDRCS(res.data));
             for (const [id, fontFamily] of [
                 [1, "丸ゴシック"],
                 [2, "角ゴシック"],
                 [3, "太丸ゴシック"],
             ]) {
-                const glyph = drcs.loadDRCS(Buffer.from(res.data), id as number);
+                const glyph = drcs.loadDRCS(res.data, id as number);
                 const { ttf, unicodeCharacters } = drcs.toTTF(glyph);
                 if (unicodeCharacters.length === 0) {
                     continue;

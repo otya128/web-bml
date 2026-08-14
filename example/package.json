@@ -12,7 +12,6 @@
     "dependencies": {
         "arib-subtitle-timedmetadater": "^4.0.10",
         "aribb24.js": "^1.10.9",
-        "buffer": "^6.0.3",
         "dotenv": "^16.0.3",
         "hls.js": "^1.2.1",
         "koa": "^2.13.4",

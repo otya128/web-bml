@@ -1,6 +1,5 @@
 // STD-B24 TR-B14 TR-B15で規定されるAIFFのサブセットを再生する
 // 12 kHz 1ch 16-bit
-import { Buffer } from "buffer";
 
 type COMM = {
     numChannels: number,
@@ -9,40 +8,42 @@ type COMM = {
     sampleRate: number,
 };
 
-function decodeAIFF(aiff: Buffer): { comm: COMM, soundData: Buffer } | null {
+function decodeAIFF(aiff: Uint8Array<ArrayBuffer>): { comm: COMM, soundData: Uint8Array<ArrayBuffer> } | null {
     let off = 0;
-    const ckID = aiff.toString("ascii", off, off + 4);
+    const ckID = String.fromCharCode(...aiff.subarray(off, off + 4));
     if (ckID !== "FORM") {
         return null;
     }
     off += 4;
-    const ckDataSize = aiff.readUInt32BE(off);
+    const aiffView = new DataView(aiff.buffer, aiff.byteOffset, aiff.byteLength);
+    const ckDataSize = aiffView.getUint32(off);
     off += 4;
     const endOffset = Math.min(off + ckDataSize, aiff.length);
-    const formType = aiff.toString("ascii", off, off + 4);
+    const formType = String.fromCharCode(...aiff.subarray(off, off + 4));
     if (formType !== "AIFC") {
         return null;
     }
     off += 4;
     let comm: COMM | undefined;
-    let soundData: Buffer | undefined;
+    let soundData: Uint8Array<ArrayBuffer> | undefined;
     while (off < endOffset) {
-        const ckID = aiff.toString("ascii", off, off + 4);
+        const ckID = String.fromCharCode(...aiff.subarray(off, off + 4));
         off += 4;
-        const ckDataSize = aiff.readUInt32BE(off);
+        const ckDataSize = aiffView.getUint32(off);
         off += 4;
         const nextOff = off + ckDataSize;
         if (ckID === "COMM") {
-            const numChannels = aiff.readUInt16BE(off);
+            const numChannels = aiffView.getUint16(off);
             off += 2;
-            const numSampleFrames = aiff.readUInt32BE(off); // samples/channel
+            const numSampleFrames = aiffView.getUint32(off); // samples/channel
             off += 4;
-            const sampleSize = aiff.readUInt16BE(off); // bits/sample
+            const sampleSize = aiffView.getUint16(off); // bits/sample
             off += 2;
-            soundData = Buffer.alloc((numSampleFrames * numChannels * sampleSize + 7) / 8);
+            soundData = new Uint8Array(Math.trunc((numSampleFrames * numChannels * sampleSize + 7) / 8));
             const sampleRateRaw = aiff.subarray(off, off + 10); // sample_frames/sec
-            const exponent = (sampleRateRaw.readUInt16BE(0) & 0x7fff) - 16383 - 63;
-            let fraction = sampleRateRaw.readBigUInt64BE(2);
+            const sampleRateRawView = new DataView(sampleRateRaw.buffer, sampleRateRaw.byteOffset, sampleRateRaw.byteLength);
+            const exponent = (sampleRateRawView.getUint16(0) & 0x7fff) - 16383 - 63;
+            let fraction = sampleRateRawView.getBigUint64(2);
             if (sampleRateRaw[0] & 0x80) {
                 fraction = -fraction;
             }
@@ -59,7 +60,7 @@ function decodeAIFF(aiff: Buffer): { comm: COMM, soundData: Buffer } | null {
                 sampleRate: Number(sampleRate),
             };
             off += 10;
-            const compressionType = aiff.toString("ascii", off, off + 4);
+            const compressionType = String.fromCharCode(...aiff.subarray(off, off + 4));
             if (compressionType !== "NONE") {
                 return null;
             }
@@ -71,11 +72,11 @@ function decodeAIFF(aiff: Buffer): { comm: COMM, soundData: Buffer } | null {
             if (soundData == null) {
                 return null;
             }
-            const offset = aiff.readUInt32BE(off);
+            const offset = aiffView.getUint32(off);
             off += 4;
-            const blockSize = aiff.readUInt32BE(off);
+            const blockSize = aiffView.getUint32(off);
             off += 4;
-            aiff.copy(soundData, offset, off, nextOff);
+            soundData.set(aiff.subarray(off, nextOff), offset);
         }
         off = nextOff;
     }
@@ -85,7 +86,7 @@ function decodeAIFF(aiff: Buffer): { comm: COMM, soundData: Buffer } | null {
     return { comm, soundData };
 }
 
-export function playAIFF(destination: AudioNode, aiff: Buffer): AudioBufferSourceNode | null {
+export function playAIFF(destination: AudioNode, aiff: Uint8Array<ArrayBuffer>): AudioBufferSourceNode | null {
     const a = decodeAIFF(aiff);
     if (a == null) {
         return null;

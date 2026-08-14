@@ -1,4 +1,3 @@
-import { Buffer } from "buffer";
 import { preparePLTE, prepareTRNS } from "./arib_png";
 
 type MHDR = {
@@ -41,7 +40,8 @@ type Frame = {
 
 export type MNGAnimation = { keyframes: Keyframe[], options: KeyframeAnimationOptions, width: number, height: number, blobs: string[] };
 
-export function aribMNGToCSSAnimation(mng: Buffer<ArrayBuffer>, clut: number[][]): MNGAnimation | null {
+export function aribMNGToCSSAnimation(mngData: Uint8Array<ArrayBuffer>, clut: number[][]): MNGAnimation | null {
+    const mng = new DataView(mngData.buffer, mngData.byteOffset, mngData.byteLength);
     const frames: Frame[] = [];
     const plte = preparePLTE(clut);
     const trns = prepareTRNS(clut);
@@ -62,60 +62,60 @@ export function aribMNGToCSSAnimation(mng: Buffer<ArrayBuffer>, clut: number[][]
         xLocation: 0,
         yLocation: 0,
     };
-    let ihdr: Buffer<ArrayBuffer> | undefined;
+    let ihdr: Uint8Array<ArrayBuffer> | undefined;
     let animationLength = 0;
     while (inOff < mng.byteLength) {
-        let chunkLength = mng.readUInt32BE(inOff);
-        let chunkType = mng.toString("ascii", inOff + 4, inOff + 8);
+        let chunkLength = mng.getUint32(inOff);
+        let chunkType = String.fromCharCode(...mngData.subarray(inOff + 4, inOff + 8));
         if (chunkType === "PLTE" || chunkType == "tRNS") {
             // PLTEとtRNSは削除
         } else if (chunkType === "MHDR") {
             mhdr = {
-                frameWidth: mng.readUInt32BE(inOff + 8 + 0),
-                frameHeight: mng.readUInt32BE(inOff + 8 + 4),
-                ticksPerSecond: mng.readUInt32BE(inOff + 8 + 8), // 0以外
-                nominalLayerCount: mng.readUInt32BE(inOff + 8 + 12), // 0に固定
-                nominalFrameCount: mng.readUInt32BE(inOff + 8 + 16), // 0に固定
-                nominalPlayTime: mng.readUInt32BE(inOff + 8 + 20), // 0に固定
-                simplicityProfile: mng.readUInt32BE(inOff + 8 + 24), // 0に固定
+                frameWidth: mng.getUint32(inOff + 8 + 0),
+                frameHeight: mng.getUint32(inOff + 8 + 4),
+                ticksPerSecond: mng.getUint32(inOff + 8 + 8), // 0以外
+                nominalLayerCount: mng.getUint32(inOff + 8 + 12), // 0に固定
+                nominalFrameCount: mng.getUint32(inOff + 8 + 16), // 0に固定
+                nominalPlayTime: mng.getUint32(inOff + 8 + 20), // 0に固定
+                simplicityProfile: mng.getUint32(inOff + 8 + 24), // 0に固定
             };
         } else if (chunkType === "MEND") {
         } else if (chunkType === "TERM") {
             term = {
-                terminationAction: mng.readUInt8(inOff + 8 + 0), // 3に固定
-                actionAfterIterations: mng.readUInt8(inOff + 8 + 1), // 0に固定
-                delay: mng.readUInt32BE(inOff + 8 + 2), // 0に固定
-                iterationMax: mng.readUInt32BE(inOff + 8 + 6),
+                terminationAction: mng.getUint8(inOff + 8 + 0), // 3に固定
+                actionAfterIterations: mng.getUint8(inOff + 8 + 1), // 0に固定
+                delay: mng.getUint32(inOff + 8 + 2), // 0に固定
+                iterationMax: mng.getUint32(inOff + 8 + 6),
             };
         } else if (chunkType === "FRAM") {
-            let framingMode = mng.readUInt8(inOff + 8 + 0); // 0, 1, 3
+            let framingMode = mng.getUint8(inOff + 8 + 0); // 0, 1, 3
             if (framingMode !== 0) {
                 fram.framingMode = framingMode;
             }
             if (chunkLength >= 10) {
-                const subframeName = mng.readUInt8(inOff + 8 + 1); // 0に固定 ("")
-                const changeInterfameName = mng.readUInt8(inOff + 8 + 2); // 2に固定 interframeDelayのデフォルトを設定する
-                const changeSyncTimeoutAndTermination = mng.readUInt8(inOff + 8 + 3); // 0に固定 変更しない
-                const changeSubframeClippingBoundaries = mng.readUInt8(inOff + 8 + 4); // 0に固定 変更しない
-                const changeSyncIdList = mng.readUInt8(inOff + 8 + 5); // 0に固定 変更しない
-                const interframeDelay = mng.readUInt32BE(inOff + 8 + 6); // tick
+                const subframeName = mng.getUint8(inOff + 8 + 1); // 0に固定 ("")
+                const changeInterfameName = mng.getUint8(inOff + 8 + 2); // 2に固定 interframeDelayのデフォルトを設定する
+                const changeSyncTimeoutAndTermination = mng.getUint8(inOff + 8 + 3); // 0に固定 変更しない
+                const changeSubframeClippingBoundaries = mng.getUint8(inOff + 8 + 4); // 0に固定 変更しない
+                const changeSyncIdList = mng.getUint8(inOff + 8 + 5); // 0に固定 変更しない
+                const interframeDelay = mng.getUint32(inOff + 8 + 6); // tick
                 if (changeInterfameName == 2) {
                     fram.interframeDelay = interframeDelay;
                 }
             }
         } else if (chunkType === "DEFI") {
             defi = {
-                objectId: mng.readUInt16BE(inOff + 8 + 0), // 0に固定
-                doNotShowFlag: mng.readUInt8(inOff + 8 + 2), // 0に固定
-                concreteFlag: mng.readUInt8(inOff + 8 + 3), // 0に固定
-                xLocation: mng.readUInt32BE(inOff + 8 + 4),
-                yLocation: mng.readUInt32BE(inOff + 8 + 8),
+                objectId: mng.getUint16(inOff + 8 + 0), // 0に固定
+                doNotShowFlag: mng.getUint8(inOff + 8 + 2), // 0に固定
+                concreteFlag: mng.getUint8(inOff + 8 + 3), // 0に固定
+                xLocation: mng.getUint32(inOff + 8 + 4),
+                yLocation: mng.getUint32(inOff + 8 + 8),
             };
         } else if (chunkType === "IHDR") {
-            ihdr = mng.subarray(inOff, inOff + chunkLength + 4 + 4 + 4);
+            ihdr = mngData.subarray(inOff, inOff + chunkLength + 4 + 4 + 4);
         } else if (chunkType === "IDAT") {
             if (ihdr != null) {
-                const idat = mng.subarray(inOff, inOff + chunkLength + 4 + 4 + 4);
+                const idat = mngData.subarray(inOff, inOff + chunkLength + 4 + 4 + 4);
                 const frameImage = new Blob([pngSignature, ihdr, plte, trns, idat], { type: "image/png" });
                 const image = URL.createObjectURL(frameImage);
 

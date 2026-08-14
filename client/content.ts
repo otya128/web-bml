@@ -3,7 +3,6 @@ import { Resources, CachedFile, Profile, CachedFileMetadata } from "./resource";
 import { defaultCLUT } from "./default_clut";
 import { readCLUT } from "./clut";
 import { transpileCSS } from "./transpile_css";
-import { Buffer } from "buffer";
 import { BML } from "./interface/DOM";
 import { bmlToXHTMLFXP } from "./bml_to_xhtml";
 import { NPTReference, ResponseMessage } from "../server/ws_api";
@@ -1269,7 +1268,7 @@ export class Content {
         const res = await this.resources.fetchResourceAsync(clutUrl);
         let clut = defaultCLUT;
         if (res?.data) {
-            clut = readCLUT(Buffer.from(res.data));
+            clut = readCLUT(res.data);
         }
         return this.clutToDecls(clut);
     }
