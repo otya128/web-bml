@@ -40,7 +40,6 @@
   },
   "devDependencies": {
     "@types/css": "^0.0.38",
-    "@types/node": "^26.2.0",
     "typescript": "^6.0.3"
   },
   "workspaces": [
