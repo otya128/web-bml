@@ -519,6 +519,39 @@ export class NVRAM {
         return data.length;
     }
 
+    /**
+     * 受信機に設定された情報 (nvram://receiverinfo/) を受信機側から設定する
+     * zipCode: 郵便番号 (数字7文字), prefecture: 1バイト, regionCode: 2バイト
+     * prefecture, regioncodeはデータ放送からは書き込めない (TR-B14 第二分冊 5.2.7 表5-2参照)
+     * undefinedの項目は変更せず、nullの項目は削除する
+     */
+    public setReceiverInfo(info: { zipCode?: string | null, prefecture?: number | null, regionCode?: number | null }): void {
+        if (info.zipCode !== undefined) {
+            const key = this.prefix + "prefix=receiverinfo%2Fzipcode";
+            if (info.zipCode == null) {
+                localStorage.removeItem(key);
+            } else {
+                localStorage.setItem(key, window.btoa(info.zipCode.substring(0, 7)));
+            }
+        }
+        if (info.prefecture !== undefined) {
+            const key = this.prefix + "prefix=receiverinfo%2Fprefecture";
+            if (info.prefecture == null) {
+                localStorage.removeItem(key);
+            } else {
+                localStorage.setItem(key, window.btoa(String.fromCharCode(info.prefecture & 0xff)));
+            }
+        }
+        if (info.regionCode !== undefined) {
+            const key = this.prefix + "prefix=receiverinfo%2Fregioncode";
+            if (info.regionCode == null) {
+                localStorage.removeItem(key);
+            } else {
+                localStorage.setItem(key, window.btoa(String.fromCharCode((info.regionCode >> 8) & 0xff, info.regionCode & 0xff)));
+            }
+        }
+    }
+
     public readPersistentArray(filename: string, structure: string): any[] | null {
         if (!filename?.startsWith("nvram://")) {
             return null;
