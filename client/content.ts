@@ -1347,6 +1347,11 @@ export class Content {
         if (msg.type === "pcr") {
             this.pcrBase = msg.pcrBase;
             this.processTimerEvent();
+        } else if (msg.type === "currentTime") {
+            // PCRが送られてこない場合でも絶対時刻のTimerFiredは発火させる
+            if (this.pcrBase == null) {
+                this.processTimerEvent();
+            }
         } else if (msg.type === "esEventUpdated") {
             const activeComponentId = this.resources.currentComponentId;
             if (activeComponentId == null) {
