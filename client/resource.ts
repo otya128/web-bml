@@ -456,6 +456,7 @@ export class Resources {
 
     private currentTimeNearestPCRBase?: number;
     private _currentTimeUnixMillis?: number;
+    private currentTimeReceivedAt?: number;
     private maxTOTIntervalMillis = 30 * 1000; // STD-B10的には30秒に1回は送る必要がある ただし実際の運用は5秒間隔で送られる
 
     public get currentTimeUnixMillis(): number | null {
@@ -464,6 +465,11 @@ export class Resources {
             if (pcr > 0) {
                 return this._currentTimeUnixMillis + Math.min(this.maxTOTIntervalMillis, Math.floor(pcr / 90));
             }
+        }
+        // PCRが送られてこない場合 (埋め込み先がcurrentTimeのみを送る場合など) は受信してからの経過時間で補間する
+        if (this._currentTimeUnixMillis != null && this.nearestPCRBase == null && this.currentTimeReceivedAt != null) {
+            const elapsed = Math.floor(performance.now() - this.currentTimeReceivedAt);
+            return this._currentTimeUnixMillis + Math.min(this.maxTOTIntervalMillis, Math.max(0, elapsed));
         }
         return this._currentTimeUnixMillis ?? null;
     }
@@ -595,6 +601,7 @@ export class Resources {
         } else if (msg.type === "currentTime") {
             this.currentTimeNearestPCRBase = this.nearestPCRBase;
             this._currentTimeUnixMillis = msg.timeUnixMillis;
+            this.currentTimeReceivedAt = performance.now();
         } else if (msg.type === "pcr") {
             this.nearestPCRBase = msg.pcrBase;
         } else if (msg.type === "error") {
