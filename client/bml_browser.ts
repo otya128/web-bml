@@ -329,6 +329,14 @@ export class BMLBrowser {
         return this.documentElement.querySelector("object[arib-type=\"video/X-arib-mpeg2\"]");
     }
 
+    /**
+     * 指定された種類のbeitemがsubscribeされているか
+     * 例えばDataButtonPressedがsubscribeされていない場合データボタンを押しても文書には何も起こらない
+     */
+    public isBeitemSubscribed(type: string): boolean {
+        return this.documentElement.querySelector(`beitem[type="${CSS.escape(type)}"][subscribe="subscribe"]`) != null;
+    }
+
     public destroy(): void {
         for (const font of this.fonts) {
             document.fonts.delete(font);
