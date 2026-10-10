@@ -92,6 +92,8 @@ html {
     --large: 30px;
     /* タブは空白一文字分 (TR-B14 第三分冊 7.7.3 注4) */
     tab-size: 1;
+    /* 追加記号集合は受信機と同様に絵文字ではなく文字として表示する */
+    font-variant-emoji: text;
     --font-size: var(--medium);
     --font-size-raw: medium;
 }
